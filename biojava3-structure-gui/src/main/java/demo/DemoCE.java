@@ -29,6 +29,7 @@ import org.biojava.bio.structure.Structure;
 import org.biojava.bio.structure.StructureTools;
 import org.biojava.bio.structure.align.StructureAlignment;
 import org.biojava.bio.structure.align.StructureAlignmentFactory;
+import org.biojava.bio.structure.align.ce.CeCPMain;
 import org.biojava.bio.structure.align.ce.CeMain;
 import org.biojava.bio.structure.align.ce.CeParameters;
 import org.biojava.bio.structure.align.gui.StructureAlignmentDisplay;
@@ -48,7 +49,8 @@ public class DemoCE
        String name1 = "1cdg.A";
        String name2 = "1tim.B";
        
-   
+       name1 = "1ATG.A";
+       name2 = "2B4L.A";
        
        AtomCache cache = new AtomCache();
                
@@ -57,7 +59,7 @@ public class DemoCE
 
        try {
 
-          StructureAlignment algorithm  = StructureAlignmentFactory.getAlgorithm(CeMain.algorithmName);
+          StructureAlignment algorithm  = StructureAlignmentFactory.getAlgorithm(CeCPMain.algorithmName);
           
            structure1 = cache.getStructure(name1);
            structure2 = cache.getStructure(name2);
@@ -96,6 +98,17 @@ public class DemoCE
            afpChain.setTMScore(tmScore);
            System.out.println(AfpChainWriter.toScoresList(afpChain));
            
+           System.out.println();
+           System.out.format("%d\t%d%n", ca1.length,ca2.length);
+           System.out.format("%s\t%s%n	", name1, name2);
+           int blocks = afpChain.getBlockNum();
+           int[] lens = afpChain.getOptLen();
+           int[][][] optAln = afpChain.getOptAln();
+           for(int block = 0; block<blocks;block++) {
+        	   for(int pos=0;pos<lens[block];pos++) {
+        		   System.out.format("%s\t%s%n", optAln[block][0][pos],optAln[block][1][pos]);
+        	   }
+           }
        } catch (Exception e) {
            e.printStackTrace();
            return;

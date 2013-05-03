@@ -59,7 +59,7 @@ public class RemotePDPProvider extends SerializableCache<String,SortedSet<String
 
 	public static void main(String[] args){
 
-		System.setProperty(AbstractUserArgumentProcessor.CACHE_DIR,"/Users/ap3/WORK/PDB");	
+		System.setProperty(AbstractUserArgumentProcessor.CACHE_DIR,"/Users/blivens/pdb");	
 
 		RemotePDPProvider me = new RemotePDPProvider(true);
 

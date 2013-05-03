@@ -395,6 +395,7 @@ public class StructureTools {
 			if ( newChain == null){
 				newChain = new ChainImpl();
 				newChain.setChainID(parentC.getChainID());
+				//TODO copy additional properties
 				model.add(newChain);
 			}
 
@@ -402,6 +403,7 @@ public class StructureTools {
 
 			newCA[apos] = parentN.getAtom(" CA ");
 			newChain.addGroup(parentN);
+			//TODO clone structure?
 		}
 		return newCA;
 	}

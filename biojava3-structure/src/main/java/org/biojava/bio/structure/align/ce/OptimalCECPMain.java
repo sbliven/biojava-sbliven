@@ -192,7 +192,8 @@ public class OptimalCECPMain extends CeMain {
 		permuteArray(ca2,cp);
 				
 		// perform alignment
-		AFPChain afpChain = super.align(ca1, ca2, param);
+		CeMain ce = new CeMain();
+		AFPChain afpChain = ce.align(ca1, ca2, param);
 		
 		// un-permute alignment
 		permuteAFPChain(afpChain, -cp);
@@ -538,7 +539,7 @@ public class OptimalCECPMain extends CeMain {
 		try {
 			String name1, name2;
 
-			int[] cps= new int[] {};
+			int[] cps= new int[] {};// cps to display
 			
 			//Concanavalin
 			name1 = "2pel.A";
@@ -557,12 +558,15 @@ public class OptimalCECPMain extends CeMain {
 			};*/
 			
 			//1itb selfsymmetry
-			//name1 = "1ITB.A";
-			//name2 = "1ITB.A";
-			//cps = new int[] {92};
+			name1 = "1ITB.A";
+			name2 = "1ITB.A";
+			cps = new int[] {92};
+			
+			name1 = name2 = "1EUR.A";
+			cps = new int[] {};
 			
 
-			OptimalCECPMain ce = (OptimalCECPMain) StructureAlignmentFactory.getAlgorithm(OptimalCECPMain.algorithmName);
+			OptimalCECPMain ce = new OptimalCECPMain();//(OptimalCECPMain) StructureAlignmentFactory.getAlgorithm(OptimalCECPMain.algorithmName);
 			CeParameters params = (CeParameters) ce.getParameters();
 			ce.setParameters(params);
 			
