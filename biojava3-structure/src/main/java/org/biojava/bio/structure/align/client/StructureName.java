@@ -1,6 +1,7 @@
 package org.biojava.bio.structure.align.client;
 
 
+import java.io.File;
 import java.io.Serializable;
 import java.io.StringWriter;
 import java.util.List;
@@ -9,6 +10,7 @@ import java.util.regex.Matcher;
 import org.biojava.bio.structure.ResidueRange;
 import org.biojava.bio.structure.StructureIdentifier;
 import org.biojava.bio.structure.align.util.AtomCache;
+import org.biojava.bio.structure.io.util.FileDownloadUtils;
 
 
 /** A utility class that makes working with names of structures, domains and ranges easier.
@@ -32,7 +34,8 @@ public class StructureName implements Comparable<StructureName>, Serializable, S
 		PDB,
 		SCOP,
 		PDP,
-		CATH
+		CATH,
+		FILE
 	};
 
 
@@ -47,13 +50,14 @@ public class StructureName implements Comparable<StructureName>, Serializable, S
 		this.name = name;
 
 		this.pdbId = parsePdbId();
-
 		this.chainId = parseChainId();
-		
 		this.ranges = parseRanges();
 	}
 
 	private List<ResidueRange> parseRanges() {
+		if(name == null) {
+			return null;//file
+		}
 		return ResidueRange.parseMultiple(name);
 	}
 
@@ -166,7 +170,11 @@ public class StructureName implements Comparable<StructureName>, Serializable, S
 	}
 
 	private String parsePdbId(){
-		if ( isScopName() ) {
+		if ( isFile() ) {
+			mySource = Source.FILE;
+			return null;
+		}
+		else if ( isScopName() ) {
 			mySource = Source.SCOP;
 			return name.substring(1,5).toUpperCase();
 		}
@@ -188,6 +196,9 @@ public class StructureName implements Comparable<StructureName>, Serializable, S
 
 
 	private String parseChainId(){
+		if (name == null) {
+			return null; //files
+		}
 		if (name.length() == 6){
 			// name is PDB.CHAINID style (e.g. 4hhb.A)
 
@@ -252,6 +263,11 @@ public class StructureName implements Comparable<StructureName>, Serializable, S
 		if (name.length() == 4)
 			return true;
 		return false;
+	}
+
+	public boolean isFile() {
+		File file = new File(FileDownloadUtils.expandUserHome(name));
+		return file.exists();
 	}
 
 
