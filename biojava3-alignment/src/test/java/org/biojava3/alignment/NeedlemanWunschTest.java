@@ -37,6 +37,7 @@ import org.biojava3.core.sequence.compound.AminoAcidCompound;
 import org.biojava3.core.sequence.compound.DNACompoundSet;
 import org.biojava3.core.sequence.compound.NucleotideCompound;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class NeedlemanWunschTest {
@@ -306,5 +307,30 @@ public class NeedlemanWunschTest {
 		//System.out.println("getSimilarity: " + aligner.getSimilarity());
 		
 		assertTrue("Similarity must be positive, this must be an integer overflow bug!", aligner.getSimilarity()>0);
-	}      
+	}
+
+	@Ignore //TODO Reenable after fixing #213
+	@Test
+	public void testSingleMismatch() throws CompoundNotFoundException {
+		SubstitutionMatrix<AminoAcidCompound> matrix = SubstitutionMatrixHelper.getIdentity();
+
+
+		ProteinSequence s1 = new ProteinSequence("AAAKKDDDDD");
+		ProteinSequence s2 = new ProteinSequence("AAAFFDDDDD");
+
+		GapPenalty penalty = new SimpleGapPenalty((short)9,(short)1);
+
+		NeedlemanWunsch<ProteinSequence,AminoAcidCompound> nw = 
+				new NeedlemanWunsch<ProteinSequence,AminoAcidCompound>(s1,s2, penalty, matrix);
+
+		String expected1 = "AAAKK--DDDFDD";
+		String expected2 = "AAA--FFDDDFDD";
+
+		System.out.println("Score:"+nw.getScore());
+		assertTrue(String.format("Incorrect alignment. Expected:%n  %s%n  %s%nFound:%n  %s%n  %s%n",
+				expected1, expected2,
+				nw.getPair().getAlignedSequence(1),nw.getPair().getAlignedSequence(2) ),
+				expected1.equals(nw.getPair().getAlignedSequence(1).toString()) &&
+				expected2.equals(nw.getPair().getAlignedSequence(2).toString()) );
+	}
 }
