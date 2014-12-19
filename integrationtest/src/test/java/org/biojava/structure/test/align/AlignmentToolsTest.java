@@ -313,6 +313,8 @@ public class AlignmentToolsTest extends TestCase {
 	}
 	
 	public void testToConciseAlignmentString() {
+		// Note that concise strings are non-unique
+		// If these tests break, edges within the string can be rearranged
 		Map<Integer,Integer> test;
 		String result,expected;
 		int i=0;
@@ -416,6 +418,39 @@ public class AlignmentToolsTest extends TestCase {
 		AlignmentTools.updateSuperposition(afpChain, ca1, ca2);
 		assertEquals("TM-score is wrong", 0.62779, afpChain.getTMScore(), 0.001);
 		assertEquals("RMSD is wrong", 2.50569, afpChain.getTotalRmsdOpt(), 0.001);
+	}
+	
+	/**
+	 * Tests a bunch of concise strings that should be equivalent
+	 */
+	public void testEquivalentConciseStrings() {
+		Map<Integer,Integer> expected = new HashMap<Integer, Integer>();
+		expected.put(1, 2);
+		expected.put(2, 3);
+		expected.put(3, 1);
+		expected.put(4, 1);
+		expected.put(5, 3);
+		Map<Integer,Integer> result;
+		
+		
+		// Equivalent maps
+		String concise;
+		concise = "4>1>2>3>1 5>3";
+		result = AlignmentTools.fromConciseAlignmentString(concise);
+		assertEquals("Wrong map for string "+concise,expected,result);
+		
+		concise = "5>3>1>2>3 4>1";
+		result = AlignmentTools.fromConciseAlignmentString(concise);
+		assertEquals("Wrong map for string "+concise,expected,result);
+		
+		concise = "4>1 5>3>1>2>3";
+		result = AlignmentTools.fromConciseAlignmentString(concise);
+		assertEquals("Wrong map for string "+concise,expected,result);
+
+		concise = "4>1 5>3 2>3 1>2 3>1";
+		result = AlignmentTools.fromConciseAlignmentString(concise);
+		assertEquals("Wrong map for string "+concise,expected,result);
+
 	}
 	
 	/**
