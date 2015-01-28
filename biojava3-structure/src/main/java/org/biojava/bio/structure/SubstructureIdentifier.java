@@ -23,6 +23,7 @@
 
 package org.biojava.bio.structure;
 
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -86,13 +87,6 @@ public class SubstructureIdentifier implements StructureIdentifier {
 		
 		if( idRange.length == 2) {
 			String rangeStr = idRange[1].trim();
-
-			// trim parentheses, for backwards compatibility
-			if ( rangeStr.startsWith("("))
-				rangeStr = rangeStr.substring(1);
-			if ( rangeStr.endsWith(")")) {
-				rangeStr = rangeStr.substring(0,rangeStr.length()-1);
-			}
 
 			this.ranges = ResidueRange.parseMultiple(rangeStr);
 		} else {
@@ -166,6 +160,9 @@ public class SubstructureIdentifier implements StructureIdentifier {
 	 */
 	@Override
 	public Structure reduce(Structure s) throws StructureException {
+		final int modelNr = 0;
+		
+
 		// Create new structure & copy basic properties
 		Structure newS = new StructureImpl();
 
@@ -184,6 +181,20 @@ public class SubstructureIdentifier implements StructureIdentifier {
 
 		String prevChainId = null;
 
+
+		if(getResidueRanges().isEmpty()) {
+			// Include all residues
+			newS.setCompounds(s.getCompounds());
+			newS.setConnections(s.getConnections());
+			newS.setSSBonds(s.getSSBonds());
+			newS.setSites(s.getSites());
+
+			for(Chain c : s.getModel(modelNr)) {
+				newS.addChain(c);
+			}
+			return newS;
+		}
+		
 		for( ResidueRange range: getResidueRanges()) {
 			
 			String chainId = range.getChainId();
@@ -193,9 +204,11 @@ public class SubstructureIdentifier implements StructureIdentifier {
 			Chain chain;
 			if(chainId.equals("_") ) {
 				// Handle special case of "_" chain for single-chain proteins
-				chain = s.getChain(0);
-				pdbresnum1.setChainId(chain.getChainID());
-				pdbresnum2.setChainId(chain.getChainID());
+				chain = s.getChain(modelNr,0);
+				if(pdbresnum1 != null)
+					pdbresnum1.setChainId(chain.getChainID());
+				if(pdbresnum2 != null)
+					pdbresnum2.setChainId(chain.getChainID());
 
 				if(s.size() != 1) {
 					// SCOP 1.71 uses this for some proteins with multiple chains
@@ -204,10 +217,15 @@ public class SubstructureIdentifier implements StructureIdentifier {
 				}
 			} else {
 				// Explicit chain
-				chain = s.getChainByPDB(chainId);
+				chain = s.getChainByPDB(chainId,modelNr);
 			}
 
-			Group[] groups = chain.getGroupsByPDB(pdbresnum1, pdbresnum2);
+			List<Group> groups;
+			if(pdbresnum1 == null && pdbresnum2 == null) {
+				groups = chain.getAtomGroups();
+			} else {
+				groups = Arrays.asList(chain.getGroupsByPDB(pdbresnum1, pdbresnum2));
+			}
 
 			// Create new chain, if needed
 			Chain c = null;
@@ -215,9 +233,9 @@ public class SubstructureIdentifier implements StructureIdentifier {
 				// first chain...
 				c = new ChainImpl();
 				c.setChainID(chain.getChainID());
-				newS.addChain(c);
+				newS.addChain(c,modelNr);
 			} else if ( prevChainId.equals(chain.getChainID())) {
-				c = newS.getChainByPDB(prevChainId);
+				c = newS.getChainByPDB(prevChainId,modelNr);
 
 			} else {
 				try {
@@ -226,7 +244,7 @@ public class SubstructureIdentifier implements StructureIdentifier {
 					// chain not in structure yet...
 					c = new ChainImpl();
 					c.setChainID(chain.getChainID());
-					newS.addChain(c);
+					newS.addChain(c,modelNr);
 				}
 			}
 

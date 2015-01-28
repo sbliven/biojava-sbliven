@@ -20,6 +20,18 @@
  */
 package org.biojava.bio.structure.align.util;
 
+import java.io.IOException;
+import java.io.StringWriter;
+import java.net.URL;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.biojava.bio.structure.Atom;
 import org.biojava.bio.structure.AtomPositionMap;
 import org.biojava.bio.structure.Chain;
@@ -28,6 +40,7 @@ import org.biojava.bio.structure.ResidueRange;
 import org.biojava.bio.structure.ResidueRangeAndLength;
 import org.biojava.bio.structure.Structure;
 import org.biojava.bio.structure.StructureException;
+import org.biojava.bio.structure.StructureIdentifier;
 import org.biojava.bio.structure.StructureTools;
 import org.biojava.bio.structure.align.client.StructureName;
 import org.biojava.bio.structure.cath.CathDatabase;
@@ -52,18 +65,6 @@ import org.biojava3.core.util.InputStreamProvider;
 import org.biojava3.structure.StructureIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.io.StringWriter;
-import java.net.URL;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.TreeSet;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * A utility class that provides easy access to Structure objects. If you are running a script that is frequently
@@ -349,105 +350,14 @@ public class AtomCache {
 	 *             errors, eg for poorly formatted subranges.
 	 */
 	public Structure getStructure(String name) throws IOException, StructureException {
-
-		if (name.length() < 4) {
-			throw new IllegalArgumentException("Can't interpret IDs that are shorter than 4 characters!");
-		}
-
-		Structure n = null;
-
-		boolean useChainNr = false;
-		boolean useDomainInfo = false;
-		String range = null;
-		int chainNr = -1;
-
-
 		StructureName structureName = new StructureName(name);
+		
+		return getStructure(structureName);
+	}
 
-		String pdbId = null;
-		String chainId = null;
-
-		if (name.length() == 4) {
-
-			pdbId = name;
-			Structure s;
-			if (useMmCif) {
-				s = loadStructureFromCifByPdbId(pdbId);
-			} else {
-				s = loadStructureFromPdbByPdbId(pdbId);
-			}
-			return s;
-		} else if (structureName.isScopName()) {
-
-			// return based on SCOP domain ID
-			return getStructureFromSCOPDomain(name);
-		} else if (structureName.isCathID()) {
-			return getStructureForCathDomain(structureName, CathFactory.getCathDatabase());
-		} else if (name.length() == 6) {
-			// name is PDB.CHAINID style (e.g. 4hhb.A)
-
-			pdbId = name.substring(0, 4);
-			if (name.substring(4, 5).equals(CHAIN_SPLIT_SYMBOL)) {
-				chainId = name.substring(5, 6);
-			} else if (name.substring(4, 5).equals(CHAIN_NR_SYMBOL)) {
-
-				useChainNr = true;
-				chainNr = Integer.parseInt(name.substring(5, 6));
-			}
-
-		} else if (name.startsWith("file:/") || name.startsWith("http:/")) {
-			// this is a URL
-			
-			URL url = new URL(name);
-			return getStructureFromURL(url);
-			
-
-		} else if (structureName.isPDPDomain()) {
-
-			// this is a PDP domain definition
-
-			return getPDPStructure(name);
-			
-		} else if (name.startsWith(BIOL_ASSEMBLY_IDENTIFIER)) {
-
-			return getBioAssembly(name);
-
-		} else if (name.length() > 6 && !name.startsWith(PDP_DOMAIN_IDENTIFIER)
-				&& (name.contains(CHAIN_NR_SYMBOL) || name.contains(UNDERSCORE))
-				&& !(name.startsWith("file:/") || name.startsWith("http:/"))
-
-				) {
-
-			// this is a name + range
-
-			pdbId = name.substring(0, 4);
-			// this ID has domain split information...
-			useDomainInfo = true;
-			range = name.substring(5);
-
-		}
-
-		// System.out.println("got: >" + name + "< " + pdbId + " " + chainId + " useChainNr:" + useChainNr + " "
-		// +chainNr + " useDomainInfo:" + useDomainInfo + " " + range);
-
-		if (pdbId == null) {
-
-			return null;
-		}
-
-		while (checkLoading(pdbId)) {
-			// waiting for loading to be finished...
-
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {
-				logger.error(e.getMessage());
-			}
-
-		}
-
-		// long start = System.currentTimeMillis();
-
+	public Structure getStructure(StructureIdentifier name) throws IOException, StructureException {
+		String pdbId = name.getPdbId();
+		
 		Structure s;
 		if (useMmCif) {
 			s = loadStructureFromCifByPdbId(pdbId);
@@ -455,34 +365,8 @@ public class AtomCache {
 			s = loadStructureFromPdbByPdbId(pdbId);
 		}
 
-		// long end = System.currentTimeMillis();
-		// System.out.println("time to load " + pdbId + " " + (end-start) + "\t  size :" +
-		// StructureTools.getNrAtoms(s) + "\t cached: " + cache.size());
-
-		if (chainId == null && chainNr < 0 && range == null) {
-			// we only want the 1st model in this case
-			n = StructureTools.getReducedStructure(s, -1);
-		} else {
-
-			if (useChainNr) {
-				// System.out.println("using ChainNr");
-				n = StructureTools.getReducedStructure(s, chainNr);
-			} else if (useDomainInfo) {
-				// System.out.println("calling getSubRanges");
-				n = StructureTools.getSubRanges(s, range);
-			} else {
-				// System.out.println("reducing Chain Id " + chainId);
-				n = StructureTools.getReducedStructure(s, chainId);
-			}
-		}
-
-
-
-		n.setName(name);
-		return n;
-
+		return name.reduce(s);
 	}
-
 	/**
 	 * Returns the representation of a {@link ScopDomain} as a BioJava {@link Structure} object.
 	 * 

@@ -108,6 +108,7 @@ public class StructureToolsTest extends TestCase {
 
 	}
 
+	@SuppressWarnings("deprecation")
 	public void testGetSubRanges() throws StructureException {
 		String range;
 		Structure substr;
@@ -172,11 +173,6 @@ public class StructureToolsTest extends TestCase {
 		chain = substr.getChain(0);
 		assertEquals("Did not find the expected number of residues in "+range, 5, chain.getAtomLength() );
 
-		// Special '-' case
-		range = "-";
-		substr = StructureTools.getSubRanges(structure2, range);
-		assertEquals("Should have gotten whole structure",structure2, substr);
-
 		// Test single-chain syntax
 		range = "_:";
 		substr = StructureTools.getSubRanges(structure, range);
@@ -206,12 +202,12 @@ public class StructureToolsTest extends TestCase {
 			range = "7-10";
 			substr = StructureTools.getSubRanges(structure2, range);
 			fail("Illegal range '"+range+"'. Should throw StructureException");
-		} catch(StructureException ex) {} //expected 
+		} catch(IllegalArgumentException ex) {} //expected 
 		try {
 			range = "A7-10";
 			substr = StructureTools.getSubRanges(structure2, range);
 			fail("Illegal range '"+range+"'. Should throw StructureException");
-		} catch(StructureException ex) {} //expected 
+		} catch(IllegalArgumentException ex) {} //expected 
 	}
 
 	public void testRevisedConvention() throws IOException, StructureException{
@@ -292,6 +288,7 @@ public class StructureToolsTest extends TestCase {
 	 * Test some subranges that we used to have problems with
 	 * @throws StructureException
 	 */
+	@SuppressWarnings("deprecation")
 	public void testGetSubRangesExtended() throws StructureException {
 		String range;
 		Structure substr;
@@ -318,23 +315,17 @@ public class StructureToolsTest extends TestCase {
 
 		// mixed indices
 		range = "A:-3-+1";
-		substr = StructureTools.getSubRanges(structure2, range);
-		assertEquals("Wrong number of chains in "+range, 1, substr.size());
-
-		chain = substr.getChain(0);
-
-		assertEquals("Did not find the expected number of residues in "+range, 4, chain.getAtomLength() );
+		try {
+			substr = StructureTools.getSubRanges(structure2, range);
+			fail("Illegal format since v4.0.0");
+		} catch(IllegalArgumentException e) {}
 
 		// positive indices
 		range = "A:+1-6";
-		substr = StructureTools.getSubRanges(structure2, range);
-		assertEquals("Wrong number of chains in "+range, 1, substr.size());
-
-		chain = substr.getChain(0);
-
-		assertEquals("Did not find the expected number of residues in "+range, 6, chain.getAtomLength() );
-
-
+		try {
+			substr = StructureTools.getSubRanges(structure2, range);
+			fail("Illegal format since v4.0.0");
+		} catch(IllegalArgumentException e) {}
 		// whitespace
 		range = "A:3-7, B:8-12";
 		substr = StructureTools.getSubRanges(structure2, range);
@@ -352,6 +343,7 @@ public class StructureToolsTest extends TestCase {
 	 * Test insertion codes
 	 * @throws StructureException
 	 */
+	@SuppressWarnings("deprecation")
 	public void testGetSubRangesInsertionCodes() throws StructureException {
 		String range;
 		Structure substr;

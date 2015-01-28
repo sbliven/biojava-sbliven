@@ -25,6 +25,7 @@ package org.biojava.bio.structure;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.IllegalFormatException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -51,9 +52,9 @@ public class ResidueRange {
 			"(?:" + //begin range, this is a "non-capturing group"
 				"(?::|_|:$|_$|$)" + //colon or underscore, could be at the end of a line, another non-capt. group.
 				"(?:"+ // another non capturing group for the residue range
-					"([-+]?[0-9]+[A-Za-z]?)" + // first residue
+					"(-?[0-9]+[A-Za-z]?)" + // first residue
 					"\\s*-\\s*" + // -
-					"([-+]?[0-9]+[A-Za-z]?)" + // second residue
+					"(-?[0-9]+[A-Za-z]?)" + // second residue
 				")?+"+
 			")?" + //end range
 			"\\s*");
@@ -76,11 +77,12 @@ public class ResidueRange {
 					start.setChainId(chain);
 					end.setChainId(chain);
 				}
+				return new ResidueRange(chain,start,end);
 			} catch (IllegalStateException e) {
 				throw new IllegalArgumentException("Range " + s + " was not valid", e);
 			}
 		}
-		return new ResidueRange(chain, start, end);
+		throw new IllegalArgumentException("Illegal ResidueRange format:" + s);
 	}
 
 	/**
@@ -90,6 +92,14 @@ public class ResidueRange {
 	 * @return The unique ResidueRange corresponding to {@code s}.
 	 */
 	public static List<ResidueRange> parseMultiple(String s) {
+		s = s.trim();
+		// trim parentheses, for backwards compatibility
+		if ( s.startsWith("("))
+			s = s.substring(1);
+		if ( s.endsWith(")")) {
+			s = s.substring(0,s.length()-1);
+		}
+
 		String[] parts = s.split(",");
 		List<ResidueRange> list = new ArrayList<ResidueRange>(parts.length);
 		for (String part : parts) {

@@ -65,12 +65,6 @@ public class StructureName implements Comparable<StructureName>, Serializable, S
 		this.pdbId = parsePdbId();
 
 		this.chainId = parseChainId();
-		
-		this.ranges = parseRanges();
-	}
-
-	private List<ResidueRange> parseRanges() {
-		return ResidueRange.parseMultiple(name);
 	}
 
 	/** PDB IDs are always returned as upper case

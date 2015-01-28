@@ -253,6 +253,15 @@ public class ResidueRangeTest {
 		assertEquals("Error parsing " + rangeStr, new ResidueNumber("_", 5,
 				null), range.getEnd());
 
+		// invalid ranges
+		rangeStr = "A:+1-6";
+		try {
+			range = ResidueRange.parse(rangeStr);
+			fail("Illegal range "+rangeStr+" parsed.");
+		} catch( IllegalArgumentException e) {
+			// bad format
+		}
+
 	}
 
 	/**
@@ -330,7 +339,7 @@ public class ResidueRangeTest {
 		}
 		// invalid ranges
 		String[] no = new String[] { "A_1", "A_1-", "A_1S-", "A_1-100-",
-				"A_-10-1000_", "", "-", "___", "__:" };
+				"A_-10-1000_", "", "-", "___", "__:", "A:-3-+1","A:-3-+1","A:+1-6"};
 		for (String s : no) {
 			assertFalse(s + " was considered a valid range format",
 					ResidueRange.RANGE_REGEX.matcher(s).matches());
