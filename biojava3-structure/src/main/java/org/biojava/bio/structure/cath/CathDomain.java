@@ -30,10 +30,15 @@ package org.biojava.bio.structure.cath;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.biojava.bio.structure.ResidueRange;
+import org.biojava.bio.structure.Structure;
+import org.biojava.bio.structure.StructureException;
 import org.biojava.bio.structure.StructureIdentifier;
+import org.biojava.bio.structure.SubstructureIdentifier;
 
 /**
  * A class which represents a single CATH domain.
@@ -421,25 +426,36 @@ public class CathDomain implements Serializable, StructureIdentifier {
 				+ sequence + ", segments=" + segments + ", comment=" + comment
 				+ "]";
 	}
-
-	@Override
-	public String getIdentifier() {
-		return getThePdbId() + "." + ResidueRange.toString(getResidueRanges());
+	
+	/**
+	 * Returns the chains this domain is defined over; contains more than 1 element only if this domains is a multi-chain domain.
+	 */
+	public Set<String> getChains() {
+		Set<String> chains = new HashSet<String>();
+		List<ResidueRange> rrs = toCanonical().getResidueRanges();
+		for (ResidueRange rr : rrs) chains.add(rr.getChainId());
+		return chains;
 	}
 
 	@Override
-	public List<ResidueRange> getResidueRanges() {
+	public String getIdentifier() {
+		return getCATH();
+	}
+
+	@Override
+	public SubstructureIdentifier toCanonical() {
 		List<ResidueRange> ranges = new ArrayList<ResidueRange>();
 		String chain = String.valueOf(getDomainName().charAt(getDomainName().length() - 3));
 		for (CathSegment segment : this.getSegments()) {
 			ranges.add(new ResidueRange(chain, segment.getStart(), segment.getStop()));
 		}
-		return ranges;
+
+		return new SubstructureIdentifier(getThePdbId(), ranges);
 	}
 
 	@Override
-	public List<String> getRanges() {
-		return ResidueRange.toStrings(getResidueRanges());
+	public Structure reduce(Structure input) throws StructureException {
+		return toCanonical().reduce(input);
 	}
 
 }

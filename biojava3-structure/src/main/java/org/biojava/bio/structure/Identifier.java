@@ -23,36 +23,26 @@
 
 package org.biojava.bio.structure;
 
+import org.biojava.bio.structure.align.client.StructureName;
 import org.biojava.bio.structure.align.util.AtomCache;
-import org.biojava.bio.structure.cath.CathFactory;
-import org.biojava.bio.structure.scop.ScopFactory;
 
 /**
  * A collection of utilities to create {@link StructureIdentifier StructureIdentifiers}.
  * @author dmyersturnbull
+ * @deprecated Use {@link StructureName} instead.
  */
+@Deprecated
 public class Identifier {
-
-	private static final String CATH_PATTERN = "[0-9][a-z0-9]{3}.[0-9]{2}";
-	private static final String SCOP_PATTERN = "d[0-9][a-zA-Z0-9]{3,4}([a-zA-Z][0-9_]|\\.[0-9]+)";
 
 	/**
 	 * Loads a {@link StructureIdentifier} from the specified string.
 	 * The type returned for any particular string can be considered relatively stable
 	 * but should not be relied on.
-	 * 
+	 * @deprecated Use {@link StructureName} instead.
 	 */
+	@Deprecated
 	public static StructureIdentifier loadIdentifier(String id, AtomCache cache) {
-		if (id.matches(CATH_PATTERN)) {
-			return CathFactory.getCathDatabase().getDescriptionByCathId(id);
-		} else if (id.matches(SCOP_PATTERN)) {
-			return ScopFactory.getSCOP().getDomainByScopID(id);
-		}
-		try {
-			return new SubstructureIdentifier(id, cache);
-		} catch (Exception e) {
-			throw new IllegalArgumentException("Couldn't understand id " + id, e);
-		}
+		return new StructureName(id);
 	}
 
 }

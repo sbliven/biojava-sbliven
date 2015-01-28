@@ -145,6 +145,15 @@ public class AtomPositionMap {
 	}
 
 	/**
+	 * Creates a new AtomPositionMap containing peptide alpha-carbon atoms
+	 * from a structure.
+	 * @param s
+	 */
+	public AtomPositionMap(Structure s) {
+		this(StructureTools.getAtomCAArray(s));
+	}
+
+	/**
 	 * Calculates the number of residues of the specified chain in a given range.
 	 * @param positionA index of the first atom to count
 	 * @param positionB index of the last atom to count

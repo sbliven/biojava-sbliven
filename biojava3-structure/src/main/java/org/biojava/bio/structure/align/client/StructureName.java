@@ -7,11 +7,27 @@ import java.util.List;
 import java.util.regex.Matcher;
 
 import org.biojava.bio.structure.ResidueRange;
+import org.biojava.bio.structure.Structure;
+import org.biojava.bio.structure.StructureException;
 import org.biojava.bio.structure.StructureIdentifier;
+import org.biojava.bio.structure.SubstructureIdentifier;
 import org.biojava.bio.structure.align.util.AtomCache;
+import org.biojava.bio.structure.cath.CathDomain;
+import org.biojava.bio.structure.cath.CathFactory;
+import org.biojava.bio.structure.scop.ScopDomain;
+import org.biojava.bio.structure.scop.ScopFactory;
 
 
-/** A utility class that makes working with names of structures, domains and ranges easier.
+/** 
+ * A utility class that makes working with names of structures, domains and ranges easier.
+ * 
+ * Accepts a wide range of identifier formats, including {@link ScopDomain},
+ * {@link CathDomain}, PDP domains, and {@link SubstructureIdentifier} residue
+ * ranges.
+ * 
+ * Where possible, data is extracted from the input string. Otherwise, range 
+ * information may be loaded from one of the factory classes:
+ * {@link CathFactory},{@link ScopFactory}, etc.
  * 
  * @param name the name. e.g. 4hhb, 4hhb.A, d4hhba_, PDP:4HHBAa etc.
  */
@@ -191,6 +207,7 @@ public class StructureName implements Comparable<StructureName>, Serializable, S
 
 
 	private String parseChainId(){
+		//TODO Support multi-character chainIds -sbliven 2015-01-28
 		if (name.length() == 6){
 			// name is PDB.CHAINID style (e.g. 4hhb.A)
 
@@ -232,21 +249,6 @@ public class StructureName implements Comparable<StructureName>, Serializable, S
 		return name.matches(cathPattern);
 	}
 
-	@Override
-	public String getIdentifier() {
-		return name;
-	}
-
-	@Override
-	public List<ResidueRange> getResidueRanges() {
-		return ranges;
-	}
-
-	@Override
-	public List<String> getRanges() {
-		return ResidueRange.toStrings(ranges);
-	}
-
 	public boolean hasRanges(){
 		return (ranges != null && ranges.size() > 0);
 	}
@@ -255,6 +257,36 @@ public class StructureName implements Comparable<StructureName>, Serializable, S
 		if (name.length() == 4)
 			return true;
 		return false;
+	}
+
+	@Override
+	public String getIdentifier() {
+		return getName();
+	}
+
+	private StructureIdentifier realize() {
+		switch(mySource) {
+		case CATH:
+			return CathFactory.getCathDatabase().getDescriptionByCathId(getIdentifier());
+		case SCOP:
+			return ScopFactory.getSCOP().getDomainByScopID(getIdentifier());
+		case PDP:
+			//TODO -sbliven 2015-01-28
+			//PDPProvider provider = new RemotePDPProvider(false);
+		case PDB:
+		default:
+			return new SubstructureIdentifier(getIdentifier());
+		}
+	}
+
+	@Override
+	public SubstructureIdentifier toCanonical() {
+		return realize().toCanonical();
+	}
+
+	@Override
+	public Structure reduce(Structure input) throws StructureException {
+		return realize().reduce(input);
 	}
 
 

@@ -23,15 +23,16 @@
  */
 package org.biojava.bio.structure;
 
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Map;
+
 import org.biojava.bio.structure.io.CompoundFinder;
 import org.biojava.bio.structure.io.FileConvert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Implementation of a PDB Structure. This class
@@ -46,7 +47,7 @@ import java.util.Map;
  */
 public class StructureImpl implements Structure, Serializable {
 
-	private static final long serialVersionUID = -8344837138032851347L;
+	private static final long serialVersionUID = -8344837138032851348L;
 
 	private static final Logger logger = LoggerFactory.getLogger(StructureImpl.class);
 
@@ -821,17 +822,35 @@ public class StructureImpl implements Structure, Serializable {
 	}
 
 	@Override
-	public List<ResidueRange> getResidueRanges() {
+	public SubstructureIdentifier toCanonical() {
 		List<ResidueRange> range = new ArrayList<ResidueRange>();
 		for (Chain chain : getChains()) {
-			range.add(ResidueRange.parse(pdb_id + "." + chain.getChainID()));
+			List<Group> groups = chain.getAtomGroups();
+			ListIterator<Group> groupsIt = groups.listIterator();
+			if(!groupsIt.hasNext()) {
+				continue; // no groups in chain
+			}
+			Group g = groupsIt.next();
+			ResidueNumber first = g.getResidueNumber();
+			
+			//TODO Detect missing intermediate residues -sbliven, 2015-01-28
+			//Already better than previous whole-chain representation
+			
+			// get last residue
+			while(groupsIt.hasNext()) {
+				g = groupsIt.next();
+			}
+			ResidueNumber last = g.getResidueNumber();
+			
+			range.add(new ResidueRange(chain.getChainID(),first,last));
 		}
-		return range;
+		return new SubstructureIdentifier(getPdbId(),range);
 	}
 
 	@Override
-	public List<String> getRanges() {
-		return ResidueRange.toStrings(getResidueRanges());
+	public Structure reduce(Structure input) throws StructureException {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }

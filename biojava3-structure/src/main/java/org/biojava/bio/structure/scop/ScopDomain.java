@@ -1,11 +1,15 @@
 package org.biojava.bio.structure.scop;
 
 import org.biojava.bio.structure.ResidueRange;
+import org.biojava.bio.structure.Structure;
+import org.biojava.bio.structure.StructureException;
 import org.biojava.bio.structure.StructureIdentifier;
+import org.biojava.bio.structure.SubstructureIdentifier;
 
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
+
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.List;
@@ -97,7 +101,6 @@ public class ScopDomain implements Serializable, Cloneable, StructureIdentifier 
 	public void setPdbId(String pdbId) {
 		this.pdbId = pdbId;
 	}
-	@Override
 	public List<String> getRanges() {
 		return ranges;
 	}
@@ -196,15 +199,18 @@ public class ScopDomain implements Serializable, Cloneable, StructureIdentifier 
 
 	@Override
 	public String getIdentifier() {
-		return pdbId + "." + ResidueRange.toString(getResidueRanges());
+		return getScopId();
 	}
 
 	@Override
-	public List<ResidueRange> getResidueRanges() {
-		return ResidueRange.parseMultiple(ranges);
+	public SubstructureIdentifier toCanonical() {
+		return new SubstructureIdentifier(getPdbId(), ResidueRange.parseMultiple(getRanges()));
 	}
 
-	
+	@Override
+	public Structure reduce(Structure input) throws StructureException {
+		return toCanonical().reduce(input);
+	}
 
 
 }

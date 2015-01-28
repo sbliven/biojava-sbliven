@@ -23,65 +23,55 @@
 
 package org.biojava.bio.structure;
 
-import java.util.List;
 
 /**
- * An identifier that <em>uniquely</em> identifies a whole {@link Structure} or arbitrary substructure,
- * including whole chains, {@link org.biojava.bio.structure.scop.ScopDomain ScopDomains}, and {@link org.biojava.bio.structure.cath.CathDomain CathDomains}.
- * @author dmyersturnbull
+ * An identifier that <em>uniquely</em> identifies a whole {@link Structure} or
+ * arbitrary substructure. Common examples would be reducing a structure to a
+ * single chain, domain, or residue range.
+ * 
+ * StructureIdentifiers are represented by unique strings. The getId() and fromId()
+ * methods convert to and from the string representation.
+ * 
+ * Implementations should provide a constructor which takes a String. A static
+ * <tt>fromId(String)</tt> method is also recommended.
+ *
+ * @author dmyersturnbull, sbliven
  */
 public interface StructureIdentifier {
 
 	/**
-	 * The unique identifier, using the following formal specification:
-	 * <pre>
-	 * 		name     := pdbID
-	 * 		               | pdbID '.' chainID
-	 * 		               | pdbID '.' range
-	 * 		               | scopID
-	 * 		range         := '('? range (',' range)? ')'?
-	 * 		               | chainID
-	 * 		               | chainID '_' resNum '-' resNum
-	 * 		pdbID         := [0-9][a-zA-Z0-9]{3}
-	 * 		chainID       := [a-zA-Z0-9]
-	 * 		scopID        := 'd' pdbID [a-z_][0-9_]
-	 * 		cathID        := pdbID [A-Z][0-9]{2}
-	 * 		resNum        := [-+]?[0-9]+[A-Za-z]?
-	 * </pre>
-	 * For example:
-	 * <pre>
-	 * 		1TIM                            #whole structure
-	 * 		1tim                            #same as above
-	 * 		4HHB.C                          #single chain
-	 * 		3AA0.A,B                        #two chains
-	 * 		d2bq6a1                         #SCOP domain
-	 *      1cukA01                         #CATH domain
-	 * 		4GCR.A_1-40                     #substructure
-	 *      3iek.A_17-28,A_56-294,A_320-377 #substructure of 3 disjoint parts
-	 * </pre>
-	 * More options may be added to the specification at a future time.
+	 * Get the String form of this identifier.
+	 * @return The String form of this identifier
 	 */
 	String getIdentifier();
-	
+
+
 	/**
 	 * Returns the PDB identifier associated with this StructureIdentifier.
+	 * @return The PDB ID for this StructureIdentifier, or null if not applicable
 	 */
 	String getPdbId();
-	
+
 	/**
-	 * Returns the list of {@link ResidueRange ResidueRanges} that this StructureIdentifier defines.
-	 * This is a unique representation.
+	 * Convert to a canonical SubstructureIdentifier.
+	 * 
+	 * <p>This allows all domains to be converted to a standard format String.
+	 * @return A SubstructureIdentifier equivalent to this
 	 */
-	List<? extends ResidueRange> getResidueRanges();
-	
+	SubstructureIdentifier toCanonical();
+
 	/**
-	 * Returns a list of ranges of the form described in {@link #getIdentifier()}. For example:
-	 * <pre>
-	 * getRanges().get(0): 'A'
-	 * getRanges().get(1): 'B_5-100'
-	 * </pre>
-	 * This is a unique representation.
+	 * Takes a complete structure as input and reduces it to the substructure
+	 * represented by this StructureIdentifier.
+	 * 
+	 * <p>The returned structure may be a shallow copy of the input, with shared
+	 * Chains, Residues, etc.
+	 * @param input A full structure, e.g. as loaded from the PDB. The structure
+	 * ID should match that returned by getPdbId(), if applicable.
+	 * @return 
+	 * @throws StructureException 
+	 * @see StructureTools#getReducedStructure(Structure, String)
 	 */
-	List<String> getRanges();
-	
+	Structure reduce(Structure input) throws StructureException;
+
 }

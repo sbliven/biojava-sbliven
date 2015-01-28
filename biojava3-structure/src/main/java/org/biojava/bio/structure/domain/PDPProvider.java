@@ -33,5 +33,5 @@ public interface PDPProvider {
 	
 	public SortedSet<String> getPDPDomainNamesForPDB(String pdbId);
 	public Structure getDomain(String pdbDomainName, AtomCache cache);
-	
+	//TODO public StructureIdentifier getDomainIdentifier(String pdpDomainName, AtomCache cache);
 }
