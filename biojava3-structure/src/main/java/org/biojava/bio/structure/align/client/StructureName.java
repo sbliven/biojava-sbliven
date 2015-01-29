@@ -1,14 +1,20 @@
 package org.biojava.bio.structure.align.client;
 
 
+import java.io.File;
 import java.io.Serializable;
 import java.io.StringWriter;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.naming.OperationNotSupportedException;
+
+import org.biojava.bio.structure.PassthroughIdentifier;
 import org.biojava.bio.structure.ResidueRange;
 import org.biojava.bio.structure.Structure;
 import org.biojava.bio.structure.StructureException;
@@ -17,6 +23,7 @@ import org.biojava.bio.structure.SubstructureIdentifier;
 import org.biojava.bio.structure.align.util.AtomCache;
 import org.biojava.bio.structure.cath.CathDomain;
 import org.biojava.bio.structure.cath.CathFactory;
+import org.biojava.bio.structure.io.util.FileDownloadUtils;
 import org.biojava.bio.structure.scop.ScopDomain;
 import org.biojava.bio.structure.scop.ScopFactory;
 
@@ -52,7 +59,9 @@ public class StructureName implements Serializable, StructureIdentifier{
 		PDB,
 		SCOP,
 		PDP,
-		CATH
+		CATH,
+		URL,
+		FILE,
 	};
 
 
@@ -71,9 +80,6 @@ public class StructureName implements Serializable, StructureIdentifier{
 	 * @param name An identifier string
 	 */
 	public StructureName(String name){
-		if ( name.length() <  4)
-			throw new IllegalArgumentException("This is not a valid StructureName:" + name);
-
 		this.name = name;
 
 		init();//sets pdbId and mySource
@@ -106,12 +112,27 @@ public class StructureName implements Serializable, StructureIdentifier{
 			chainId = matcher.group(2);
 			return;
 		}
+		// URL
+		try {
+			new URL(name);
+			mySource = Source.URL;
+			pdbId = null;
+			chainId = null;
+			return;
+		} catch(MalformedURLException e) {}
+		// File
+		File file = new File(FileDownloadUtils.expandUserHome(name));
+		if( file.exists() ) {
+			mySource = Source.FILE;
+			pdbId = null;
+			chainId = null;
+		}
+
 		// Default to PDB
 		mySource = Source.PDB;
 		SubstructureIdentifier si = realize().toCanonical();
 		pdbId = si.getPdbId();
 		// Set chainId if unique
-		List<ResidueRange> ranges = si.getResidueRanges();
 		Set<String> chains = getChainIds(si);
 		if(chains.size() == 1) {
 			this.chainId = chains.iterator().next();
@@ -213,6 +234,14 @@ public class StructureName implements Serializable, StructureIdentifier{
 	public boolean isPdbId(){
 		return mySource == Source.PDB;
 	}
+	
+	public boolean isURL() {
+		return mySource == Source.URL;
+	}
+	
+	public boolean isFile() {
+		return mySource == Source.FILE;
+	}
 
 	private StructureIdentifier realize() {
 		if( realized == null ) {
@@ -224,9 +253,14 @@ public class StructureName implements Serializable, StructureIdentifier{
 			case SCOP:
 				realized = ScopFactory.getSCOP().getDomainByScopID(getIdentifier());
 				break;
+			case FILE:
+			case URL:
+				realized = new PassthroughIdentifier(name);
+				break;
 			case PDP:
 				//TODO -sbliven 2015-01-28
 				//PDPProvider provider = new RemotePDPProvider(false);
+				throw new RuntimeException("TODO");
 			case PDB:
 			default:
 				realized = new SubstructureIdentifier(getIdentifier());

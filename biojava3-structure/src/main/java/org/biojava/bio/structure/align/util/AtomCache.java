@@ -20,8 +20,10 @@
  */
 package org.biojava.bio.structure.align.util;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
@@ -355,12 +357,30 @@ public class AtomCache {
 		return getStructure(structureName);
 	}
 
-	public Structure getStructure(StructureIdentifier name) throws IOException, StructureException {
-		String pdbId = name.getPdbId();
+	public Structure getStructure(StructureIdentifier strucId) throws IOException, StructureException {
+		Structure s;
+		String pdbId = strucId.getPdbId();
+		if( pdbId != null ) {
+			s = loadStructureByPdbId(pdbId);
+		} else {
+			// Maybe a URL?
+			try {
+				URL url = new URL(strucId.getIdentifier());
+				s = getStructureFromURL(url);
+			} catch(MalformedURLException e) {
+				// Maybe a File?
+				File file = new File(FileDownloadUtils.expandUserHome(strucId.getIdentifier()));
+				if( file.exists() ) {
+					URL url = file.toURI().toURL();
+					s = getStructureFromURL(url);
+				}
+				
+				// Give up
+				throw new StructureException("Unable to load PDB ID "+strucId.getIdentifier());
+			}
+		}
 		
-		Structure s = loadStructureByPdbId(pdbId);
-		
-		return name.reduce(s);
+		return strucId.reduce(s);
 	}
 	/**
 	 * Returns the representation of a {@link ScopDomain} as a BioJava {@link Structure} object.
@@ -863,7 +883,7 @@ public class AtomCache {
 
 	private Structure getStructureFromURL(URL url) throws IOException, StructureException {
 		// looks like a URL for a file was provided:
-		System.out.println("fetching structure from URL:" + url);
+		logger.debug("fetching structure from URL:" + url);
 
 		String queryS = url.getQuery();
 		String chainId = null;
@@ -1005,7 +1025,7 @@ public class AtomCache {
 			s = reader.getStructureById(pdbId.toLowerCase());
 
 		} finally {
-			flagLoadingFinished(pdbId);			
+			flagLoadingFinished(pdbId);
 		}
 
 		return s;
