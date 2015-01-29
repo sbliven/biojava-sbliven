@@ -22,7 +22,6 @@ package org.biojava.bio.structure.align.util;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collection;
@@ -48,7 +47,6 @@ import org.biojava.bio.structure.align.client.StructureName;
 import org.biojava.bio.structure.cath.CathDatabase;
 import org.biojava.bio.structure.cath.CathDomain;
 import org.biojava.bio.structure.cath.CathFactory;
-import org.biojava.bio.structure.cath.CathSegment;
 import org.biojava.bio.structure.domain.PDPProvider;
 import org.biojava.bio.structure.domain.RemotePDPProvider;
 import org.biojava.bio.structure.io.FileParsingParameters;
@@ -1002,6 +1000,17 @@ public class AtomCache {
 	 * @throws StructureException
 	 */
 	protected Structure loadStructureByPdbId(String pdbId) throws IOException, StructureException {
+		while (checkLoading(pdbId)) {
+			// waiting for loading to be finished...
+
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				logger.error(e.getMessage());
+			}
+
+		}
+
 		Structure s;
 		if (useMmCif) {
 			s = loadStructureFromCifByPdbId(pdbId);
