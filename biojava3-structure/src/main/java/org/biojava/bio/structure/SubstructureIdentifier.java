@@ -23,6 +23,7 @@
 
 package org.biojava.bio.structure;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -160,7 +161,6 @@ public class SubstructureIdentifier implements StructureIdentifier {
 	 */
 	@Override
 	public Structure reduce(Structure s) throws StructureException {
-		final int modelNr = 0;
 		
 
 		// Create new structure & copy basic properties
@@ -179,83 +179,87 @@ public class SubstructureIdentifier implements StructureIdentifier {
 		//newS.setSSBonds(s.getSSBonds());
 		//newS.setSites(s.getSites());
 
-		String prevChainId = null;
 
 
-		if(getResidueRanges().isEmpty()) {
-			// Include all residues
-			newS.setCompounds(s.getCompounds());
-			newS.setConnections(s.getConnections());
-			newS.setSSBonds(s.getSSBonds());
-			newS.setSites(s.getSites());
-
-			for(Chain c : s.getModel(modelNr)) {
-				newS.addChain(c);
-			}
-			return newS;
-		}
-		
-		for( ResidueRange range: getResidueRanges()) {
+		for( int modelNr=0;modelNr<s.nrModels();modelNr++) {
+			String prevChainId = null;
 			
-			String chainId = range.getChainId();
-			ResidueNumber pdbresnum1 = range.getStart();
-			ResidueNumber pdbresnum2 = range.getEnd();
+			
+			// Construct new model
+			newS.addModel(new ArrayList<Chain>());
+			
+			if(getResidueRanges().isEmpty()) {
+				// Include all residues
+				newS.setCompounds(s.getCompounds());
+				newS.setConnections(s.getConnections());
+				newS.setSSBonds(s.getSSBonds());
+				newS.setSites(s.getSites());
 
-			Chain chain;
-			if(chainId.equals("_") ) {
-				// Handle special case of "_" chain for single-chain proteins
-				chain = s.getChain(modelNr,0);
-				if(pdbresnum1 != null)
-					pdbresnum1.setChainId(chain.getChainID());
-				if(pdbresnum2 != null)
-					pdbresnum2.setChainId(chain.getChainID());
-
-				if(s.size() != 1) {
-					// SCOP 1.71 uses this for some proteins with multiple chains
-					// Print a warning in this ambiguous case
-					logger.warn("Multiple possible chains match '_'. Using chain {}",chain.getChainID());
-				}
+				newS.setModel(modelNr, s.getModel(modelNr));
 			} else {
-				// Explicit chain
-				chain = s.getChainByPDB(chainId,modelNr);
+				// Restrict residues
+				for( ResidueRange range: getResidueRanges()) {
+
+					String chainId = range.getChainId();
+					ResidueNumber pdbresnum1 = range.getStart();
+					ResidueNumber pdbresnum2 = range.getEnd();
+
+					Chain chain;
+					if(chainId.equals("_") ) {
+						// Handle special case of "_" chain for single-chain proteins
+						chain = s.getChain(modelNr,0);
+						if(pdbresnum1 != null)
+							pdbresnum1.setChainId(chain.getChainID());
+						if(pdbresnum2 != null)
+							pdbresnum2.setChainId(chain.getChainID());
+
+						if(s.size() != 1) {
+							// SCOP 1.71 uses this for some proteins with multiple chains
+							// Print a warning in this ambiguous case
+							logger.warn("Multiple possible chains match '_'. Using chain {}",chain.getChainID());
+						}
+					} else {
+						// Explicit chain
+						chain = s.getChainByPDB(chainId,modelNr);
+					}
+
+					List<Group> groups;
+					if(pdbresnum1 == null && pdbresnum2 == null) {
+						groups = chain.getAtomGroups();
+					} else {
+						groups = Arrays.asList(chain.getGroupsByPDB(pdbresnum1, pdbresnum2));
+					}
+
+					// Create new chain, if needed
+					Chain c = null;
+					if ( prevChainId == null) {
+						// first chain...
+						c = new ChainImpl();
+						c.setChainID(chain.getChainID());
+						newS.addChain(c,modelNr);
+					} else if ( prevChainId.equals(chain.getChainID())) {
+						c = newS.getChainByPDB(prevChainId,modelNr);
+
+					} else {
+						try {
+							c = newS.getChainByPDB(chain.getChainID(),modelNr);
+						} catch (StructureException e){
+							// chain not in structure yet...
+							c = new ChainImpl();
+							c.setChainID(chain.getChainID());
+							newS.addChain(c,modelNr);
+						}
+					}
+
+					// add the groups to the chain:
+					for ( Group g: groups) {
+						c.addGroup(g);
+					}
+
+					prevChainId = c.getChainID();
+				} // end range
 			}
-
-			List<Group> groups;
-			if(pdbresnum1 == null && pdbresnum2 == null) {
-				groups = chain.getAtomGroups();
-			} else {
-				groups = Arrays.asList(chain.getGroupsByPDB(pdbresnum1, pdbresnum2));
-			}
-
-			// Create new chain, if needed
-			Chain c = null;
-			if ( prevChainId == null) {
-				// first chain...
-				c = new ChainImpl();
-				c.setChainID(chain.getChainID());
-				newS.addChain(c,modelNr);
-			} else if ( prevChainId.equals(chain.getChainID())) {
-				c = newS.getChainByPDB(prevChainId,modelNr);
-
-			} else {
-				try {
-					c = newS.getChainByPDB(chain.getChainID());
-				} catch (StructureException e){
-					// chain not in structure yet...
-					c = new ChainImpl();
-					c.setChainID(chain.getChainID());
-					newS.addChain(c,modelNr);
-				}
-			}
-
-			// add the groups to the chain:
-			for ( Group g: groups) {
-				c.addGroup(g);
-			}
-
-			prevChainId = c.getChainID();
-		}
-
+		} // end modelNr
 		return newS;
 	}
 }
