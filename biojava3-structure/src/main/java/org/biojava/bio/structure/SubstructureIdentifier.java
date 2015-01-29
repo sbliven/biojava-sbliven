@@ -83,7 +83,7 @@ public class SubstructureIdentifier implements StructureIdentifier {
 		this.pdbId = idRange[0];
 		if(this.pdbId.length() != 4) {
 			// Changed from Exception to a warning to support files and stuff -sbliven 2015/01/22
-			logger.warn("Unrecognized PDB code %s",this.pdbId);
+			logger.warn(String.format("Unrecognized PDB code %s",this.pdbId));
 		}
 		
 		if( idRange.length == 2) {
@@ -220,7 +220,24 @@ public class SubstructureIdentifier implements StructureIdentifier {
 						}
 					} else {
 						// Explicit chain
-						chain = s.getChainByPDB(chainId,modelNr);
+						try {
+							chain = s.getChainByPDB(chainId,modelNr);
+						} catch(StructureException e) {
+							// Chain not found
+							// Maybe it was a chain index, masquerading as a chainId?
+							try {
+								int chainNum = Integer.parseInt(chainId);
+								try {
+									chain = s.getChain(modelNr, chainNum);
+									logger.warn("No chain found for {}. Interpretting it as an index, using chain {} instead",chainId,chain.getChainID());
+								} catch(Exception e2) { //we don't care what gets thrown here -sbliven
+									throw e; // Nope, not an index. Throw the original exception
+								}
+							} catch(NumberFormatException e3) {
+								// Not an index. Throw the original exception
+								throw e;
+							}
+						}
 					}
 
 					List<Group> groups;

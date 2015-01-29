@@ -24,11 +24,7 @@
 
 package org.biojava.bio.structure;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -87,8 +83,15 @@ public class TestAtomCache {
 		Chain c = s.getChainByPDB(chainId2);
 		assertEquals(c.getChainID(),chainId2);
 
+		// Colon separators removed in BioJava 4.0.0
+		String name2b = "4hhb:A";
+		try {
+			s = cache.getStructure(name2b);
+			fail("Invalid structure format");
+		} catch(IOException e) {}
 		
-		String name3 = "4hhb:1";
+		// Numeric chain IDs are allowed but deprecated.
+		String name3 = "4hhb.1";
 		String chainId3 = "B";
 		s = cache.getStructure(name3);
 		assertNotNull(s);
@@ -98,7 +101,7 @@ public class TestAtomCache {
 		assertEquals(c.getChainID(),chainId3);
 
 		
-		String name4 = "4hhb:A:10-20,B:10-20,C:10-20";		
+		String name4 = "4hhb.A:10-20,B:10-20,C:10-20";		
 		s = cache.getStructure(name4);
 		assertNotNull(s);
 
@@ -107,32 +110,20 @@ public class TestAtomCache {
 		c = s.getChainByPDB("B");
 		assertEquals(c.getAtomLength(),11);
 
-		String name5 = "4hhb:(A:10-20,A:30-40)";
+		String name5 = "4hhb.(A:10-20,A:30-40)";
 		s =cache.getStructure(name5);
 		assertNotNull(s);
 
 		assertEquals(s.getChains().size(),1 );
 		c = s.getChainByPDB("A");
 		assertEquals(c.getAtomLength(),22);
-
-		// This syntax also works, since the first paren is treated as a separator
-		String name6 = "4hhb(A:10-20,A:30-40)";
-		s =cache.getStructure(name6);
-		assertNotNull(s);
 	
 		assertEquals(s.getChains().size(),1 );
 		c = s.getChainByPDB("A");
 		assertEquals(c.getAtomLength(),22);
 
-		// Doesn't work, since no ':' in name
-		// This behavior is questionable; perhaps it should return 4hhb.C?
-		// It's not a very likely/important case, I'm just documenting behavior here.
-		String name7 = "4hhb(C)";
-		s = cache.getStructure(name7);
-		assertNull("Invalid substructure style: "+name7,s);
-
-		// Works since we detect a ':'
-		String name8 = "4hhb:(C)";
+		// Works since we detect a '.'
+		String name8 = "4hhb.(C)";
 		s = cache.getStructure(name8);
 
 		assertTrue(s.getChains().size() == 1);

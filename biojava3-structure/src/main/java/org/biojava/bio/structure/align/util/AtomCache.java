@@ -358,13 +358,8 @@ public class AtomCache {
 	public Structure getStructure(StructureIdentifier name) throws IOException, StructureException {
 		String pdbId = name.getPdbId();
 		
-		Structure s;
-		if (useMmCif) {
-			s = loadStructureFromCifByPdbId(pdbId);
-		} else {
-			s = loadStructureFromPdbByPdbId(pdbId);
-		}
-
+		Structure s = loadStructureByPdbId(pdbId);
+		
 		return name.reduce(s);
 	}
 	/**
@@ -415,20 +410,11 @@ public class AtomCache {
 			throws IOException, StructureException {
 
 		String pdbId = domain.getPdbId();
-		Structure fullStructure = getStructure(pdbId);
+		Structure fullStructure = loadStructureByPdbId(pdbId);
+		Structure structure = domain.reduce(fullStructure);
 
-		// build the substructure
-		StringBuilder rangeString = new StringBuilder();
-		Iterator<String> iter = domain.getRanges().iterator();
-		while (iter.hasNext()) {
-			rangeString.append(iter.next());
-			if (iter.hasNext()) {
-				rangeString.append(",");
-			}
-		}
-		Structure structure = StructureTools.getSubRanges(fullStructure, rangeString.toString());
-		structure.setName(domain.getScopId());
-		structure.setPDBCode(domain.getScopId());
+		// TODO It would be better to move all of this into the reduce method,
+		// but that would require ligand handling properties in StructureIdentifiers
 
 		// because ligands sometimes occur after TER records in PDB files, we may need to add some ligands back in
 		// specifically, we add a ligand if and only if it occurs within the domain
@@ -815,35 +801,10 @@ public class AtomCache {
 	 */
 	public Structure getStructureForCathDomain(StructureName structureName, CathDatabase cathInstall) throws IOException, StructureException {
 
-		CathDomain cathDomain = cathInstall.getDomainByCathId(structureName.getName());
+		CathDomain cathDomain = cathInstall.getDomainByCathId(structureName.getIdentifier());
 
-		List<CathSegment> segments = cathDomain.getSegments();
-
-		StringWriter range = new StringWriter();
-
-		int rangePos = 0;
-		String chainId = structureName.getChainId();
-		for (CathSegment segment : segments) {
-			rangePos++;
-
-			range.append(chainId);
-			range.append("_");
-
-			range.append(segment.getStart());
-			range.append("-");
-			range.append(segment.getStop());
-			if (segments.size() > 1 && rangePos < segments.size()) {
-				range.append(",");
-			}
-		}
-
-		String pdbId = structureName.getPdbId();
-
-		Structure s = getStructure(pdbId);
-
-		String rangeS = range.toString();
-		
-		Structure n = StructureTools.getSubRanges(s, rangeS);
+		Structure s = loadStructureByPdbId(cathDomain.getPdbId());
+		Structure n = cathDomain.reduce(s);
 		
 		// add the ligands of the chain...
 
@@ -856,13 +817,7 @@ public class AtomCache {
 				newChain.addGroup(g);
 			}
 		}
-
-		// set new Header..
-		n.setName(structureName.getName());
-		n.setPDBCode(structureName.getPdbId());
-
-		n.getPDBHeader().setDescription(cathDomain.getDomainName());
-
+		
 		return n;
 	}
 
@@ -877,7 +832,7 @@ public class AtomCache {
 
 		//System.out.println(domain);
 		if (domain != null) {
-			Structure s = getStructureForDomain(domain);
+			Structure s = getStructure(domain);
 			return s;
 		}
 
@@ -1017,6 +972,23 @@ public class AtomCache {
 	protected void flagLoadingFinished(String name) {
 	
 		currentlyLoading.remove(name);
+	}
+	
+	/**
+	 * Loads a structure directly by PDB ID
+	 * @param pdbId
+	 * @return
+	 * @throws IOException
+	 * @throws StructureException
+	 */
+	protected Structure loadStructureByPdbId(String pdbId) throws IOException, StructureException {
+		Structure s;
+		if (useMmCif) {
+			s = loadStructureFromCifByPdbId(pdbId);
+		} else {
+			s = loadStructureFromPdbByPdbId(pdbId);
+		}
+		return s;
 	}
 
 	protected Structure loadStructureFromCifByPdbId(String pdbId) throws IOException, StructureException {

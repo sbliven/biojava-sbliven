@@ -4,7 +4,10 @@ package org.biojava.bio.structure.align.client;
 import java.io.Serializable;
 import java.io.StringWriter;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.biojava.bio.structure.ResidueRange;
 import org.biojava.bio.structure.Structure;
@@ -31,18 +34,19 @@ import org.biojava.bio.structure.scop.ScopFactory;
  * 
  * @param name the name. e.g. 4hhb, 4hhb.A, d4hhba_, PDP:4HHBAa etc.
  */
-public class StructureName implements Comparable<StructureName>, Serializable, StructureIdentifier{
+public class StructureName implements Serializable, StructureIdentifier{
 
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = 4021229518711762954L;
+	private static final long serialVersionUID = 4021229518711762955L;
 	protected String name;
 	protected String pdbId;
 	protected String chainId;
 
-	String cathPattern = "[0-9][a-z0-9][a-z0-9][a-z0-9].[0-9][0-9]";
-
+	private static final Pattern cathPattern = Pattern.compile("^([0-9][a-z0-9]{3})(\\w)([0-9]{2})$");
+	// More specific than AtomCache.scopIDregex
+	private static final Pattern scopPattern = Pattern.compile("^d([0-9][a-z0-9]{3})(\\w)(\\w)$");
 
 	private enum Source {
 		PDB,
@@ -52,19 +56,82 @@ public class StructureName implements Comparable<StructureName>, Serializable, S
 	};
 
 
-	Source mySource = null; 
-	private  List<ResidueRange> ranges ;
-	
-	
+	private Source mySource = null; 
+
+	// cache for realize() method
+	private StructureIdentifier realized = null;
+
+	/**
+	 * Create a new StructureName from the given identifier, which may be a 
+	 * domain name, a substructure identifier, etc.
+	 * 
+	 * The source and PDB-Id are extracted at compile time, but fully
+	 * interpreting the ID, which may require additional parsing or remote
+	 * calls, is done lazily.
+	 * @param name An identifier string
+	 */
 	public StructureName(String name){
 		if ( name.length() <  4)
 			throw new IllegalArgumentException("This is not a valid StructureName:" + name);
 
 		this.name = name;
 
-		this.pdbId = parsePdbId();
+		init();//sets pdbId and mySource
+	}
 
-		this.chainId = parseChainId();
+
+	private void init(){
+		// SCOP domain
+		Matcher matcher = scopPattern.matcher(name);
+		if ( matcher.matches() ) {
+			mySource = Source.SCOP;
+			pdbId = matcher.group(1).toUpperCase();
+			chainId = matcher.group(2).toUpperCase();
+			return;
+		}
+		// PDP
+		if ( name.startsWith(AtomCache.PDP_DOMAIN_IDENTIFIER)){
+			// starts with PDP:
+			// eg: PDP:3LGFAa
+			mySource = Source.PDP;
+			pdbId = name.substring(4,8).toUpperCase();
+			chainId = null; //TODO PDP domains
+			return;
+		}
+		// CATH
+		matcher = cathPattern.matcher(name);
+		if ( matcher.matches() ){
+			mySource = Source.CATH;
+			pdbId = matcher.group(1).toUpperCase();
+			chainId = matcher.group(2);
+			return;
+		}
+		// Default to PDB
+		mySource = Source.PDB;
+		SubstructureIdentifier si = realize().toCanonical();
+		pdbId = si.getPdbId();
+		// Set chainId if unique
+		List<ResidueRange> ranges = si.getResidueRanges();
+		Set<String> chains = getChainIds(si);
+		if(chains.size() == 1) {
+			this.chainId = chains.iterator().next();
+		} else if(chains.size() > 1) {
+			this.chainId = ".";
+		} else {
+			this.chainId = null;
+		}
+	}
+	
+	private static Set<String> getChainIds(SubstructureIdentifier si) {
+		Set<String> chains = new TreeSet<String>();
+		List<ResidueRange> ranges = si.getResidueRanges();
+		for(ResidueRange range : ranges) {
+			String chain = range.getChainId();
+			if(chain != null) {
+				chains.add(chain);
+			}
+		}
+		return chains;
 	}
 
 	/** PDB IDs are always returned as upper case
@@ -73,18 +140,38 @@ public class StructureName implements Comparable<StructureName>, Serializable, S
 	 */
 	@Override
 	public String getPdbId(){
-
+		if(realized != null || pdbId == null) {
+			return realize().getPdbId();
+		}
 		return pdbId;
 	}
 
-
-	public String getChainId(){
-
+	/**
+	 * Gets the chain ID, for structures where it is unique and well-defined.
+	 * May return '.' for multi-chain ranges, '_' for wildcard chains, or
+	 * null if the information is unavailable.
+	 * 
+	 * <p>This method should only be used casually. For precise chainIds, it
+	 * is better to use {@link #toCanonical()} and iterate through the
+	 * residue ranges.
+	 * @return
+	 */
+	public String getChainId() {
 		return chainId;
 	}
-
+	/**
+	 * 
+	 * @return the identifier string
+	 * @deprecated use {@link #getIdentifier()}
+	 */
+	@Deprecated
 	public String getName(){
 
+		return getIdentifier();
+	}
+
+	@Override
+	public String getIdentifier() {
 		return name;
 	}
 
@@ -101,40 +188,64 @@ public class StructureName implements Comparable<StructureName>, Serializable, S
 			s.append(" is a SCOP name");
 		}
 
-		String chainID= getChainId();
-		if ( chainID != null) {
-			s.append(" has chain ID: ");
-			s.append(chainID);
-
-		}
-
 		if ( isPDPDomain())
 			s.append(" is a PDP domain");
+
+		if ( isCathID() )
+			s.append(" is a CATH domain");
 
 		return s.toString();
 
 	}
 
 	public boolean isScopName() {
-		if (name.startsWith("d") && name.length() >6)		
-			return true;
-		return false;
-	}
-
-
-
-	public boolean hasChainID(){
-		//return name.contains(AtomCache.CHAIN_SPLIT_SYMBOL);
-
-
-		if ( chainId != null)
-			return true;
-		return false;
+		return mySource == Source.SCOP;
 	}
 
 	public boolean isPDPDomain(){
-		return name.startsWith(AtomCache.PDP_DOMAIN_IDENTIFIER);
+		return mySource == Source.PDP;
 	}
+
+	public boolean isCathID(){
+		return mySource == Source.CATH;
+	}
+
+	public boolean isPdbId(){
+		return mySource == Source.PDB;
+	}
+
+	private StructureIdentifier realize() {
+		if( realized == null ) {
+
+			switch(mySource) {
+			case CATH:
+				realized = CathFactory.getCathDatabase().getDescriptionByCathId(getIdentifier());
+				break;
+			case SCOP:
+				realized = ScopFactory.getSCOP().getDomainByScopID(getIdentifier());
+				break;
+			case PDP:
+				//TODO -sbliven 2015-01-28
+				//PDPProvider provider = new RemotePDPProvider(false);
+			case PDB:
+			default:
+				realized = new SubstructureIdentifier(getIdentifier());
+				break;
+			}
+		}
+		return realized;
+	}
+
+	@Override
+	public SubstructureIdentifier toCanonical() {
+		return realize().toCanonical();
+	}
+
+	@Override
+	public Structure reduce(Structure input) throws StructureException {
+		return realize().reduce(input);
+	}
+
 
 	@Override
 	public int hashCode() {
@@ -143,6 +254,7 @@ public class StructureName implements Comparable<StructureName>, Serializable, S
 		result = prime * result + ((name == null) ? 0 : name.hashCode());
 		return result;
 	}
+
 
 	@Override
 	public boolean equals(Object obj) {
@@ -161,127 +273,6 @@ public class StructureName implements Comparable<StructureName>, Serializable, S
 		return true;
 	}
 
-	@Override
-	public int compareTo(StructureName o) {
-		if ( this.equals(o))
-			return 0;
-		if ( o.getPdbId() == null)
-			return -1;
-		if ( this.getPdbId() == null)
-			return 1;
 
-		if ( ! o.getPdbId().equals(this.getPdbId())){
-			return this.getPdbId().compareTo(o.getPdbId());
-		}
-
-		return this.getName().compareTo(o.getName());
-
-	}
-
-	private String parsePdbId(){
-		if ( isScopName() ) {
-			mySource = Source.SCOP;
-			return name.substring(1,5).toUpperCase();
-		}
-		else if ( name.startsWith(AtomCache.PDP_DOMAIN_IDENTIFIER)){
-			// starts with PDP:
-			// eg: PDP:3LGFAa
-			mySource = Source.PDP;
-			return name.substring(4,8).toUpperCase();
-		} else  if ( isCathID()){
-			mySource = Source.CATH;
-			return name.substring(0,4);
-		} else  {
-			mySource = Source.PDB;
-			// all other names start with PDB id
-			return name.substring(0,4).toUpperCase();
-		}
-
-	}
-
-
-	private String parseChainId(){
-		//TODO Support multi-character chainIds -sbliven 2015-01-28
-		if (name.length() == 6){
-			// name is PDB.CHAINID style (e.g. 4hhb.A)
-
-
-			if ( name.substring(4,5).equals(AtomCache.CHAIN_SPLIT_SYMBOL)) {
-				return name.substring(5,6);
-			}
-		}  else if ( isCathID()){
-			return name.substring(4,5);
-		} else  if ( name.startsWith("d")){
-
-
-
-			Matcher scopMatch = AtomCache.scopIDregex.matcher(name);
-			if( scopMatch.matches() ) {
-				//String pdbID = scopMatch.group(1);
-				String chainID = scopMatch.group(2);
-				//String domainID = scopMatch.group(3);
-				// unfortunately SCOP chain IDS are lowercase!
-				return chainID.toUpperCase();
-			}
-
-
-		} else if ( name.startsWith(AtomCache.PDP_DOMAIN_IDENTIFIER)){
-			// eg. PDP:4HHBAa
-			String chainID = name.substring(8,9);
-			//System.out.println("chain " + chainID + " for " + name);
-			return chainID;
-		}
-
-		return null;
-	}
-
-	public boolean isCathID(){
-
-		if ( name.length() != 7 )
-			return false;
-
-		return name.matches(cathPattern);
-	}
-
-	public boolean hasRanges(){
-		return (ranges != null && ranges.size() > 0);
-	}
 	
-	public boolean isPdbId(){
-		if (name.length() == 4)
-			return true;
-		return false;
-	}
-
-	@Override
-	public String getIdentifier() {
-		return getName();
-	}
-
-	private StructureIdentifier realize() {
-		switch(mySource) {
-		case CATH:
-			return CathFactory.getCathDatabase().getDescriptionByCathId(getIdentifier());
-		case SCOP:
-			return ScopFactory.getSCOP().getDomainByScopID(getIdentifier());
-		case PDP:
-			//TODO -sbliven 2015-01-28
-			//PDPProvider provider = new RemotePDPProvider(false);
-		case PDB:
-		default:
-			return new SubstructureIdentifier(getIdentifier());
-		}
-	}
-
-	@Override
-	public SubstructureIdentifier toCanonical() {
-		return realize().toCanonical();
-	}
-
-	@Override
-	public Structure reduce(Structure input) throws StructureException {
-		return realize().reduce(input);
-	}
-
-
 }
