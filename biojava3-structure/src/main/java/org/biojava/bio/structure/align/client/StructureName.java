@@ -2,6 +2,7 @@ package org.biojava.bio.structure.align.client;
 
 
 import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
 import java.io.StringWriter;
 import java.net.MalformedURLException;
@@ -12,8 +13,6 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.naming.OperationNotSupportedException;
-
 import org.biojava.bio.structure.PassthroughIdentifier;
 import org.biojava.bio.structure.ResidueRange;
 import org.biojava.bio.structure.Structure;
@@ -23,6 +22,9 @@ import org.biojava.bio.structure.SubstructureIdentifier;
 import org.biojava.bio.structure.align.util.AtomCache;
 import org.biojava.bio.structure.cath.CathDomain;
 import org.biojava.bio.structure.cath.CathFactory;
+import org.biojava.bio.structure.domain.PDPDomain;
+import org.biojava.bio.structure.domain.PDPProvider;
+import org.biojava.bio.structure.domain.RemotePDPProvider;
 import org.biojava.bio.structure.io.util.FileDownloadUtils;
 import org.biojava.bio.structure.scop.ScopDomain;
 import org.biojava.bio.structure.scop.ScopFactory;
@@ -51,9 +53,9 @@ public class StructureName implements Serializable, StructureIdentifier{
 	protected String pdbId;
 	protected String chainId;
 
-	private static final Pattern cathPattern = Pattern.compile("^([0-9][a-z0-9]{3})(\\w)([0-9]{2})$");
+	private static final Pattern cathPattern = Pattern.compile("^([0-9][a-z0-9]{3})(\\w)([0-9]{2})$",Pattern.CASE_INSENSITIVE);
 	// More specific than AtomCache.scopIDregex
-	private static final Pattern scopPattern = Pattern.compile("^d([0-9][a-z0-9]{3})(\\w)(\\w)$");
+	private static final Pattern scopPattern = Pattern.compile("^d([0-9][a-z0-9]{3})(\\w)(\\w)$",Pattern.CASE_INSENSITIVE);
 
 	private enum Source {
 		PDB,
@@ -100,8 +102,12 @@ public class StructureName implements Serializable, StructureIdentifier{
 			// starts with PDP:
 			// eg: PDP:3LGFAa
 			mySource = Source.PDP;
-			pdbId = name.substring(4,8).toUpperCase();
-			chainId = null; //TODO PDP domains
+			matcher = PDPDomain.PDP_NAME_PATTERN.matcher(name);
+			if(! matcher.matches() ) {
+				throw new IllegalArgumentException("Malformed PDP domain name");
+			}
+			pdbId = matcher.group(1).toUpperCase();
+			chainId = matcher.group(2);
 			return;
 		}
 		// CATH
@@ -259,8 +265,13 @@ public class StructureName implements Serializable, StructureIdentifier{
 				break;
 			case PDP:
 				//TODO -sbliven 2015-01-28
-				//PDPProvider provider = new RemotePDPProvider(false);
-				throw new RuntimeException("TODO");
+				PDPProvider provider = new RemotePDPProvider(false);
+				try {
+					realized = provider.getPDPDomain(name);
+				} catch (IOException e) {
+					// This is really bad, but the SCOP and CATH factories do it internally too -sbliven
+					throw new RuntimeException("Unable to fetch PDP domain "+name, e);
+				}
 			case PDB:
 			default:
 				realized = new SubstructureIdentifier(getIdentifier());

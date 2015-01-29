@@ -24,14 +24,17 @@
  */
 package org.biojava.bio.structure.domain;
 
+import java.io.IOException;
 import java.util.SortedSet;
 
 import org.biojava.bio.structure.Structure;
+import org.biojava.bio.structure.StructureException;
+import org.biojava.bio.structure.StructureIdentifier;
 import org.biojava.bio.structure.align.util.AtomCache;
 
 public interface PDPProvider {
 	
 	public SortedSet<String> getPDPDomainNamesForPDB(String pdbId);
-	public Structure getDomain(String pdbDomainName, AtomCache cache);
-	//TODO public StructureIdentifier getDomainIdentifier(String pdpDomainName, AtomCache cache);
+	public Structure getDomain(String pdbDomainName, AtomCache cache) throws IOException, StructureException;
+	public PDPDomain getPDPDomain(String pdpDomainName) throws IOException;
 }

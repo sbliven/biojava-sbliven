@@ -793,7 +793,7 @@ public class AtomCache {
 		return s;
 	}
 
-	private Structure getPDPStructure(String pdpDomainName) {
+	private Structure getPDPStructure(String pdpDomainName) throws IOException, StructureException {
 
 		// System.out.println("loading PDP domain from server " + pdpDomainName);
 		if (pdpprovider == null) {
