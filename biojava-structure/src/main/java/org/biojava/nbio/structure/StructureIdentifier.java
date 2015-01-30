@@ -1,0 +1,77 @@
+/*
+ *                    BioJava development code
+ *
+ * This code may be freely distributed and modified under the
+ * terms of the GNU Lesser General Public Licence.  This should
+ * be distributed with the code.  If you do not have a copy,
+ * see:
+ *
+ *      http://www.gnu.org/copyleft/lesser.html
+ *
+ * Copyright for this code is held jointly by the individual
+ * authors.  These should be listed in @author doc comments.
+ *
+ * For more information on the BioJava project and its aims,
+ * or to join the biojava-l mailing list, visit the home page
+ * at:
+ *
+ *      http://www.biojava.org/
+ *
+ * Created on December 19, 2013
+ * Author: Douglas Myers-Turnbull
+ */
+
+package org.biojava.nbio.structure;
+
+
+/**
+ * An identifier that <em>uniquely</em> identifies a whole {@link Structure} or
+ * arbitrary substructure. Common examples would be reducing a structure to a
+ * single chain, domain, or residue range.
+ * 
+ * StructureIdentifiers are represented by unique strings. The getId() and fromId()
+ * methods convert to and from the string representation.
+ * 
+ * Implementations should provide a constructor which takes a String. A static
+ * <tt>fromId(String)</tt> method is also recommended.
+ *
+ * @author dmyersturnbull, sbliven
+ */
+public interface StructureIdentifier {
+
+	/**
+	 * Get the String form of this identifier.
+	 * @return The String form of this identifier
+	 */
+	String getIdentifier();
+
+
+	/**
+	 * Returns the PDB identifier associated with this StructureIdentifier.
+	 * @return The PDB ID for this StructureIdentifier, or null if not applicable
+	 */
+	String getPdbId();
+
+	/**
+	 * Convert to a canonical SubstructureIdentifier.
+	 * 
+	 * <p>This allows all domains to be converted to a standard format String.
+	 * @return A SubstructureIdentifier equivalent to this
+	 */
+	SubstructureIdentifier toCanonical();
+
+	/**
+	 * Takes a complete structure as input and reduces it to the substructure
+	 * represented by this StructureIdentifier.
+	 * 
+	 * <p>The returned structure may be a shallow copy of the input, with shared
+	 * Chains, Residues, etc.
+	 * @param input A full structure, e.g. as loaded from the PDB. The structure
+	 * ID should match that returned by getPdbId(), if applicable.
+	 * @return 
+	 * @throws StructureException 
+	 * @see StructureTools#getReducedStructure(Structure, String)
+	 */
+	Structure reduce(Structure input) throws StructureException;
+
+}
