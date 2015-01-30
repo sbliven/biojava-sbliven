@@ -1,3 +1,23 @@
+/*
+ *                    BioJava development code
+ *
+ * This code may be freely distributed and modified under the
+ * terms of the GNU Lesser General Public Licence.  This should
+ * be distributed with the code.  If you do not have a copy,
+ * see:
+ *
+ *      http://www.gnu.org/copyleft/lesser.html
+ *
+ * Copyright for this code is held jointly by the individual
+ * authors.  These should be listed in @author doc comments.
+ *
+ * For more information on the BioJava project and its aims,
+ * or to join the biojava-l mailing list, visit the home page
+ * at:
+ *
+ *      http://www.biojava.org/
+ *
+ */
 package org.biojava.bio.structure;
 
 import java.io.Serializable;
@@ -29,8 +49,6 @@ public class PDBCrystallographicInfo implements Serializable {
 	 * are not stored.
 	 */
 	private Matrix4d[] ncsOperators;
-	
-	private int z;
 	
 	public PDBCrystallographicInfo() {
 		
@@ -112,18 +130,11 @@ public class PDBCrystallographicInfo implements Serializable {
 	
 	/**
 	 * Return the z, i.e. the multiplicity of the space group times the number of chains in asymmetric unit
-	 * @return the z
+	 * @return 0
+	 * @deprecated As of 4.0, use {@link SpaceGroup#getMultiplicity()} and {@link Structure#size()}
 	 */
 	public int getZ() {		
-		return z;
-	}
-	
-	/**
-	 * Set the z 
-	 * @param z
-	 */
-	public void setZ(int z) {
-		this.z = z;
+		return 0;
 	}
 	
 	/**

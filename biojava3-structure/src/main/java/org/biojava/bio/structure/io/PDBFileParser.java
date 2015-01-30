@@ -1532,9 +1532,9 @@ COLUMNS   DATA TYPE         FIELD          DEFINITION
 	 */
 
 	private void pdb_CRYST1_Handler(String line) {    
-        // don't process incomplete CRYST1 records
-		if (line.length() < 69) {
-			logger.info("CRYST1 record has fewer than 69 columns: will ignore it");
+        // for badly formatted files (e.g. phenix-produced ones), there's no z and the min length is 63
+		if (line.length() < 63) {
+			logger.warn("CRYST1 record has fewer than 63 columns: will ignore it");
 			return;
 		}
 		
@@ -1545,7 +1545,6 @@ COLUMNS   DATA TYPE         FIELD          DEFINITION
 		float beta;
 		float gamma;
 		String spaceGroup = "";
-		int z;
 
 		try {
 			a = Float.parseFloat(line.substring(6,15).trim());
@@ -1554,33 +1553,39 @@ COLUMNS   DATA TYPE         FIELD          DEFINITION
 			alpha = Float.parseFloat(line.substring(33,40).trim());
 			beta = Float.parseFloat(line.substring(40,47).trim());
 			gamma = Float.parseFloat(line.substring(47,54).trim());
-			z = Integer.parseInt(line.substring(66,70).trim());
 		} catch (NumberFormatException e) {
 			logger.info("could not parse CRYST1 record ("+e.getMessage()+") from line and ignoring it " + line);
 			return ;
 		}
-		spaceGroup = line.substring(55,66).trim();
+		if (line.length()>=66) {
+			// for well formatted files
+			spaceGroup = line.substring(55,66).trim();
+		} else {
+			// for not-so-well formatted files, e.g. phenix-produced ones: they lack a Z value
+			spaceGroup = line.substring(55,line.length()).trim();
+		}
 		
-		// If the entry describes a structure determined by a technique other than X-ray crystallography,
-	    // CRYST1 contains a = b = c = 1.0, alpha = beta = gamma = 90 degrees, space group = P 1, and Z =1.
-		// if so we don't add and CrystalCell and SpaceGroup remain both null
-		if (a == 1.0f && b == 1.0f && c == 1.0f && 
-        		alpha == 90.0f && beta == 90.0f && gamma == 90.0f && 
-        		spaceGroup.equals("P 1") && z == 1) {
-        	return;
-        } 
 		CrystalCell xtalCell = new CrystalCell();
-		crystallographicInfo.setCrystalCell(xtalCell);
 		xtalCell.setA(a);
 		xtalCell.setB(b);
 		xtalCell.setC(c);
 		xtalCell.setAlpha(alpha);
 		xtalCell.setBeta(beta);
 		xtalCell.setGamma(gamma);
+		
+		if (!xtalCell.isCellReasonable()) {
+			// If the entry describes a structure determined by a technique other than X-ray crystallography,
+		    // CRYST1 contains a = b = c = 1.0, alpha = beta = gamma = 90 degrees, space group = P 1, and Z =1.
+			// if so we don't add the crystal cell and it remains null 
+			logger.debug("The crystal cell read from file does not have reasonable dimensions (at least one dimension is below {}), discarding it.",
+					CrystalCell.MIN_VALID_CELL_SIZE);
+		} else {		
+			crystallographicInfo.setCrystalCell(xtalCell);
+		}
+		
         SpaceGroup sg = SymoplibParser.getSpaceGroup(spaceGroup);
         if (sg==null) logger.warn("Space group '"+spaceGroup+"' not recognised as a standard space group"); 
         crystallographicInfo.setSpaceGroup(sg);
-        crystallographicInfo.setZ(z);
 	}
 
 	/**

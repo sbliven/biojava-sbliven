@@ -1176,13 +1176,17 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 			logger.warn("More than 1 Rfree value present, will use last one {} and discard previous {} ",
 					r.getLs_R_factor_R_free(), String.format("%4.2f",pdbHeader.getRfree()));
 		} 
-		try {
-			pdbHeader.setRfree(Float.parseFloat(r.getLs_R_factor_R_free()));
-		} catch (NumberFormatException e){
-			// no rfree present ('?') is very usual, that's why we set it to debug
-			logger.debug("Could not parse Rfree from string '{}'", r.getLs_R_factor_R_free());
+		if (r.getLs_R_factor_R_free()==null) {
+			// some entries like 2ifo haven't got this field at all
+			logger.info("_refine.ls_R_factor_R_free not present, not parsing Rfree value");
+		} else {
+			try {
+				pdbHeader.setRfree(Float.parseFloat(r.getLs_R_factor_R_free()));
+			} catch (NumberFormatException e){
+				// no rfree present ('?') is very usual, that's why we set it to debug
+				logger.debug("Could not parse Rfree from string '{}'", r.getLs_R_factor_R_free());
+			}
 		}
-
 		
 	}
 
@@ -1243,16 +1247,8 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 			float alpha = Float.parseFloat(cell.getAngle_alpha());
 			float beta = Float.parseFloat(cell.getAngle_beta());
 			float gamma = Float.parseFloat(cell.getAngle_gamma());
-			// If the entry describes a structure determined by a technique other than X-ray crystallography,
-		    // cell is (sometimes!) a = b = c = 1.0, alpha = beta = gamma = 90 degrees
-			// if so we don't add and CrystalCell will be null
-			if (a == 1.0f && b == 1.0f && c == 1.0f && 
-	        		alpha == 90.0f && beta == 90.0f && gamma == 90.0f ) {
-	        	return;
-	        } 
 		
 			CrystalCell xtalCell = new CrystalCell(); 
-			structure.getPDBHeader().getCrystallographicInfo().setCrystalCell(xtalCell);
 			xtalCell.setA(a);
 			xtalCell.setB(b);
 			xtalCell.setC(c);
@@ -1260,17 +1256,20 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 			xtalCell.setBeta(beta);
 			xtalCell.setGamma(gamma);
 			
+			if (!xtalCell.isCellReasonable()) {
+				// If the entry describes a structure determined by a technique other than X-ray crystallography,
+			    // cell is (sometimes!) a = b = c = 1.0, alpha = beta = gamma = 90 degrees
+				// if so we don't add and CrystalCell will be null
+				logger.debug("The crystal cell read from file does not have reasonable dimensions (at least one dimension is below {}), discarding it.",
+						CrystalCell.MIN_VALID_CELL_SIZE);				
+				return;
+			}
 			
+			structure.getPDBHeader().getCrystallographicInfo().setCrystalCell(xtalCell);
 			
 		} catch (NumberFormatException e){
 			structure.getPDBHeader().getCrystallographicInfo().setCrystalCell(null);
 			logger.info("could not parse some cell parameters ("+e.getMessage()+"), ignoring _cell ");
-		}
-		try {
-			// if Z parsing fails it is not so important
-			structure.getPDBHeader().getCrystallographicInfo().setZ(Integer.parseInt(cell.getZ_PDB()));
-		} catch (NumberFormatException e) {
-			logger.info("could not parse some the Z parameter from _cell ");
 		}
 	}
 	

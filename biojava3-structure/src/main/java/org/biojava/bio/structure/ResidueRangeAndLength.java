@@ -1,11 +1,31 @@
+/*
+ *                    BioJava development code
+ *
+ * This code may be freely distributed and modified under the
+ * terms of the GNU Lesser General Public Licence.  This should
+ * be distributed with the code.  If you do not have a copy,
+ * see:
+ *
+ *      http://www.gnu.org/copyleft/lesser.html
+ *
+ * Copyright for this code is held jointly by the individual
+ * authors.  These should be listed in @author doc comments.
+ *
+ * For more information on the BioJava project and its aims,
+ * or to join the biojava-l mailing list, visit the home page
+ * at:
+ *
+ *      http://www.biojava.org/
+ *
+ */
 package org.biojava.bio.structure;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A chain, a start residue, and an end residue.
@@ -37,9 +57,9 @@ public class ResidueRangeAndLength extends ResidueRange {
 	}
 
 	/**
-	 * Calculates the combined number of residues of the ResidueRanges in {@code rrs},
-	 * <em>given that each ResidueRange has a length calculated</em>. The value, if calculated,
-	 * <em>will include any alignment gaps</em>.
+	 * Calculates the combined number of residues of the ResidueRanges in {@code rrs}.
+	 *
+	 * Assumes no overlap. If two or more ranges cover the same residues, will over-count the union of the residues.
 	 *
 	 * @param rrs
 	 *            A list of ResidueRanges
@@ -128,8 +148,7 @@ public class ResidueRangeAndLength extends ResidueRange {
 	}
 
 	/**
-	 * @return The number of residues in this ResidueRange, including any alignment gaps. This value will be null if and
-	 *         only if this ResidueRange was created with a null length.
+	 * @return The number of residues in this ResidueRange
 	 */
 	public int getLength() {
 		return length;

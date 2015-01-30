@@ -1,3 +1,23 @@
+/*
+ *                    BioJava development code
+ *
+ * This code may be freely distributed and modified under the
+ * terms of the GNU Lesser General Public Licence.  This should
+ * be distributed with the code.  If you do not have a copy,
+ * see:
+ *
+ *      http://www.gnu.org/copyleft/lesser.html
+ *
+ * Copyright for this code is held jointly by the individual
+ * authors.  These should be listed in @author doc comments.
+ *
+ * For more information on the BioJava project and its aims,
+ * or to join the biojava-l mailing list, visit the home page
+ * at:
+ *
+ *      http://www.biojava.org/
+ *
+ */
 package org.biojava.bio.structure.align.client;
 
 
@@ -10,6 +30,9 @@ import java.net.URL;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import org.biojava.bio.structure.align.util.AtomCache;
+
+import java.io.Serializable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -41,7 +64,7 @@ import org.biojava.bio.structure.scop.ScopFactory;
  * information may be loaded from one of the factory classes:
  * {@link CathFactory},{@link ScopFactory}, etc.
  * 
- * @param name the name. e.g. 4hhb, 4hhb.A, d4hhba_, PDP:4HHBAa etc.
+ * @see #getName the name. e.g. 4hhb, 4hhb.A, d4hhba_, PDP:4HHBAa etc.
  */
 public class StructureName implements Serializable, StructureIdentifier{
 
@@ -165,7 +188,6 @@ public class StructureName implements Serializable, StructureIdentifier{
 	 * 
 	 * @return upper case PDB ID
 	 */
-	@Override
 	public String getPdbId(){
 		if(realized != null || pdbId == null) {
 			return realize().getPdbId();
@@ -204,7 +226,8 @@ public class StructureName implements Serializable, StructureIdentifier{
 
 	@Override
 	public String toString(){
-		StringWriter s = new StringWriter();
+
+		StringBuilder s = new StringBuilder();
 
 		s.append(name);
 
@@ -319,5 +342,5 @@ public class StructureName implements Serializable, StructureIdentifier{
 	}
 
 
-	
+
 }

@@ -1,3 +1,23 @@
+/*
+ *                    BioJava development code
+ *
+ * This code may be freely distributed and modified under the
+ * terms of the GNU Lesser General Public Licence.  This should
+ * be distributed with the code.  If you do not have a copy,
+ * see:
+ *
+ *      http://www.gnu.org/copyleft/lesser.html
+ *
+ * Copyright for this code is held jointly by the individual
+ * authors.  These should be listed in @author doc comments.
+ *
+ * For more information on the BioJava project and its aims,
+ * or to join the biojava-l mailing list, visit the home page
+ * at:
+ *
+ *      http://www.biojava.org/
+ *
+ */
 package org.biojava.bio.structure.xtal;
 
 import java.io.Serializable;
@@ -11,8 +31,8 @@ import javax.vecmath.Point3i;
 import javax.vecmath.Tuple3d;
 import javax.vecmath.Vector3d;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
 
 /**
  * A crystal cell's parameters.
@@ -23,9 +43,9 @@ import org.slf4j.LoggerFactory;
 public class CrystalCell implements Serializable {
 
 	private static final long serialVersionUID = 1L;
-	private static final Logger logger = LoggerFactory.getLogger(CrystalCell.class);
+	//private static final Logger logger = LoggerFactory.getLogger(CrystalCell.class);
 
-	private static final double MIN_VALID_CELL_SIZE = 10.0; // the minimum admitted for a crystal cell
+	public static final double MIN_VALID_CELL_SIZE = 10.0; // the minimum admitted for a crystal cell
 
 	
 	private double a;
@@ -503,7 +523,6 @@ public class CrystalCell implements Serializable {
 		if (this.getA()<MIN_VALID_CELL_SIZE &&
 				this.getB()<MIN_VALID_CELL_SIZE &&
 				this.getC()<MIN_VALID_CELL_SIZE) {
-			logger.warn("Warning! crystal cell with 3 dimensions below "+MIN_VALID_CELL_SIZE+". Will ignore it.");
 			return false;
 		}
 		

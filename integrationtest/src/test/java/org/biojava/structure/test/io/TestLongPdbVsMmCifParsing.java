@@ -1,3 +1,23 @@
+/*
+ *                    BioJava development code
+ *
+ * This code may be freely distributed and modified under the
+ * terms of the GNU Lesser General Public Licence.  This should
+ * be distributed with the code.  If you do not have a copy,
+ * see:
+ *
+ *      http://www.gnu.org/copyleft/lesser.html
+ *
+ * Copyright for this code is held jointly by the individual
+ * authors.  These should be listed in @author doc comments.
+ *
+ * For more information on the BioJava project and its aims,
+ * or to join the biojava-l mailing list, visit the home page
+ * at:
+ *
+ *      http://www.biojava.org/
+ *
+ */
 package org.biojava.structure.test.io;
 
 import static org.junit.Assert.assertEquals;
@@ -309,10 +329,12 @@ public class TestLongPdbVsMmCifParsing {
 			PDBCrystallographicInfo ciPdb = hPdb.getCrystallographicInfo();
 			PDBCrystallographicInfo ciCif = hCif.getCrystallographicInfo();
 			
-			assertNotNull(ciPdb.getSpaceGroup());
-			assertNotNull(ciCif.getSpaceGroup());
+			assertNotNull("space group null in pdb", ciPdb.getSpaceGroup());
+			assertNotNull("space group null in cif", ciCif.getSpaceGroup());
 			assertNotNull("crystal cell null in pdb",ciPdb.getCrystalCell());
 			assertNotNull("crystal cell null in cif",ciCif.getCrystalCell());
+			assertEquals("failed for space group short symbol pdb vs cif",
+					ciPdb.getSpaceGroup().getShortSymbol(), ciCif.getSpaceGroup().getShortSymbol());
 			
 			CrystalCell ccPdb = ciPdb.getCrystalCell();
 			CrystalCell ccCif = ciCif.getCrystalCell();

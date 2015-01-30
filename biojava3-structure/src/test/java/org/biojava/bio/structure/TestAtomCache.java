@@ -39,6 +39,17 @@ import org.biojava.bio.structure.io.PDBFileReader;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+// TODO dmyersturnbull: we should merge TestAtomCache and AtomCacheTest
 public class TestAtomCache {
 	
 	public static final String lineSplit = System.getProperty("file.separator");
@@ -66,6 +77,7 @@ public class TestAtomCache {
 		}
 	}
 
+	// TODO dmyersturnbull: Which of these syntaxes do we support? We should re-enable after
 	@Test
 	public void testAtomCacheNameParsing() throws IOException, StructureException {
 
@@ -130,20 +142,16 @@ public class TestAtomCache {
 		c = s.getChainByPDB(chainId2);
 		assertEquals(c.getChainID(),chainId2);
 
-
 	}
 	
-	@Test
-	public void testObsoleteId() throws StructureException {
+	@Test(expected=IOException.class)
+	public void testObsoleteId() throws StructureException, IOException {
 		cache.setFetchBehavior(FetchBehavior.FETCH_FILES);
 		cache.setObsoleteBehavior(ObsoleteBehavior.THROW_EXCEPTION);
 
 		// OBSOLETE PDB; should throw an exception
 		cache.setUseMmCif(false);
-		try {
-			cache.getStructure("1HHB");
-			fail("Obsolete structure should throw exception");
-		} catch(IOException e) {}
+		cache.getStructure("1HHB");
 	}
 	
 	// note: we expect an IOException because 1CMW is obsolete and hasn't got a replacement

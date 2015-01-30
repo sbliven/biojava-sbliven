@@ -23,7 +23,7 @@
    		<dependency>
             <groupId>net.sf.json-lib</groupId>
             <artifactId>json-lib</artifactId>
-            <version>2.3</version>
+            <version>2.4</version>
             <classifier>jdk15</classifier>
         </dependency>
 		<!-- logging dependencies (managed by parent pom, don't set versions or scopes here) -->
@@ -45,4 +45,17 @@
     		<artifactId>log4j-core</artifactId>
   		</dependency>			
 	</dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>demo/**.java</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

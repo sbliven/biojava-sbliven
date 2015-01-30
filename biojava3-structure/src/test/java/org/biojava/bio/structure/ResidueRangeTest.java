@@ -24,7 +24,6 @@
 package org.biojava.bio.structure;
 
 import org.biojava.bio.structure.align.util.AtomCache;
-import org.biojava.bio.structure.io.LocalPDBDirectory.FetchBehavior;
 import org.biojava.bio.structure.io.LocalPDBDirectory.ObsoleteBehavior;
 import org.junit.Before;
 import org.junit.Test;
@@ -262,6 +261,17 @@ public class ResidueRangeTest {
 			// bad format
 		}
 
+	}
+
+	@Test(expected=IllegalArgumentException.class)
+	public void testBadSyntax() throws IOException, StructureException {
+		ResidueRange.parse("-");
+	}
+
+	@Test(expected=IllegalArgumentException.class)
+	public void testPartialRange() throws IOException, StructureException {
+		AtomPositionMap map = new AtomPositionMap(cache.getAtoms("2eke"));
+		ResidueRangeAndLength.parse("C_1023-", map);
 	}
 
 	/**
