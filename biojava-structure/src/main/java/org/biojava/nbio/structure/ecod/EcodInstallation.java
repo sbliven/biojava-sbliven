@@ -663,6 +663,13 @@ public class EcodInstallation implements EcodDatabase {
 		return "EcodInstallation [cacheLocation=" + cacheLocation
 				+ ", version=" + version + "]";
 	}
+	
+	@Override
+	protected void finalize() {
+		String version = ( parsedVersion == null) ?  requestedVersion : parsedVersion;
+
+		logger.info("Finalizing ECOD version {}.",version);
+	}
 
 	public static void main(String[] args) {
 		if( args.length!= 1) {

@@ -273,5 +273,6 @@ public class EcodInstallationTest {
 				// Ignore OME
 			}
 		}
+		EcodFactory.stop();
 	}
 }

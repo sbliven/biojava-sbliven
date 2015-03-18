@@ -21,13 +21,17 @@
 package org.biojava.nbio.structure.ecod;
 
 import java.io.IOException;
+import java.lang.ref.Reference;
+import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ThreadPoolExecutor;
 
+import org.biojava.nbio.core.util.ConcurrencyTools;
 import org.biojava.nbio.structure.align.util.UserConfiguration;
 import org.biojava.nbio.structure.cath.CathDatabase;
 import org.biojava.nbio.structure.cath.CathInstallation;
@@ -60,6 +64,62 @@ public class EcodFactory {
 		return getEcodDatabase(defaultVersion);
 	}
 
+	private static ReferenceQueue<EcodDatabase> refQueue = new ReferenceQueue<EcodDatabase>();
+	private static class QueueMonitor implements Runnable {
+		private boolean keepRunning = true;
+		@Override
+		public void run() {
+			while(keepRunning) {
+				Reference<? extends EcodDatabase> ref = null;
+				try {
+					ref = refQueue.remove(500);
+				} catch (IllegalArgumentException e1) {
+				} catch (InterruptedException e1) {
+				}
+				if( ref != null ) {
+					logger.info("Deleting an ECOD DB from cache");
+				} else {
+					int numInstalled = 0;
+					StringBuilder installed = new StringBuilder();
+					logger.trace("Waiting for EcodFactory lock in queue monitor");
+					synchronized (versionedEcodDBs) {
+						logger.trace("Got EcodFactory lock in queue monitor");
+
+						for(SoftReference<EcodDatabase> r : versionedEcodDBs.values()) {
+							EcodDatabase ed = r.get();
+							if(ed != null) {
+								numInstalled++;
+								try {
+									installed.append(ed.getVersion());
+								} catch (IOException e) {
+									installed.append("?");
+								}
+								installed.append(" ");
+							}
+						}
+						logger.trace("Releasing EcodFactory lock in queue monitor");
+						logger.info("No EcodInstallations in GC queue. {} loaded installations: {}",numInstalled, installed);
+					}
+				}
+			}
+		}
+		public void stop() {
+			keepRunning = false;
+		}
+
+	}
+	private static QueueMonitor queueMonitor = new QueueMonitor();
+	static {
+
+		ThreadPoolExecutor pool = ConcurrencyTools.getThreadPool();
+		pool.submit(queueMonitor);
+	}
+	public static void stop() {
+		if(queueMonitor != null)
+			queueMonitor.stop();
+		queueMonitor = null;
+	}
+
 	public static EcodDatabase getEcodDatabase(String version) {
 		if( version == null )
 			version = defaultVersion;
@@ -79,12 +139,12 @@ public class EcodFactory {
 				logger.debug("Creating new {}, version {}",EcodInstallation.class.getSimpleName(),version);
 				String cacheDir = new UserConfiguration().getCacheFilePath();
 				ecod = new EcodInstallation(cacheDir, version);
-				versionedEcodDBs.put(version.toLowerCase(), new SoftReference<EcodDatabase>(ecod));
+				versionedEcodDBs.put(version.toLowerCase(), new SoftReference<EcodDatabase>(ecod,refQueue));
 
 				// If the parsed version differed from that requested, add that too
 				try {
 					if( ! versionedEcodDBs.containsKey(ecod.getVersion().toLowerCase()) ) {
-						versionedEcodDBs.put(ecod.getVersion().toLowerCase(),new SoftReference<EcodDatabase>(ecod));
+						versionedEcodDBs.put(ecod.getVersion().toLowerCase(),new SoftReference<EcodDatabase>(ecod,refQueue));
 					}
 				} catch (IOException e) {
 					// For parsing errors, just use the requested version
