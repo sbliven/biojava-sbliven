@@ -85,12 +85,15 @@ public class TestAtomCache {
 		Chain c = s.getChainByPDB(chainId2);
 		assertEquals(c.getChainID(),chainId2);
 
-		// Colon separators removed in BioJava 4.0.0
+		// Colon separators removed in BioJava 4.1.0
 		String name2b = "4hhb:A";
 		try {
 			s = cache.getStructure(name2b);
 			fail("Invalid structure format");
-		} catch(IOException e) {}
+		} catch(IOException e) {
+		} catch(StructureException e) {
+		}
+	
 		
 		// Numeric chain IDs are allowed but deprecated.
 		String name3 = "4hhb.1";

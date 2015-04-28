@@ -291,6 +291,7 @@ public class StructureName implements Serializable, StructureIdentifier{
 					// This is really bad, but the SCOP and CATH factories do it internally too -sbliven
 					throw new RuntimeException("Unable to fetch PDP domain "+name, e);
 				}
+				break;
 			case PDB:
 			default:
 				realized = new SubstructureIdentifier(getIdentifier());
