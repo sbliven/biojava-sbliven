@@ -357,9 +357,9 @@ public class AtomCache {
 
 	public Structure getStructure(StructureIdentifier strucId) throws IOException, StructureException {
 		Structure s;
-		String pdbId = strucId.getPdbId();
+		String pdbId = strucId.toCanonical().getPdbId();
 		if( pdbId != null ) {
-			s = loadStructureByPdbId(pdbId);
+			s = getStructureForPdbId(pdbId);
 		} else {
 			// Maybe a URL?
 			try {
@@ -380,6 +380,7 @@ public class AtomCache {
 		
 		return strucId.reduce(s);
 	}
+	
 	/**
 	 * Returns the representation of a {@link ScopDomain} as a BioJava {@link Structure} object.
 	 * 
@@ -428,7 +429,7 @@ public class AtomCache {
 			throws IOException, StructureException {
 
 		String pdbId = domain.getPdbId();
-		Structure fullStructure = loadStructureByPdbId(pdbId);
+		Structure fullStructure = getStructureForPdbId(pdbId);
 		Structure structure = domain.reduce(fullStructure);
 
 		// TODO It would be better to move all of this into the reduce method,
@@ -821,7 +822,7 @@ public class AtomCache {
 
 		CathDomain cathDomain = cathInstall.getDomainByCathId(structureName.getIdentifier());
 
-		Structure s = loadStructureByPdbId(cathDomain.getPdbId());
+		Structure s = getStructureForPdbId(cathDomain.getPdbId());
 		Structure n = cathDomain.reduce(s);
 		
 		// add the ligands of the chain...
@@ -999,7 +1000,12 @@ public class AtomCache {
 	 * @throws IOException
 	 * @throws StructureException
 	 */
-	protected Structure loadStructureByPdbId(String pdbId) throws IOException, StructureException {
+	public Structure getStructureForPdbId(String pdbId) throws IOException, StructureException {
+		if(pdbId == null)
+			return null;
+		if(pdbId.length() != 4) {
+			throw new StructureException("Unrecognized PDB ID: "+pdbId);
+		}
 		while (checkLoading(pdbId)) {
 			// waiting for loading to be finished...
 

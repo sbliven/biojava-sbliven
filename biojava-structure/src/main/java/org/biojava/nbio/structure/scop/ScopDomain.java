@@ -20,6 +20,7 @@
  */
 package org.biojava.nbio.structure.scop;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.List;
@@ -34,6 +35,7 @@ import org.biojava.nbio.structure.Structure;
 import org.biojava.nbio.structure.StructureException;
 import org.biojava.nbio.structure.StructureIdentifier;
 import org.biojava.nbio.structure.SubstructureIdentifier;
+import org.biojava.nbio.structure.align.util.AtomCache;
 
 
 /** Container for the information for a domain. Contains a line in the file
@@ -114,7 +116,6 @@ public class ScopDomain implements Serializable, Cloneable, StructureIdentifier 
 	public void setScopId(String scopId) {
 		this.scopId = scopId;
 	}
-	@Override
 	public String getPdbId() {
 		return pdbId;
 	}
@@ -230,6 +231,12 @@ public class ScopDomain implements Serializable, Cloneable, StructureIdentifier 
 	@Override
 	public Structure reduce(Structure input) throws StructureException {
 		return toCanonical().reduce(input);
+	}
+
+	@Override
+	public Structure loadStructure(AtomCache cache) throws StructureException,
+			IOException {
+		return cache.getStructureForPdbId(pdbId);
 	}
 
 

@@ -23,12 +23,14 @@
  */
 package org.biojava.nbio.structure;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 
+import org.biojava.nbio.structure.align.util.AtomCache;
 import org.biojava.nbio.structure.io.CompoundFinder;
 import org.biojava.nbio.structure.io.FileConvert;
 import org.slf4j.Logger;
@@ -827,7 +829,6 @@ public class StructureImpl implements Structure, Serializable {
 		return pdb_id;
 	}
 
-	@Override
 	public String getPdbId() {
 		return pdb_id;
 	}
@@ -860,12 +861,22 @@ public class StructureImpl implements Structure, Serializable {
 
 	@Override
 	public Structure reduce(Structure input) throws StructureException {
+		// In common case, nothing to do
+		if(this == input)
+			return this;
+		// If given a different input, reduce to the residues given in this structure
 		return toCanonical().reduce(input);
 	}
 
 	@Override
 	public void resetModels() {
 		models = new ArrayList<List<Chain>>();
+	}
+
+	@Override
+	public Structure loadStructure(AtomCache cache) throws StructureException,
+			IOException {
+		return this;
 	}
 
 }

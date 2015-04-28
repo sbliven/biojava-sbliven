@@ -23,11 +23,13 @@
 
 package org.biojava.nbio.structure;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.biojava.nbio.structure.align.util.AtomCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -130,7 +132,6 @@ public class SubstructureIdentifier implements StructureIdentifier {
 		return pdbId + "." + ResidueRange.toString(ranges);
 	}
 
-	@Override
 	public String getPdbId() {
 		return pdbId;
 	}
@@ -278,5 +279,22 @@ public class SubstructureIdentifier implements StructureIdentifier {
 			}
 		} // end modelNr
 		return newS;
+	}
+	
+	/**
+	 * Loads the complete structure based on {@link #getPdbId()}.
+	 * 
+	 * @param AtomCache A source of structures
+	 * @return A Structure containing at least the atoms identified by this,
+	 *  or null if no PDB ID is set
+	 * @throws StructureException For errors loading and parsing the structure
+	 * @throws IOException Errors reading the structure from disk
+	 */
+	@Override
+	public Structure loadStructure(AtomCache cache) throws IOException, StructureException {
+		String pdb = getPdbId();
+		if(pdb == null)
+			return null;
+		return cache.getStructureForPdbId(pdb);
 	}
 }

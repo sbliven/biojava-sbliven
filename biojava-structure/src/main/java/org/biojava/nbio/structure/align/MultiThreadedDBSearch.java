@@ -27,6 +27,7 @@ package org.biojava.nbio.structure.align;
 import org.biojava.nbio.structure.Atom;
 import org.biojava.nbio.structure.Structure;
 import org.biojava.nbio.structure.StructureTools;
+import org.biojava.nbio.structure.SubstructureIdentifier;
 import org.biojava.nbio.structure.align.ce.*;
 import org.biojava.nbio.structure.align.client.FarmJobParameters;
 import org.biojava.nbio.structure.align.client.JFatCatClient;
@@ -397,7 +398,11 @@ public class MultiThreadedDBSearch {
 		reader.setFetchBehavior(FetchBehavior.FETCH_REMEDIATED);
 		reader.setPath(cache.getPath());
 		reader.setFileParsingParameters(cache.getFileParsingParams());
-		reader.prefetchStructure(name.getPdbId());
+		
+		SubstructureIdentifier canonical = name.toCanonical();
+		if(canonical.getPdbId() != null) {
+			reader.prefetchStructure(canonical.getPdbId());
+		}
 	}
 
 

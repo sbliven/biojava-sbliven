@@ -180,18 +180,6 @@ public class StructureName implements Serializable, StructureIdentifier{
 		return chains;
 	}
 
-	/** PDB IDs are always returned as upper case
-	 * 
-	 * @return upper case PDB ID
-	 */
-	@Override
-	public String getPdbId(){
-		if(realized != null || pdbId == null) {
-			return realize().getPdbId();
-		}
-		return pdbId;
-	}
-
 	/**
 	 * Gets the chain ID, for structures where it is unique and well-defined.
 	 * May return '.' for multi-chain ranges, '_' for wildcard chains, or
@@ -216,6 +204,17 @@ public class StructureName implements Serializable, StructureIdentifier{
 		return getIdentifier();
 	}
 
+	/**
+	 * Get the PDB ID for this name, if any.
+	 * 
+	 * Equivalent to {@link SubstructureIdentifier#getPdbId()
+	 * toCanonical().getPdbId()}
+	 * @return The PDB Name, or null if not applicable
+	 */
+	public String getPdbId() {
+		return toCanonical().getPdbId();
+	}
+	
 	@Override
 	public String getIdentifier() {
 		return name;
@@ -229,7 +228,7 @@ public class StructureName implements Serializable, StructureIdentifier{
 		s.append(name);
 
 		s.append(" PDB ID: ");
-		s.append(getPdbId());
+		s.append(toCanonical().getPdbId());
 
 		if ( isScopName()) {
 			s.append(" is a SCOP name");
@@ -336,6 +335,13 @@ public class StructureName implements Serializable, StructureIdentifier{
 		} else if (!name.equals(other.name))
 			return false;
 		return true;
+	}
+
+
+	@Override
+	public Structure loadStructure(AtomCache cache) throws StructureException,
+			IOException {
+		return realize().loadStructure(cache);
 	}
 
 

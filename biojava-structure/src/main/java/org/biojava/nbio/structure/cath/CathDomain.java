@@ -30,6 +30,7 @@ package org.biojava.nbio.structure.cath;
 import org.biojava.nbio.structure.ResidueRange;
 import org.biojava.nbio.structure.StructureIdentifier;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
@@ -42,6 +43,7 @@ import org.biojava.nbio.structure.Structure;
 import org.biojava.nbio.structure.StructureException;
 import org.biojava.nbio.structure.StructureIdentifier;
 import org.biojava.nbio.structure.SubstructureIdentifier;
+import org.biojava.nbio.structure.align.util.AtomCache;
 
 /**
  * A class which represents a single CATH domain.
@@ -169,7 +171,6 @@ public class CathDomain implements Serializable, StructureIdentifier {
      * For example: {@code 1hiv.A}.
      * @deprecated This method is poorly named; use {@link #getThePdbId()} or {@link #getPdbIdAndChain()} instead
      */
-    @Override
 	@Deprecated
     public String getPdbId() {
          return getPdbIdAndChain();
@@ -459,6 +460,12 @@ public class CathDomain implements Serializable, StructureIdentifier {
 	@Override
 	public Structure reduce(Structure input) throws StructureException {
 		return toCanonical().reduce(input);
+	}
+
+	@Override
+	public Structure loadStructure(AtomCache cache) throws StructureException,
+			IOException {
+		return cache.getStructure(getThePdbId());
 	}
 
 }

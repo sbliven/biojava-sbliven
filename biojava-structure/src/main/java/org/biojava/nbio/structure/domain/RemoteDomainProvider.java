@@ -125,7 +125,7 @@ public class RemoteDomainProvider extends SerializableCache<String,SortedSet<Str
 
 		StructureName n = new StructureName(name);
 
-		List<ScopDomain>scopDomains = scop.getDomainsForPDB(n.getPdbId());
+		List<ScopDomain>scopDomains = scop.getDomainsForPDB(n.toCanonical().getPdbId());
 
 		String chainID = n.getChainId();
 
@@ -158,7 +158,7 @@ public class RemoteDomainProvider extends SerializableCache<String,SortedSet<Str
 
 
 	private SortedSet<String> getPDPDomains(StructureName n) {
-		SortedSet<String> pdpDomains = pdp.getPDPDomainNamesForPDB(n.getPdbId());
+		SortedSet<String> pdpDomains = pdp.getPDPDomainNamesForPDB(n.toCanonical().getPdbId());
 
 		SortedSet<String> r = new TreeSet<String>();
 		String chainID = n.getChainId();

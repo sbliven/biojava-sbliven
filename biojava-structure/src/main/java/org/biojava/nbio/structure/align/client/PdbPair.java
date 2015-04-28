@@ -112,13 +112,13 @@ public class PdbPair implements Comparable<PdbPair> {
 	}
 	
 	public String getPDBCode1() {
-		return name1.getPdbId();
+		return name1.toCanonical().getPdbId();
 	
 	}
 	
 
 	public String getPDBCode2(){
-		return name2.getPdbId();
+		return name2.toCanonical().getPdbId();
 		
 	}
 	public String getChainId1(){

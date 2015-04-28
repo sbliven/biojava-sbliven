@@ -23,6 +23,10 @@
 
 package org.biojava.nbio.structure;
 
+import java.io.IOException;
+
+import org.biojava.nbio.structure.align.util.AtomCache;
+
 
 /**
  * An identifier that <em>uniquely</em> identifies a whole {@link Structure} or
@@ -47,11 +51,21 @@ public interface StructureIdentifier {
 
 
 	/**
-	 * Returns the PDB identifier associated with this StructureIdentifier.
-	 * @return The PDB ID for this StructureIdentifier, or null if not applicable
+	 * Loads a structure encompassing the structure identified.
+	 * The Structure returned should be suitable for passing as
+	 * the input to {@link #reduce(Structure)}.
+	 * 
+	 * It is recommended that the most complete structure available be returned
+	 * (e.g. the full PDB) to allow processing of unselected portions where
+	 * appropriate.
+	 * @param AtomCache A potential sources of structures
+	 * @return A Structure containing at least the atoms identified by this,
+	 *  or null if Structures are not applicable.
+	 * @throws StructureException For errors loading and parsing the structure
+	 * @throws IOException Errors reading the structure from disk
 	 */
-	String getPdbId();
-
+	Structure loadStructure(AtomCache cache) throws StructureException, IOException;
+	
 	/**
 	 * Convert to a canonical SubstructureIdentifier.
 	 * 
