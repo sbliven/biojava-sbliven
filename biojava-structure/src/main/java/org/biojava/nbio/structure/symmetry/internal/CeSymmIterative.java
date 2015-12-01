@@ -41,6 +41,9 @@ import org.biojava.nbio.structure.align.multiple.util.MultipleAlignmentScorer;
 import org.biojava.nbio.structure.secstruc.SecStrucElement;
 import org.biojava.nbio.structure.secstruc.SecStrucTools;
 import org.biojava.nbio.structure.secstruc.SecStrucType;
+import org.biojava.nbio.structure.symmetry.core.HierarchicalSymmetryGroup;
+import org.biojava.nbio.structure.symmetry.core.HierarchicalSymmetryGroupImpl;
+import org.biojava.nbio.structure.symmetry.core.QuatSymmetryResults;
 import org.biojava.nbio.structure.symmetry.internal.CESymmParameters.RefineMethod;
 import org.biojava.nbio.structure.symmetry.utils.SymmetryTools;
 import org.jgrapht.UndirectedGraph;
@@ -79,6 +82,10 @@ public class CeSymmIterative {
 	private UndirectedGraph<Integer, DefaultEdge> alignGraph; // alignment graph
 	private List<MultipleAlignment> levels; // msa at each level
 	private CeSymmResult result;
+	private MultipleAlignment msa;
+
+	private SymmetryAxes axes;
+	private HierarchicalSymmetryGroup hsymm;
 
 	/**
 	 * For the iterative algorithm to work properly the refinement and
@@ -117,6 +124,7 @@ public class CeSymmIterative {
 				return result;
 
 			recoverAxes();
+			recoverHierarchicalSymmetry();
 
 			// Set the transformations and scores of the final alignment
 			MultipleAlignment msa = result.getMultipleAlignment();
@@ -330,6 +338,41 @@ public class CeSymmIterative {
 	}
 
 	/**
+	 * The {@link HierarchicalSymmetry} as a point goup tree of the multiple
+	 * levels of symmetry is recovered after the symmetry analysis iterations
+	 * have finished, using the stored MultipleAlignment at each symmetry level.
+	 * @throws StructureException 
+	 */
+	private void recoverHierarchicalSymmetry() throws StructureException {
+
+		int rlevels = levels.size(); // Remaining levels to cover with PGs
+		final int size = msa.size(); // Total number of subunits (invariant)
+
+		// While there are remaining levels to cover continue finding PGs
+		while (rlevels > 0) {
+
+			QuatSymmetryResults qsymm = SymmetryTools
+					.getQuaternarySymmetry(result);
+			String symm = qsymm.getSymmetry();
+			HierarchicalSymmetryGroup hsa = hsymm;
+
+			// If it is asymmetric or open repeats create a new SymmetryGroup
+			if (symm.charAt(0) == 'H' || symm.equals("C1")) {
+
+			} else {
+				hsymm = new HierarchicalSymmetryGroupImpl(
+						qsymm.getRotationGroup(), hsa);
+			}
+
+			// Create a MultipleAlignment with the remaining subunits
+			for (int m = size - rlevels; m < size; m++) {
+
+			}
+
+		}
+	}
+
+	/**
 	 * Calculate the number of helix and strand SSE of a repeat.
 	 *
 	 * @param atoms
@@ -341,13 +384,46 @@ public class CeSymmIterative {
 		List<SecStrucElement> sses = SecStrucTools
 				.getSecStrucElements(SymmetryTools.getGroups(atoms));
 		int count = 0;
+
+		//keep track of different helix types
+		boolean helix = false;
+		int hEnd = 0;
+
 		for (SecStrucElement sse : sses) {
 			SecStrucType t = sse.getType();
-			if (t.isBetaStrand() || t.isHelixType()) {
+			if (t.isBetaStrand()) {
+				helix = false;
 				count++;
-			}
+			} else if (t.isHelixType()){
+				if (helix){
+					// If this helix is contiguous to the previous
+					if (sse.getRange().getStart().getSeqNum() + 1 == hEnd)
+						hEnd = sse.getRange().getEnd().getSeqNum();
+					else
+						count++;
+				} else
+					count++;
+			} else
+				helix = false;
 		}
 		return count;
 	}
 
+	/**
+	 * Return the symmetry axes.
+	 *
+	 * @return SymmetryAxes
+	 */
+	public SymmetryAxes getSymmetryAxes() {
+		return axes;
+	}
+
+	/**
+	 * Return the hierarchical symmetry of the structure.
+	 *
+	 * @return HierarchicalSymmetry
+	 */
+	public HierarchicalSymmetryGroup getHierarchicalSymmetry() {
+		return hsymm;
+	}
 }

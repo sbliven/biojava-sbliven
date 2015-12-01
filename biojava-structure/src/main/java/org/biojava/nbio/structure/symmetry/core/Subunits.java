@@ -55,7 +55,7 @@ public class Subunits {
 
 	/**
 	 * All inputs should contain one element per subunit.
-	 * @param caCoords CA coordinates of all subunits
+	 * @param caCoords CA coordinates of all aligned subunits (must be the same length)
 	 * @param sequenceClusterIds ID of the cluster that each subunit belongs to
 	 * @param pseudoStoichiometry Whether pseudosymmetry was used when clustering the subunit
 	 * @param minSequenceIdentity Minimum sequence identity to other cluster members

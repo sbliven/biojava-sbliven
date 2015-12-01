@@ -46,11 +46,15 @@ public class DemoOrientBioAssembly {
 
 		//String[] pdbIDs = new String[]{"4HHB","4AQ5","1LTI","1STP","4F88","2W6E","2LXC","3OE7","4INU","4D8s","4EAR","4IYQ","3ZKR"};
 
-		String[] pdbIDs = new String[]{"4x2s"};
+		String[] pdbIDs = new String[]{"5BSE"};
 
 		int bioAssemblyNr = 1;
 
 		/*
+
+			D5 - 5BSE
+			D3 - 5EGJ
+
 			Local symmetry
 
 			2WPD has 2 local symmetries.

@@ -185,13 +185,13 @@ public class Rotation {
 		StringBuilder sb = new StringBuilder();
 		sb.append("fold       : ");
 		sb.append(fold);
-		sb.append("/n");
+		sb.append("\n");
 		sb.append("orientation: ");
 		sb.append("direction  : ");
-		sb.append("/n");
+		sb.append("\n");
 		sb.append("axisAngle  : ");
 		sb.append(axisAngle);
-		sb.append("/n");
+		sb.append("\n");
 		sb.append("permutation: ");
 		sb.append(permutation);
 		sb.append(scores);
