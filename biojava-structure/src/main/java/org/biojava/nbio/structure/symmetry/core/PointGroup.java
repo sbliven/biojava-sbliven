@@ -1,4 +1,4 @@
-package org.biojava.nbio.structure.align.multiple;
+package org.biojava.nbio.structure.symmetry.core;
 
 import java.util.List;
 
@@ -17,10 +17,14 @@ import org.biojava.nbio.structure.align.util.RotationAxis;
  * operations will leave this point unchanged. The operations are equivalent
  * to rotations around an axis by a rational fraction of PI.
  * 
+ * 
+ * <p>The PointGroup class is closely related to {@link RotationGroup}, but
+ * tries to abstract out the algebraic group from the chains being aligned.
+ * 
  * @author Spencer Bliven
  *
  */
-public interface PointGroupAlignment {
+public interface PointGroup {
 	/**
 	 * @return The number of elements in this group
 	 */
