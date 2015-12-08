@@ -41,6 +41,7 @@ import java.util.List;
  * @author Peter
  */
 public class RotationGroup implements SymmetryGroup {
+
 	private List<Rotation> rotations = new ArrayList<Rotation>();
 	private int principalAxisIndex = 0;
 	private int higherOrderRotationAxis = 0;
@@ -50,6 +51,10 @@ public class RotationGroup implements SymmetryGroup {
 	private double symmetryDeviation = 0;
 	private boolean complete = true;
 	private boolean modified = true;
+
+	// Variables for SymmetryGroup: look at the documentation
+	private List<Integer> generators;
+	private List<List<Integer>> operatorFactors;
 
 	@Override
 	public int getOrder() {
@@ -97,6 +102,7 @@ public class RotationGroup implements SymmetryGroup {
 				findTwoFoldsPerpendicular();
 				calcPointGroup();
 				sortByFoldDecending();
+				calcGenerators();
 			}
 			modified = false;
 		}
@@ -297,6 +303,11 @@ public class RotationGroup implements SymmetryGroup {
 											// axis (by definition)
 	}
 
+	/**
+	 * Count the number of two-fold axis perpendicular to the principalAxis.
+	 * This method is only valid for Dn symmetry, and the number should be equal
+	 * to the highestOrder variable.
+	 */
 	private void findTwoFoldsPerpendicular() {
 		twoFoldsPerpendicular = 0;
 		for (Rotation s : rotations) {
@@ -385,13 +396,138 @@ public class RotationGroup implements SymmetryGroup {
 		});
 	}
 
+	/**
+	 * This method identifies the generator Rotations from its permutations,
+	 * instead of co-linear axis check (robust to floating point precision and
+	 * error).
+	 * <p>
+	 * Each axis can be explained by a combination of the generator axes (called
+	 * operatorFactors), or it is one of the generator axes.
+	 */
+	private void calcGenerators() {
+
+		generators = new ArrayList<Integer>();
+		operatorFactors = new ArrayList<List<Integer>>();
+
+		generators.add(principalAxisIndex);
+
+		// Loop though all the rotation axis (omit E)
+		for (int i = 1; i < rotations.size(); i++) {
+			// The principal axis is only a combination of itself
+			if (i == principalAxisIndex) {
+				List<Integer> ofactors = new ArrayList<Integer>();
+				ofactors.add(1);
+				for (int k = 1; k < generators.size(); k++)
+					ofactors.add(0);
+				operatorFactors.add(ofactors);
+				continue;
+			}
+			List<Integer> ofactors = new ArrayList<Integer>();
+			List<Integer> permut = new ArrayList<Integer>(rotations.get(0).getPermutation());
+			// Check all possible generator combinations
+			switch (generators.size()) {
+			case 1:
+				boolean found = false;
+				// When we only know one of the generators
+				for (int f = 1; f < rotations.get(generators.get(0)).getFold(); f++) {
+					for (int p = 0; p < permut.size(); p++) {
+						// Apply the generator one more time
+						permut.set(p, rotations.get(generators.get(0))
+								.getPermutation().get(permut.get(p)));
+					}
+					if (permut.equals(rotations.get(i).getPermutation())) {
+						ofactors.add(f);
+						operatorFactors.add(ofactors);
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					// Add a new generator
+					generators.add(i);
+					ofactors.add(0);
+					ofactors.add(1);
+					for (int k = 0; k < operatorFactors.size(); k++)
+						operatorFactors.get(k).add(0);
+					operatorFactors.add(ofactors);
+				}
+				break;
+			case 2:
+				// When we have two generators we try all its combinations
+				for (int f1 = 1; f1 < rotations.get(generators.get(0)).getFold(); f1++) {
+					permut = new ArrayList<Integer>(rotations.get(0).getPermutation());
+					for (int fp = 0; fp < f1; fp++){
+						for (int p = 0; p < permut.size(); p++) {
+							// Apply the first generator one more time
+							permut.set(p, rotations.get(generators.get(0))
+									.getPermutation().get(permut.get(p)));
+						}
+					}
+					if (permut.equals(rotations.get(i).getPermutation())) {
+						ofactors.add(f1);
+						ofactors.add(0);
+						operatorFactors.add(ofactors);
+						break;
+					}
+					for (int f2 = 1; f2 < rotations.get(generators.get(1)).getFold(); f2++) {
+						for (int p = 0; p < permut.size(); p++) {
+							// Apply the second generator one more time
+							permut.set(p, rotations.get(generators.get(1))
+									.getPermutation().get(permut.get(permut.get(p))));
+						}
+						if (permut.equals(rotations.get(i).getPermutation())) {
+							ofactors.add(f1);
+							ofactors.add(f2);
+							operatorFactors.add(ofactors);
+							break;
+						}
+					}
+				}
+				// Now starting with the second axis
+				for (int f2 = 1; f2 < rotations.get(generators.get(1)).getFold(); f2++) {
+					permut = new ArrayList<Integer>(rotations.get(0).getPermutation());
+					for (int fp = 0; fp < f2; fp++){
+						for (int p = 0; p < permut.size(); p++) {
+							// Apply the second generator one more time
+							permut.set(p, rotations.get(generators.get(1))
+									.getPermutation().get(permut.get(p)));
+						}
+					}
+					if (permut.equals(rotations.get(i).getPermutation())) {
+						ofactors.add(0);
+						ofactors.add(f2);
+						operatorFactors.add(ofactors);
+						break;
+					}
+					for (int f1 = 1; f1 < rotations.get(generators.get(0)).getFold(); f1++) {
+						for (int p = 0; p < permut.size(); p++) {
+							// Apply the second generator one more time
+							permut.set(p, rotations.get(generators.get(0))
+									.getPermutation().get(permut.get(p)));
+						}
+						if (permut.equals(rotations.get(i).getPermutation())) {
+							ofactors.add(f1);
+							ofactors.add(f2);
+							operatorFactors.add(ofactors);
+							break;
+						}
+					}
+				}
+				break;
+			}
+
+		}
+	}
+
+	// ************ METHODS for SymmetryGroup implementation
+
 	@Override
 	public List<Matrix4d> getGenerators() {
-		List<Matrix4d> gen = new ArrayList<Matrix4d>();
-		for (Rotation rot : rotations) {
-			gen.add(rot.getTransformation());
+		List<Matrix4d> genMat = new ArrayList<Matrix4d>();
+		for (int gen : generators) {
+			genMat.add(rotations.get(gen).getTransformation());
 		}
-		return gen;
+		return genMat;
 	}
 
 	@Override
@@ -438,12 +574,10 @@ public class RotationGroup implements SymmetryGroup {
 	@Override
 	public List<List<List<Integer>>> getAlignedSubunits() {
 		List<List<List<Integer>>> aligned = new ArrayList<List<List<Integer>>>();
-		for (Rotation rot : rotations) {
+		for (int i = 0; i < rotations.size(); i++) {
 			List<List<Integer>> align = new ArrayList<List<Integer>>();
-			align.add(rot.getPermutation().subList(0, rot.getFold()));
-			align.add(rot.getPermutation().subList(rot.getFold(),
-					rot.getPermutation().size()));
-			aligned.add(align);
+			align.add(rotations.get(0).getPermutation());
+			align.add(rotations.get(i).getPermutation());
 		}
 		return aligned;
 	}
@@ -451,10 +585,9 @@ public class RotationGroup implements SymmetryGroup {
 	@Override
 	public List<List<Integer>> getAlignedSubunits(int i) {
 		List<List<Integer>> align = new ArrayList<List<Integer>>();
-		align.add(rotations.get(i).getPermutation().subList(0, rotations.get(i).getFold()));
-		align.add(rotations.get(i).getPermutation().subList(rotations.get(i).getFold(),
-				rotations.get(i).getPermutation().size()));
+		align.add(rotations.get(0).getPermutation());
+		align.add(rotations.get(i).getPermutation());
 		return align;
 	}
-	
+
 }
