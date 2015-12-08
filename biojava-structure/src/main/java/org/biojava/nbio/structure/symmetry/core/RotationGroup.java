@@ -551,14 +551,7 @@ public class RotationGroup implements SymmetryGroup {
 
 	@Override
 	public List<List<Integer>> getOperatorFactors() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public RotationAxis getAxis(int i) {
-		// TODO Auto-generated method stub
-		return null;
+		return operatorFactors;
 	}
 
 	@Override

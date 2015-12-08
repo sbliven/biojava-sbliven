@@ -6,7 +6,6 @@ import javax.vecmath.Matrix4d;
 
 import org.biojava.nbio.structure.Chain;
 import org.biojava.nbio.structure.align.multiple.MultipleAlignment;
-import org.biojava.nbio.structure.align.util.RotationAxis;
 
 /**
  * A SymmetryGroup represents a Group of symmetry related subunits (quaternary
@@ -88,17 +87,6 @@ public interface SymmetryGroup {
 	 *         {@link #getOperators()}.
 	 */
 	public List<List<Integer>> getOperatorFactors();
-
-	/**
-	 * Get the rotation axis associated with operator i
-	 * 
-	 * @param i
-	 *            operator index
-	 * @return
-	 * @throws IndexOutOfBoundsException
-	 *             if i < 0 or {@link #getOrder()} <= i
-	 */
-	public RotationAxis getAxis(int i);
 
 	/**
 	 * @param i
