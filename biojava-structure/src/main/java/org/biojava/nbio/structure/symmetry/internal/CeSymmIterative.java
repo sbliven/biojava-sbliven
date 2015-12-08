@@ -8,6 +8,7 @@ import java.util.List;
 import javax.vecmath.Matrix4d;
 
 import org.biojava.nbio.structure.Atom;
+import org.biojava.nbio.structure.ResidueNumber;
 import org.biojava.nbio.structure.StructureException;
 import org.biojava.nbio.structure.align.multiple.Block;
 import org.biojava.nbio.structure.align.multiple.BlockImpl;
@@ -19,6 +20,9 @@ import org.biojava.nbio.structure.align.multiple.util.MultipleAlignmentScorer;
 import org.biojava.nbio.structure.secstruc.SecStrucElement;
 import org.biojava.nbio.structure.secstruc.SecStrucTools;
 import org.biojava.nbio.structure.secstruc.SecStrucType;
+import org.biojava.nbio.structure.symmetry.core.HierarchicalSymmetryGroup;
+import org.biojava.nbio.structure.symmetry.core.HierarchicalSymmetryGroupImpl;
+import org.biojava.nbio.structure.symmetry.core.QuatSymmetryResults;
 import org.biojava.nbio.structure.symmetry.utils.SymmetryTools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,7 +56,9 @@ public class CeSymmIterative {
 
 	private Atom[] allAtoms;
 	private MultipleAlignment msa;
+
 	private SymmetryAxes axes;
+	private HierarchicalSymmetryGroup hsymm;
 
 	private List<List<Integer>> alignGraph; // msa as graph representation
 	private List<MultipleAlignment> levels; // msa at each level of symmetry
@@ -101,6 +107,7 @@ public class CeSymmIterative {
 			levels.add(msa);
 		}
 		recoverAxes();
+		recoverHierarchicalSymmetry();
 
 		return msa;
 	}
@@ -187,7 +194,7 @@ public class CeSymmIterative {
 	 * @throws StructureException
 	 */
 	private void buildAlignment() throws StructureException {
-		
+
 		// Initialize a new multiple alignment
 		msa = new MultipleAlignmentImpl();
 		msa.getEnsemble().setAtomArrays(new ArrayList<Atom[]>());
@@ -288,12 +295,37 @@ public class CeSymmIterative {
 	}
 
 	/**
-	 * Return the symmetry axes.
-	 * 
-	 * @return SymmetryAxes
+	 * The {@link HierarchicalSymmetry} as a point goup tree of the multiple
+	 * levels of symmetry is recovered after the symmetry analysis iterations
+	 * have finished, using the stored MultipleAlignment at each symmetry level.
 	 */
-	public SymmetryAxes getSymmetryAxes() {
-		return axes;
+	private void recoverHierarchicalSymmetry() {
+
+		int rlevels = levels.size(); // Remaining levels to cover with PGs
+		final int size = msa.size(); // Total number of subunits (invariant)
+
+		// While there are remaining levels to cover continue finding PGs
+		while (rlevels > 0) {
+
+			QuatSymmetryResults qsymm = SymmetryTools
+					.getQuaternarySymmetry(msa);
+			String symm = qsymm.getSymmetry();
+			HierarchicalSymmetryGroup hsa = hsymm;
+
+			// If it is asymmetric or open repeats create a new SymmetryGroup
+			if (symm.charAt(0) == 'H' || symm.equals("C1")) {
+				
+			} else {
+				hsymm = new HierarchicalSymmetryGroupImpl(
+						qsymm.getRotationGroup(), hsa);
+			}
+
+			// Create a MultipleAlignment with the remaining subunits
+			for (int m = size - rlevels; m < size; m++) {
+				
+			}
+
+		}
 	}
 
 	/**
@@ -308,13 +340,46 @@ public class CeSymmIterative {
 		List<SecStrucElement> sses = SecStrucTools
 				.getSecStrucElements(SymmetryTools.getGroups(atoms));
 		int count = 0;
+		
+		//keep track of different helix types
+		boolean helix = false;
+		int hEnd = 0;
+		
 		for (SecStrucElement sse : sses) {
 			SecStrucType t = sse.getType();
-			if (t.isBetaStrand() || t.isHelixType()) {
+			if (t.isBetaStrand()) {
+				helix = false;
 				count++;
-			}
+			} else if (t.isHelixType()){
+				if (helix){
+					// If this helix is contiguous to the previous
+					if (sse.getRange().getStart().getSeqNum() + 1 == hEnd)
+						hEnd = sse.getRange().getEnd().getSeqNum();
+					else
+						count++;
+				} else
+					count++;
+			} else
+				helix = false;
 		}
 		return count;
 	}
 
+	/**
+	 * Return the symmetry axes.
+	 * 
+	 * @return SymmetryAxes
+	 */
+	public SymmetryAxes getSymmetryAxes() {
+		return axes;
+	}
+
+	/**
+	 * Return the hierarchical symmetry of the structure.
+	 * 
+	 * @return HierarchicalSymmetry
+	 */
+	public HierarchicalSymmetryGroup getHierarchicalSymmetry() {
+		return hsymm;
+	}
 }

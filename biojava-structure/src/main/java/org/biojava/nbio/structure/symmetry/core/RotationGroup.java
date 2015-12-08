@@ -28,7 +28,9 @@ package org.biojava.nbio.structure.symmetry.core;
 import javax.vecmath.AxisAngle4d;
 import javax.vecmath.Matrix4d;
 import javax.vecmath.Vector3d;
+
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -37,7 +39,8 @@ import java.util.List;
  *
  * @author Peter
  */
-public class RotationGroup {
+public class RotationGroup implements SymmetryGroup {
+
 	private List<Rotation> rotations = new ArrayList<Rotation>();
 	private int principalAxisIndex = 0;
 	private int higherOrderRotationAxis = 0;
@@ -48,7 +51,11 @@ public class RotationGroup {
 	private boolean complete = true;
 	private boolean modified = true;
 
+	// Variables for SymmetryGroup: look at the documentation
+	private List<Integer> generators;
+	private List<List<Integer>> operatorFactors;
 
+	@Override
 	public int getOrder() {
 		return rotations.size();
 	}
@@ -68,7 +75,7 @@ public class RotationGroup {
 		for (int i = 0; i < n; i++) {
 			permutation.add(i);
 		}
-		r.setPermutation(permutation);   
+		r.setPermutation(permutation);
 		Matrix4d m = new Matrix4d();
 		m.setIdentity();
 		r.setTransformation(m);
@@ -94,6 +101,7 @@ public class RotationGroup {
 				findTwoFoldsPerpendicular();
 				calcPointGroup();
 				sortByFoldDecending();
+				calcGenerators();
 			}
 			modified = false;
 		}
@@ -110,71 +118,72 @@ public class RotationGroup {
 	}
 
 	/**
-	 * Returns QuatSymmetryScores averaged over all rotations 
-	 * (except the first rotation, which is the unit operation E)
+	 * Returns QuatSymmetryScores averaged over all rotations (except the first
+	 * rotation, which is the unit operation E)
+	 * 
 	 * @return mean scores average over rotations
 	 */
 	public QuatSymmetryScores getScores() {
 		QuatSymmetryScores scores = new QuatSymmetryScores();
 
-		int n = rotations.size()-1;
-		
+		int n = rotations.size() - 1;
+
 		if (n > 0) {
 			double[] values = new double[n];
 
 			// minRmsd
 			for (int i = 1; i < rotations.size(); i++) {
-				values[i-1] = rotations.get(i).getScores().getMinRmsd();
+				values[i - 1] = rotations.get(i).getScores().getMinRmsd();
 			}
 			scores.setMinRmsd(minScores(values));
 
 			// maxRmsd
 			for (int i = 1; i < rotations.size(); i++) {
-				values[i-1] = rotations.get(i).getScores().getMaxRmsd();
+				values[i - 1] = rotations.get(i).getScores().getMaxRmsd();
 			}
 			scores.setMaxRmsd(maxScores(values));
 
 			// Rmsd
 			for (int i = 1; i < rotations.size(); i++) {
-				values[i-1] = rotations.get(i).getScores().getRmsd();
+				values[i - 1] = rotations.get(i).getScores().getRmsd();
 			}
 			scores.setRmsd(averageScores(values));
 
 			// minTm
 			for (int i = 1; i < rotations.size(); i++) {
-				values[i-1] = rotations.get(i).getScores().getMinTm();
+				values[i - 1] = rotations.get(i).getScores().getMinTm();
 			}
 			scores.setMinTm(minScores(values));
 
 			// maxTm
 			for (int i = 1; i < rotations.size(); i++) {
-				values[i-1] = rotations.get(i).getScores().getMaxTm();
+				values[i - 1] = rotations.get(i).getScores().getMaxTm();
 			}
 			scores.setMaxTm(maxScores(values));
 
 			// Tm
 			for (int i = 1; i < rotations.size(); i++) {
-				values[i-1] = rotations.get(i).getScores().getTm();
+				values[i - 1] = rotations.get(i).getScores().getTm();
 			}
 			scores.setTm(averageScores(values));
 
 			// Rmsd subunit centers
 			for (int i = 1; i < rotations.size(); i++) {
-				values[i-1] = rotations.get(i).getScores().getRmsdCenters();
+				values[i - 1] = rotations.get(i).getScores().getRmsdCenters();
 			}
 			scores.setRmsdCenters(averageScores(values));
 			// TmIntra
 			for (int i = 1; i < rotations.size(); i++) {
-				values[i-1] = rotations.get(i).getScores().getTmIntra();
+				values[i - 1] = rotations.get(i).getScores().getTmIntra();
 			}
 			scores.setTmIntra(averageScores(values));
 
 			// RmsdIntra
 			for (int i = 1; i < rotations.size(); i++) {
-				values[i-1] = rotations.get(i).getScores().getRmsdIntra();
+				values[i - 1] = rotations.get(i).getScores().getRmsdIntra();
 			}
 			scores.setRmsdIntra(averageScores(values));
-			
+
 			// SymDeviation
 			scores.setSymDeviation(symmetryDeviation);
 		}
@@ -182,7 +191,8 @@ public class RotationGroup {
 	}
 
 	/**
-	 * @param symmetryDeviation the symmetryDeviation to set
+	 * @param symmetryDeviation
+	 *            the symmetryDeviation to set
 	 */
 	public void setSymmetryDeviation(double symmetryDeviation) {
 		this.symmetryDeviation = symmetryDeviation;
@@ -196,31 +206,31 @@ public class RotationGroup {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("Rotations: " + rotations.size() + "\n");
-		for (Rotation s: rotations) {
+		for (Rotation s : rotations) {
 			sb.append(s.toString() + "\n");
 		}
 		return sb.toString();
 	}
-	
+
 	private double averageScores(double[] scores) {
 		double sum = 0;
-		for (double s: scores) {
+		for (double s : scores) {
 			sum += s;
 		}
-		return sum/scores.length;
+		return sum / scores.length;
 	}
-	
+
 	private double minScores(double[] scores) {
 		double score = Double.MAX_VALUE;
-		for (double s: scores) {
+		for (double s : scores) {
 			score = Math.min(score, s);
 		}
 		return score;
 	}
-	
+
 	private double maxScores(double[] scores) {
 		double score = Double.MIN_VALUE;
-		for (double s: scores) {
+		for (double s : scores) {
 			score = Math.max(score, s);
 		}
 		return score;
@@ -229,7 +239,7 @@ public class RotationGroup {
 	private void findHighestOrderAxis() {
 		highestOrder = 1;
 		principalAxisIndex = 0;
-		double rmsd  = Double.MAX_VALUE;
+		double rmsd = Double.MAX_VALUE;
 
 		for (int i = 0; i < rotations.size(); i++) {
 			Rotation s = rotations.get(i);
@@ -246,8 +256,8 @@ public class RotationGroup {
 	}
 
 	/**
-	 * Add E operation to the highest order rotation axis. By definition
-	 * E belongs to the highest order axis.
+	 * Add E operation to the highest order rotation axis. By definition E
+	 * belongs to the highest order axis.
 	 */
 	private void setEAxis() {
 		Rotation e = rotations.get(0);
@@ -259,7 +269,7 @@ public class RotationGroup {
 
 	private void findHigherOrderAxes() {
 		higherOrderRotationAxis = 0;
-		for (Rotation s: rotations) {
+		for (Rotation s : rotations) {
 			if (s.getFold() > 2 && s.getDirection() == 1) {
 				higherOrderRotationAxis++;
 			}
@@ -268,7 +278,7 @@ public class RotationGroup {
 
 	private void calcAxesDirections() {
 		if (highestOrder == 1) {
-			for (Rotation s: rotations) {
+			for (Rotation s : rotations) {
 				s.setDirection(0);
 			}
 			return;
@@ -277,7 +287,7 @@ public class RotationGroup {
 		AxisAngle4d pa = rotations.get(principalAxisIndex).getAxisAngle();
 		Vector3d pv = new Vector3d(pa.x, pa.y, pa.z);
 
-		for (Rotation s: rotations) {
+		for (Rotation s : rotations) {
 			AxisAngle4d axis = s.getAxisAngle();
 			Vector3d av = new Vector3d(axis.x, axis.y, axis.z);
 			if (Math.abs(pv.dot(av)) > 0.9f) {
@@ -288,28 +298,33 @@ public class RotationGroup {
 				s.setDirection(1);
 			}
 		}
-		rotations.get(0).setDirection(0); // set the E axis to the principal axis (by definition)
+		rotations.get(0).setDirection(0); // set the E axis to the principal
+											// axis (by definition)
 	}
 
+	/**
+	 * Count the number of two-fold axis perpendicular to the principalAxis.
+	 * This method is only valid for Dn symmetry, and the number should be equal
+	 * to the highestOrder variable.
+	 */
 	private void findTwoFoldsPerpendicular() {
 		twoFoldsPerpendicular = 0;
-		for (Rotation s: rotations) {
+		for (Rotation s : rotations) {
 			if (s.getFold() == 2 && s.getDirection() == 1) {
 				twoFoldsPerpendicular++;
 			}
 		}
 	}
 
-
-	public int getHigherOrderRotationAxis(){
+	public int getHigherOrderRotationAxis() {
 		return higherOrderRotationAxis;
 	}
 
-	public int getTwoFoldsPerpendicular(){
+	public int getTwoFoldsPerpendicular() {
 		return twoFoldsPerpendicular;
 	}
-	
-	public int getPrincipalAxisIndex(){
+
+	public int getPrincipalAxisIndex() {
 		return principalAxisIndex;
 	}
 
@@ -318,7 +333,8 @@ public class RotationGroup {
 		if (higherOrderRotationAxis > 1) {
 			// cubic groups
 			if (highestOrder == 5) {
-				// rotational icosahedral symmetry or chiral icosahedral symmetry
+				// rotational icosahedral symmetry or chiral icosahedral
+				// symmetry
 				pointGroup = "I";
 				complete = rotations.size() == 60;
 			} else if (highestOrder == 4) {
@@ -326,14 +342,16 @@ public class RotationGroup {
 				pointGroup = "O";
 				complete = rotations.size() == 24;
 			} else if (highestOrder == 3) {
-				// rotational tetrahedral symmetry or chiral tetrahedral symmetry
+				// rotational tetrahedral symmetry or chiral tetrahedral
+				// symmetry
 				pointGroup = "T";
 				complete = rotations.size() == 12;
 			}
 		} else {
 			// Cn and Dn groups
 			// if E is not counted, subtract 1
-			if (Math.abs(twoFoldsPerpendicular - highestOrder) <= 1 && highestOrder > 1) {
+			if (Math.abs(twoFoldsPerpendicular - highestOrder) <= 1
+					&& highestOrder > 1) {
 				pointGroup = "D" + highestOrder;
 				complete = rotations.size() == 2 * highestOrder;
 			} else {
@@ -343,8 +361,10 @@ public class RotationGroup {
 		}
 
 		if (!complete) {
-			// the rotation group is incomplete, remove partial results. This happens
-			// when a structure is symmetric, some subunits are below the rmsd threshold,
+			// the rotation group is incomplete, remove partial results. This
+			// happens
+			// when a structure is symmetric, some subunits are below the rmsd
+			// threshold,
 			// and some are just above the rmsd threshold
 			int n = 0;
 			if (rotations.size() > 0) {
@@ -368,9 +388,172 @@ public class RotationGroup {
 					return delta;
 				}
 
-				delta = (int)(Math.signum(o1.getAxisAngle().angle - o2.getAxisAngle().angle));
+				delta = (int) (Math.signum(o1.getAxisAngle().angle
+						- o2.getAxisAngle().angle));
 				return delta;
 			}
 		});
 	}
+
+	/**
+	 * This method identifies the generator Rotations from its permutations,
+	 * instead of co-linear axis check (robust to floating point precision and
+	 * error).
+	 * <p>
+	 * Each axis can be explained by a combination of the generator axes (called
+	 * operatorFactors), or it is one of the generator axes.
+	 */
+	private void calcGenerators() {
+
+		generators = new ArrayList<Integer>();
+		operatorFactors = new ArrayList<List<Integer>>();
+
+		generators.add(principalAxisIndex); // add the highest order axis
+		operatorFactors.add(Arrays.asList(0)); // add E matrix
+
+		// Loop though all the rotation axis (omit E)
+		for (int i = 1; i < rotations.size(); i++) {
+			// The principal axis is only a combination of itself
+			if (i == principalAxisIndex) {
+				List<Integer> ofactors = new ArrayList<Integer>();
+				ofactors.add(1);
+				for (int k = 1; k < generators.size(); k++)
+					ofactors.add(0);
+				operatorFactors.add(ofactors);
+				continue;
+			}
+			List<Integer> ofactors = new ArrayList<Integer>();
+			List<Integer> permut = new ArrayList<Integer>(rotations.get(0)
+					.getPermutation());
+			// Check all possible generator combinations
+			switch (generators.size()) {
+			case 1:
+				boolean found = false;
+				// When we only know one of the generators
+				for (int f = 1; f < rotations.get(generators.get(0)).getFold(); f++) {
+					for (int p = 0; p < permut.size(); p++) {
+						// Apply the generator one more time
+						permut.set(p, rotations.get(generators.get(0))
+								.getPermutation().get(permut.get(p)));
+					}
+					if (permut.equals(rotations.get(i).getPermutation())) {
+						ofactors.add(f);
+						operatorFactors.add(ofactors);
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					// Add a new generator
+					generators.add(i);
+					ofactors.add(0);
+					ofactors.add(1);
+					for (int k = 0; k < operatorFactors.size(); k++)
+						operatorFactors.get(k).add(0);
+					operatorFactors.add(ofactors);
+				}
+				break;
+			case 2:
+				// When we have two generators we try all its combinations
+				for (int f1 = 1; f1 < rotations.get(generators.get(0))
+						.getFold(); f1++) {
+					permut = new ArrayList<Integer>(rotations.get(0)
+							.getPermutation());
+					for (int fp = 0; fp < f1; fp++) {
+						for (int p = 0; p < permut.size(); p++) {
+							// Apply the first generator one more time
+							permut.set(p, rotations.get(generators.get(0))
+									.getPermutation().get(permut.get(p)));
+						}
+					}
+					if (permut.equals(rotations.get(i).getPermutation())) {
+						ofactors.add(f1);
+						ofactors.add(0);
+						operatorFactors.add(ofactors);
+						ofactors = new ArrayList<Integer>();
+					}
+					for (int f2 = 1; f2 < rotations.get(generators.get(1))
+							.getFold(); f2++) {
+						for (int p = 0; p < permut.size(); p++) {
+							// Apply the second generator one more time
+							permut.set(p, rotations.get(generators.get(1))
+									.getPermutation().get(permut.get(p)));
+						}
+						if (permut.equals(rotations.get(i).getPermutation())) {
+							ofactors.add(f1);
+							ofactors.add(f2);
+							operatorFactors.add(ofactors);
+							ofactors = new ArrayList<Integer>();
+						}
+					}
+				}
+				break;
+			}
+		}
+	}
+
+	// ************ METHODS for SymmetryGroup implementation
+
+	@Override
+	public List<Matrix4d> getGenerators() {
+		List<Matrix4d> genMat = new ArrayList<Matrix4d>();
+		for (int gen : generators) {
+			genMat.add(rotations.get(gen).getTransformation());
+		}
+		return genMat;
+	}
+
+	@Override
+	public void setGenerator(int i, Matrix4d gen) {
+		rotations.get(i).setTransformation(gen);
+	}
+
+	@Override
+	public List<Matrix4d> getOperators() {
+		List<Matrix4d> gen = new ArrayList<Matrix4d>();
+		for (Rotation rot : rotations) {
+			gen.add(rot.getTransformation());
+		}
+		return gen;
+	}
+
+	@Override
+	public Matrix4d getOperator(int i) {
+		return rotations.get(i).getTransformation();
+	}
+
+	@Override
+	public List<List<Integer>> getOperatorFactors() {
+		return operatorFactors;
+	}
+
+	@Override
+	public int getOperatorOrder(int i) {
+		return rotations.get(i).getFold();
+	}
+
+	@Override
+	public String getSymmetryString() {
+		return getPointGroup();
+	}
+
+	@Override
+	public List<List<List<Integer>>> getAlignedSubunits() {
+		List<List<List<Integer>>> aligned = new ArrayList<List<List<Integer>>>();
+		for (int i = 0; i < rotations.size(); i++) {
+			List<List<Integer>> align = new ArrayList<List<Integer>>();
+			align.add(rotations.get(0).getPermutation());
+			align.add(rotations.get(i).getPermutation());
+		}
+		return aligned;
+	}
+
+	@Override
+	public List<List<Integer>> getAlignedSubunits(int i) {
+		List<List<Integer>> align = new ArrayList<List<Integer>>();
+		align.add(rotations.get(0).getPermutation());
+		align.add(rotations.get(i).getPermutation());
+		return align;
+	}
+
 }
