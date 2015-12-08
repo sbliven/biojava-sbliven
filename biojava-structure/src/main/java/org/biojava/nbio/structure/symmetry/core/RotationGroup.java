@@ -29,8 +29,6 @@ import javax.vecmath.AxisAngle4d;
 import javax.vecmath.Matrix4d;
 import javax.vecmath.Vector3d;
 
-import org.biojava.nbio.structure.align.util.RotationAxis;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -467,55 +465,24 @@ public class RotationGroup implements SymmetryGroup {
 						ofactors.add(f1);
 						ofactors.add(0);
 						operatorFactors.add(ofactors);
-						break;
+						ofactors = new ArrayList<Integer>();
 					}
 					for (int f2 = 1; f2 < rotations.get(generators.get(1)).getFold(); f2++) {
 						for (int p = 0; p < permut.size(); p++) {
 							// Apply the second generator one more time
 							permut.set(p, rotations.get(generators.get(1))
-									.getPermutation().get(permut.get(permut.get(p))));
-						}
-						if (permut.equals(rotations.get(i).getPermutation())) {
-							ofactors.add(f1);
-							ofactors.add(f2);
-							operatorFactors.add(ofactors);
-							break;
-						}
-					}
-				}
-				// Now starting with the second axis
-				for (int f2 = 1; f2 < rotations.get(generators.get(1)).getFold(); f2++) {
-					permut = new ArrayList<Integer>(rotations.get(0).getPermutation());
-					for (int fp = 0; fp < f2; fp++){
-						for (int p = 0; p < permut.size(); p++) {
-							// Apply the second generator one more time
-							permut.set(p, rotations.get(generators.get(1))
-									.getPermutation().get(permut.get(p)));
-						}
-					}
-					if (permut.equals(rotations.get(i).getPermutation())) {
-						ofactors.add(0);
-						ofactors.add(f2);
-						operatorFactors.add(ofactors);
-						break;
-					}
-					for (int f1 = 1; f1 < rotations.get(generators.get(0)).getFold(); f1++) {
-						for (int p = 0; p < permut.size(); p++) {
-							// Apply the second generator one more time
-							permut.set(p, rotations.get(generators.get(0))
 									.getPermutation().get(permut.get(p)));
 						}
 						if (permut.equals(rotations.get(i).getPermutation())) {
 							ofactors.add(f1);
 							ofactors.add(f2);
 							operatorFactors.add(ofactors);
-							break;
+							ofactors = new ArrayList<Integer>();
 						}
 					}
 				}
 				break;
 			}
-
 		}
 	}
 
