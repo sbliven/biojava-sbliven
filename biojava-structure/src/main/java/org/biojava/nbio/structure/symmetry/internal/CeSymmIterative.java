@@ -320,7 +320,7 @@ public class CeSymmIterative {
 						qsymm.getRotationGroup(), hsa);
 			}
 
-			// Loop through the remaining levels
+			// Create a MultipleAlignment with the remaining subunits
 			for (int m = size - rlevels; m < size; m++) {
 				
 			}
