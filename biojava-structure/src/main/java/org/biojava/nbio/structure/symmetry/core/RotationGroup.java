@@ -30,6 +30,7 @@ import javax.vecmath.Matrix4d;
 import javax.vecmath.Vector3d;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -407,7 +408,8 @@ public class RotationGroup implements SymmetryGroup {
 		generators = new ArrayList<Integer>();
 		operatorFactors = new ArrayList<List<Integer>>();
 
-		generators.add(principalAxisIndex);
+		generators.add(principalAxisIndex); // add the highest order axis
+		operatorFactors.add(Arrays.asList(0)); // add E matrix
 
 		// Loop though all the rotation axis (omit E)
 		for (int i = 1; i < rotations.size(); i++) {
@@ -421,7 +423,8 @@ public class RotationGroup implements SymmetryGroup {
 				continue;
 			}
 			List<Integer> ofactors = new ArrayList<Integer>();
-			List<Integer> permut = new ArrayList<Integer>(rotations.get(0).getPermutation());
+			List<Integer> permut = new ArrayList<Integer>(rotations.get(0)
+					.getPermutation());
 			// Check all possible generator combinations
 			switch (generators.size()) {
 			case 1:
@@ -452,9 +455,11 @@ public class RotationGroup implements SymmetryGroup {
 				break;
 			case 2:
 				// When we have two generators we try all its combinations
-				for (int f1 = 1; f1 < rotations.get(generators.get(0)).getFold(); f1++) {
-					permut = new ArrayList<Integer>(rotations.get(0).getPermutation());
-					for (int fp = 0; fp < f1; fp++){
+				for (int f1 = 1; f1 < rotations.get(generators.get(0))
+						.getFold(); f1++) {
+					permut = new ArrayList<Integer>(rotations.get(0)
+							.getPermutation());
+					for (int fp = 0; fp < f1; fp++) {
 						for (int p = 0; p < permut.size(); p++) {
 							// Apply the first generator one more time
 							permut.set(p, rotations.get(generators.get(0))
@@ -467,7 +472,8 @@ public class RotationGroup implements SymmetryGroup {
 						operatorFactors.add(ofactors);
 						ofactors = new ArrayList<Integer>();
 					}
-					for (int f2 = 1; f2 < rotations.get(generators.get(1)).getFold(); f2++) {
+					for (int f2 = 1; f2 < rotations.get(generators.get(1))
+							.getFold(); f2++) {
 						for (int p = 0; p < permut.size(); p++) {
 							// Apply the second generator one more time
 							permut.set(p, rotations.get(generators.get(1))
