@@ -188,25 +188,14 @@ public class BlastXMLParser implements ResultFactory {
                                 .setHspHseq(hspHitSeq)
                                 .setHspIdentityString(XMLHelper.selectSingleElement(hspElement, "Hsp_midline").getTextContent());
                             
-                            Sequence s;
-                            CompoundSet c;
-                            String querySequenceString = hspQuerySeq.replace("-", "");
-                            try {
-                                if (isDNA) {
-                                    c = DNACompoundSet.getDNACompoundSet();
-                                    s = new DNASequence(hspQuerySeq, c);
-                                } else {
-                                    c = AminoAcidCompoundSet.getAminoAcidCompoundSet();
-                                    s = new ProteinSequence(hspQuerySeq, c);
-                                }
-                                
-                                blastHspBuilder.setSequence(s);
-                                //blastHspBuilder.setCompound(c); // ???????
-                            } catch (CompoundNotFoundException e){
-                                logger.error("Compoundset not found error for HSP num "+hspNum
-                                        +". It will not be set by blast parser and I will try to continue.");
+                            
+                            Class sequenceClass;
+                            if (isDNA) {
+                                sequenceClass = DNASequence.class;
+                            } else {
+                                sequenceClass = ProteinSequence.class;
                             }
-
+                            blastHspBuilder.setSequenceClass(sequenceClass);
                             hspsCollection.add(blastHspBuilder.createBlastHsp());
                         }
                     }
@@ -272,8 +261,8 @@ public class BlastXMLParser implements ResultFactory {
 
 
 class BlastHsp extends org.biojava.nbio.core.search.io.Hsp {
-    public BlastHsp(int hspNum, double hspBitScore, int hspScore, double hspEvalue, int hspQueryFrom, int hspQueryTo, int hspHitFrom, int hspHitTo, int hspQueryFrame, int hspHitFrame, int hspIdentity, int hspPositive, int hspGaps, int hspAlignLen, String hspQseq, String hspHseq, String hspIdentityString, Double percentageIdentity, Integer mismatchCount, Sequence s, Compound c) {
-        super(hspNum, hspBitScore, hspScore, hspEvalue, hspQueryFrom, hspQueryTo, hspHitFrom, hspHitTo, hspQueryFrame, hspHitFrame, hspIdentity, hspPositive, hspGaps, hspAlignLen, hspQseq, hspHseq, hspIdentityString, percentageIdentity, mismatchCount, s, c);
+    public BlastHsp(int hspNum, double hspBitScore, int hspScore, double hspEvalue, int hspQueryFrom, int hspQueryTo, int hspHitFrom, int hspHitTo, int hspQueryFrame, int hspHitFrame, int hspIdentity, int hspPositive, int hspGaps, int hspAlignLen, String hspQseq, String hspHseq, String hspIdentityString, Double percentageIdentity, Integer mismatchCount, Class sequenceClass) {
+        super(hspNum, hspBitScore, hspScore, hspEvalue, hspQueryFrom, hspQueryTo, hspHitFrom, hspHitTo, hspQueryFrame, hspHitFrame, hspIdentity, hspPositive, hspGaps, hspAlignLen, hspQseq, hspHseq, hspIdentityString, percentageIdentity, mismatchCount, sequenceClass);
     }
     
 }

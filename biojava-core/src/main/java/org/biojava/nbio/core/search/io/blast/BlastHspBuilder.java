@@ -52,8 +52,7 @@ public class BlastHspBuilder<S extends Sequence<C>, C extends Compound> {
     private String hspIdentityString;
     private Double percentageIdentity;
     private Integer mismatchCount;
-    private S sequence;
-    private C compound;
+    private Class sequenceClass;
 
     public BlastHspBuilder() {
     }
@@ -153,18 +152,13 @@ public class BlastHspBuilder<S extends Sequence<C>, C extends Compound> {
         return this;
     }
 
-    public BlastHspBuilder setSequence(S sequence) {
-        this.sequence = sequence;
-        return this;
-    }
-
-    public BlastHspBuilder setCompound(C compound) {
-        this.compound = compound;
+    public BlastHspBuilder setSequenceClass(Class sequenceClass) {
+        this.sequenceClass = sequenceClass;
         return this;
     }
     
     public BlastHsp createBlastHsp() {
-        return new BlastHsp(hspNum, hspBitScore, hspScore, hspEvalue, hspQueryFrom, hspQueryTo, hspHitFrom, hspHitTo, hspQueryFrame, hspHitFrame, hspIdentity, hspPositive, hspGaps, hspAlignLen, hspQseq, hspHseq, hspIdentityString, percentageIdentity, mismatchCount, sequence, compound);
+        return new BlastHsp(hspNum, hspBitScore, hspScore, hspEvalue, hspQueryFrom, hspQueryTo, hspHitFrom, hspHitTo, hspQueryFrame, hspHitFrame, hspIdentity, hspPositive, hspGaps, hspAlignLen, hspQseq, hspHseq, hspIdentityString, percentageIdentity, mismatchCount, sequenceClass);
     }
     
 }
