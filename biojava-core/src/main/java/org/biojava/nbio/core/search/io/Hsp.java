@@ -20,11 +20,9 @@
  */
 package org.biojava.nbio.core.search.io;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
+
 import org.biojava.nbio.core.alignment.SimpleAlignedSequence;
 import org.biojava.nbio.core.alignment.SimpleSequencePair;
 import org.biojava.nbio.core.alignment.template.AlignedSequence.Step;
@@ -75,7 +73,7 @@ public abstract class Hsp <S extends Sequence<C>, C extends Compound> {
     private Double percentageIdentity = null;
     private Integer mismatchCount = null;
     private SimpleSequencePair<S, C> returnAln;
-    private Class sequenceClass;
+    private Class<S> sequenceClass;
 
     @Override
     public int hashCode() {
@@ -120,50 +118,34 @@ public abstract class Hsp <S extends Sequence<C>, C extends Compound> {
         
         SimpleAlignedSequence<S,C> alignedQuery, alignedHit;
         // queryFrom e hitTo?
-        int numBefore, numAfter;
         
-        alignedQuery = new SimpleAlignedSequence(getSequence(hspQseq), getAlignmentsSteps(hspQseq));
-        alignedHit = new SimpleAlignedSequence(getSequence(hspHseq), getAlignmentsSteps(hspHseq));
+        alignedQuery = new SimpleAlignedSequence<S,C>(getSequence(hspQseq), getAlignmentsSteps(hspQseq));
+        alignedHit = new SimpleAlignedSequence<S,C>(getSequence(hspHseq), getAlignmentsSteps(hspHseq));
         
         returnAln = new SimpleSequencePair<S, C>(alignedQuery, alignedHit);
         
         return returnAln;
     }
     
-    private Sequence<C> getSequence(String gappedSequenceString){
+    @SuppressWarnings("unchecked") // type safety assured at runtime
+	private S getSequence(String gappedSequenceString){
         if (gappedSequenceString == null) return null;
         
-        Sequence returnSeq = null;
+        S returnSeq = null;
         String sequenceString = gappedSequenceString.replace("-", "");
         
         try {
-            if (sequenceClass == null){
-                // try to guess
-                if (sequenceString.matches("^[ACTG]+$")) 
-                    returnSeq = new DNASequence(sequenceString, DNACompoundSet.getDNACompoundSet());
-                else if (sequenceString.matches("^[ACUG]+$"))
-                    returnSeq = new RNASequence(sequenceString, DNACompoundSet.getDNACompoundSet());
-                else
-                    returnSeq = new ProteinSequence(sequenceString, AminoAcidCompoundSet.getAminoAcidCompoundSet());
-            } else {
-                //get constructor that takes a String as argument
-                Constructor constructor = sequenceClass.getConstructor(String.class);
-                returnSeq = (Sequence) constructor.newInstance(sequenceString);
+            if (sequenceClass.isAssignableFrom(DNASequence.class))
+                returnSeq = (S) new DNASequence(sequenceString, DNACompoundSet.getDNACompoundSet());
+            else if (sequenceClass.isAssignableFrom(RNASequence.class))
+                returnSeq = (S) new RNASequence(sequenceString, RNACompoundSet.getRNACompoundSet());
+            else if (sequenceClass.isAssignableFrom(ProteinSequence.class))
+                returnSeq = (S) new ProteinSequence(sequenceString, AminoAcidCompoundSet.getAminoAcidCompoundSet());
+            else {
+                throw new RuntimeException("Unable to create sequence for "+sequenceClass.getSimpleName());
             }
         } catch (CompoundNotFoundException ex) {
             logger.error("Unexpected error: cannot not find compound when creating Sequence object from Hsp", ex);
-        } catch (NoSuchMethodException ex) {
-            logger.error("Unexpected error: cannot build Sequence object from Hsp");
-        } catch (SecurityException ex) {
-            logger.error("Unexpected error: cannot build Sequence object from Hsp");
-        } catch (InstantiationException ex) {
-            logger.error("Unexpected error: cannot build Sequence object from Hsp");
-        } catch (IllegalAccessException ex) {
-            logger.error("Unexpected error: cannot build Sequence object from Hsp");
-        } catch (IllegalArgumentException ex) {
-            logger.error("Unexpected error: cannot build Sequence object from Hsp");
-        } catch (InvocationTargetException ex) {
-            logger.error("Unexpected error: cannot build Sequence object from Hsp");
         }
         return returnSeq;
     }
@@ -266,7 +248,7 @@ public abstract class Hsp <S extends Sequence<C>, C extends Compound> {
         return null;
     }
 
-    protected Hsp(int hspNum, double hspBitScore, int hspScore, double hspEvalue, int hspQueryFrom, int hspQueryTo, int hspHitFrom, int hspHitTo, int hspQueryFrame, int hspHitFrame, int hspIdentity, int hspPositive, int hspGaps, int hspAlignLen, String hspQseq, String hspHseq, String hspIdentityString, Double percentageIdentity, Integer mismatchCount, Class sequenceClass) {
+    protected Hsp(int hspNum, double hspBitScore, int hspScore, double hspEvalue, int hspQueryFrom, int hspQueryTo, int hspHitFrom, int hspHitTo, int hspQueryFrame, int hspHitFrame, int hspIdentity, int hspPositive, int hspGaps, int hspAlignLen, String hspQseq, String hspHseq, String hspIdentityString, Double percentageIdentity, Integer mismatchCount, Class<S> sequenceClass) {
         this.hspNum = hspNum;
         this.hspBitScore = hspBitScore;
         this.hspScore = hspScore;
