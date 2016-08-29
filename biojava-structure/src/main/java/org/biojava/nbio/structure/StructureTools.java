@@ -417,10 +417,8 @@ public class StructureTools {
 	 * @return
 	 */
 	public static List<Group> getUnalignedGroups(Atom[] ca) {
-		Set<Chain> chains = new HashSet<Chain>();
-		Set<Group> caGroups = new HashSet<Group>();
-
-		// Create list of all chains in this structure
+		//if(true) return Collections.emptyList();
+		// Get the full structure
 		Structure s = null;
 		if (ca.length > 0) {
 			Group g = ca[0].getGroup();
@@ -431,33 +429,48 @@ public class StructureTools {
 				}
 			}
 		}
-		if (s != null) {
-			// Add all chains from the structure
-			for (Chain c : s.getChains(0)) {
-				chains.add(c);
+		// Collect all groups from the structure
+		Set<Chain> allChains = new HashSet<>();
+		if( s != null ) {
+			allChains.addAll(s.getChains());
+		}
+		// In case the structure wasn't set, need to use ca chains too
+		for(Atom a : ca) {
+			Group g = a.getGroup();
+			if(g != null) {
+				Chain c = g.getChain();
+				if( c != null ) {
+					allChains.add(c);
+				}
 			}
 		}
 
-		// Add groups and chains from ca
+		if(allChains.isEmpty() ) {
+			return Collections.emptyList();
+		}
+		// Extract all ligand groups
+		Set<Group> fullLigands = new HashSet<>();
+		for(Chain c : allChains) {
+			fullLigands.addAll(c.getAtomGroups(GroupType.HETATM));
+		}
+
+		// Add atoms from ca
+		List<Atom> polymerAtoms = new ArrayList<>();
 		for (Atom a : ca) {
 			Group g = a.getGroup();
 			if (g != null) {
-				caGroups.add(g);
-
-				Chain c = g.getChain();
-				if (c != null) {
-					chains.add(c);
-				}
+				polymerAtoms.addAll(g.getAtoms());
 			}
 		}
+		
+		// Find ligands in the structure close to the selected groups
+		List<Group> ligands = getLigandsByProximity(fullLigands, polymerAtoms.toArray(new Atom[polymerAtoms.size()]), DEFAULT_LIGAND_PROXIMITY_CUTOFF);
 
-		// Iterate through all chains, finding groups not in ca
+		// Iterate through all chains, finding ligands not in ca
 		List<Group> unadded = new ArrayList<Group>();
-		for (Chain c : chains) {
-			for (Group g : c.getAtomGroups()) {
-				if (!caGroups.contains(g)) {
-					unadded.add(g);
-				}
+		for(Group l : ligands) {
+			if (!polymerAtoms.contains(l)) {
+				unadded.add(l);
 			}
 		}
 		return unadded;
