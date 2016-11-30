@@ -28,16 +28,18 @@ import java.util.function.Function;
 
 import org.biojava.nbio.core.sequence.template.Compound;
 import org.biojava.nbio.core.sequence.template.Sequence;
-import org.biojava.nbio.core.util.SequenceTools;
  
 public class WildcardCapture2 {
+	public static Sequence<?> getSequenceFromString(String gappedSequenceString){
+		return null;
+	}
 	/**
 	 * Test of createObjects method, of class BlastXMLParser.
 	 */
 	public void testCreateObjectsUntyped() throws Exception {
 		
 		// Because types need to be consistent, use a helper method for wildcard capture
-		testCreateObjectsUntypedHelper(SequenceTools::getSequenceFromString);
+		testCreateObjectsUntypedHelper(WildcardCapture2::getSequenceFromString);
 	}
 	public <S extends Sequence<C>,C extends Compound> void testCreateObjectsUntypedHelper(Function<String, S> buildSeq) throws Exception {
 	}
