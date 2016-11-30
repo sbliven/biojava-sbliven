@@ -24,13 +24,13 @@
  
 package org.biojava.nbio.core.search.io.blast;
 
+import java.util.List;
 import java.util.function.Function;
-
-import org.biojava.nbio.core.sequence.template.Compound;
-import org.biojava.nbio.core.sequence.template.Sequence;
  
 public class WildcardCapture2 {
-	public static Sequence<?> getSequenceFromString(String gappedSequenceString){
+//	@SuppressWarnings("serial")
+//	static class NumberLists<L extends List<T>,T extends Number> extends ArrayList<L> {}
+	public static List<? extends Number> getSequenceFromString(String gappedSequenceString){
 		return null;
 	}
 	/**
@@ -41,6 +41,6 @@ public class WildcardCapture2 {
 		// Because types need to be consistent, use a helper method for wildcard capture
 		testCreateObjectsUntypedHelper(WildcardCapture2::getSequenceFromString);
 	}
-	public <S extends Sequence<C>,C extends Compound> void testCreateObjectsUntypedHelper(Function<String, S> buildSeq) throws Exception {
+	public <S extends List<C>,C extends Number> void testCreateObjectsUntypedHelper(Function<String, S> buildSeq) throws Exception {
 	}
 }
