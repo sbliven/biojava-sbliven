@@ -29,7 +29,9 @@ import java.util.List;
 import org.biojava.nbio.structure.Atom;
 import org.biojava.nbio.structure.Structure;
 import org.biojava.nbio.structure.StructureException;
+import org.biojava.nbio.structure.StructureIdentifier;
 import org.biojava.nbio.structure.StructureTools;
+import org.biojava.nbio.structure.align.client.StructureName;
 import org.biojava.nbio.structure.align.multiple.util.MultipleAlignmentScorer;
 import org.biojava.nbio.structure.align.multiple.util.MultipleSuperimposer;
 import org.biojava.nbio.structure.align.multiple.util.ReferenceSuperimposer;
@@ -41,7 +43,7 @@ import org.biojava.nbio.structure.io.StructureIOFile;
  * This class is a helper for all the other MultipleAlignment test classes.
  * It contains methods for generating sample MultipleAlignments with known
  * properties that can be used to test correctness of the calculation methods.
- * 
+ *
  * @author Aleix Lafita
  *
  */
@@ -55,7 +57,7 @@ public class TestSampleGenerator {
 	 * Fields left unfilled (null): distanceMatrices and ioTime.<p>
 	 * Atoms are not downladed, but the structure (2gox) is obtained from the
 	 * test/resources folder.
-	 * 
+	 *
 	 * @return
 	 * @throws StructureException
 	 * @throws IOException
@@ -87,7 +89,7 @@ public class TestSampleGenerator {
 		ensemble.setAlgorithmName("testAlignment");
 		ensemble.setVersion("1.0");
 		ensemble.setCalculationTime((long) 1000000000);
-		ensemble.setStructureNames(Arrays.asList("2gox","2gox","2gox"));
+		ensemble.setStructureIdentifiers(Arrays.<StructureIdentifier>asList(new StructureName("2gox"),new StructureName("2gox"),new StructureName("2gox")));
 
 		//Generate the MultipleAlignment - 2 blocks with 2 blocksets each
 		int[] nextResidue = new int[3];
@@ -127,7 +129,7 @@ public class TestSampleGenerator {
 	 * The alignment is manually constructed. All ensemble fields are filled,
 	 * so that no one is null.<p>
 	 * Atoms of four structures (globins) are downloaded.
-	 * 
+	 *
 	 * @return MultipleAlignment the test multiple alignment
 	 * @throws StructureException
 	 * @throws IOException
@@ -136,19 +138,21 @@ public class TestSampleGenerator {
 			throws StructureException, IOException {
 
 		//Download the globin structures
-		List<String> names = Arrays.asList("1mbc", "1hlb", "1thb.A", "1ith.A");
+		List<StructureIdentifier> names = Arrays.<StructureIdentifier>asList(
+				new StructureName("1mbc"), new StructureName("1hlb"),
+				new StructureName("1thb.A"), new StructureName("1ith.A"));
 		AtomCache cache = new AtomCache();
 		List<Atom[]> atomArrays = new ArrayList<Atom[]>();
-		for (String name:names) atomArrays.add(cache.getAtoms(name));
+		for (StructureIdentifier name:names) atomArrays.add(cache.getAtoms(name));
 
-		MultipleAlignmentEnsemble ensemble = 
+		MultipleAlignmentEnsemble ensemble =
 				new MultipleAlignmentEnsembleImpl();
 		MultipleAlignment alignment = new MultipleAlignmentImpl(ensemble);
 
 		//Set the ensemble properties (all filled)
 		ensemble.setAtomArrays(atomArrays);
 		ensemble.getDistanceMatrix();
-		ensemble.setStructureNames(names);
+		ensemble.setStructureIdentifiers(names);
 		ensemble.setAlgorithmName("testAlignment");
 		ensemble.setVersion("2.0");
 		ensemble.setIoTime((long) 1000000000);

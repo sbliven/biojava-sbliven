@@ -21,10 +21,14 @@
 package org.biojava.nbio.phosphosite;
 
 import org.biojava.nbio.structure.align.util.AtomCache;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.URL;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,215 +41,187 @@ import java.util.List;
  *
  * Please cite : “Hornbeck PV, Kornhauser JM, Tkachev S, Zhang B, Skrzypek E, Murray B, Latham V, Sullivan M (2012) PhosphoSitePlus: a comprehensive resource for investigating the structure and function of experimentally determined post-translational modifications in man and mouse. Nucleic Acids Res. 40(Database issue), D261–70.”.
  *
- (
+ *
  *
  * Created by ap3 on 31/10/2014.
  */
 public class Dataset {
 
+	private static final Logger logger = LoggerFactory.getLogger(Dataset.class);
 
-    public static final String ACETYLATION = "http://www.phosphosite.org/downloads/Acetylation_site_dataset.gz";
+	public static final String ACETYLATION = "http://www.phosphosite.org/downloads/Acetylation_site_dataset.gz";
 
-    public static final String DISEASE_ASSOC = "http://www.phosphosite.org/downloads/Disease-associated_sites.gz";
+	public static final String DISEASE_ASSOC = "http://www.phosphosite.org/downloads/Disease-associated_sites.gz";
 
-    public static final String METHYLATION = "http://www.phosphosite.org/downloads/Methylation_site_dataset.gz";
+	public static final String METHYLATION = "http://www.phosphosite.org/downloads/Methylation_site_dataset.gz";
 
-    public static final String PHOSPHORYLATION = "http://www.phosphosite.org/downloads/Phosphorylation_site_dataset.gz";
+	public static final String PHOSPHORYLATION = "http://www.phosphosite.org/downloads/Phosphorylation_site_dataset.gz";
 
-    public static final String REGULATORY = "http://www.phosphosite.org/downloads/Regulatory_sites.gz";
+	public static final String REGULATORY = "http://www.phosphosite.org/downloads/Regulatory_sites.gz";
 
-    public static final String SUMOYLATION = "http://www.phosphosite.org/downloads/Sumoylation_site_dataset.gz";
+	public static final String SUMOYLATION = "http://www.phosphosite.org/downloads/Sumoylation_site_dataset.gz";
 
-    public static final String UBIQUITINATION = "http://www.phosphosite.org/downloads/Ubiquitination_site_dataset.gz";
+	public static final String UBIQUITINATION = "http://www.phosphosite.org/downloads/Ubiquitination_site_dataset.gz";
 
 
-    public Dataset(){
+	public Dataset(){
 
 
-    }
+	}
 
-    private String[] getRemoteFiles(){
-        String[] files = new String[]{ACETYLATION,DISEASE_ASSOC,METHYLATION,PHOSPHORYLATION,REGULATORY,SUMOYLATION,UBIQUITINATION};
+	private String[] getRemoteFiles(){
+		String[] files = new String[]{ACETYLATION,DISEASE_ASSOC,METHYLATION,PHOSPHORYLATION,REGULATORY,SUMOYLATION,UBIQUITINATION};
 
 
-        return files;
-    }
+		return files;
+	}
 
-    public File[] getLocalFiles(){
+	public File[] getLocalFiles(){
 
-        String[] rfiles = getRemoteFiles();
+		String[] rfiles = getRemoteFiles();
 
 
-        File dir = getLocalDir();
+		File dir = getLocalDir();
 
-        List<File> files = new ArrayList<File>();
-        for ( String f : rfiles) {
+		List<File> files = new ArrayList<File>();
+		for ( String f : rfiles) {
 
 
-            int slashIndex = f.lastIndexOf("/");
+			int slashIndex = f.lastIndexOf("/");
 
-            String fileName = f.substring(slashIndex);
+			String fileName = f.substring(slashIndex);
 
-            File localFile = new File(dir+"/" + fileName);
+			File localFile = new File(dir+"/" + fileName);
 
-            if (  localFile.exists()){
-                files.add(localFile);
-            }
+			if (  localFile.exists()){
+				files.add(localFile);
+			}
 
-        }
+		}
 
-        return files.toArray(new File[files.size()]);
-    }
+		return files.toArray(new File[files.size()]);
+	}
 
 
-    public File getLocalDir(){
-        AtomCache cache = new AtomCache();
+	public File getLocalDir(){
+		AtomCache cache = new AtomCache();
 
-        String path = cache.getCachePath();
+		String path = cache.getCachePath();
 
-        File dir = new File(path+"/phosphosite");
+		File dir = new File(path+"/phosphosite");
 
-        return dir;
-    }
+		return dir;
+	}
 
-    public void download(){
+	public void download(){
 
-        System.out.println("Downloading data from www.phosposite.org. Data is under CC-BY-NC-SA license. Please link to site and cite: ");
-        System.out.println("Hornbeck PV, Kornhauser JM, Tkachev S, Zhang B, Skrzypek E, Murray B, Latham V, Sullivan M (2012) PhosphoSitePlus: a comprehensive resource for investigating the structure and function of experimentally determined post-translational modifications in man and mouse. Nucleic Acids Res. 40(Database issue), D261–70.");
+		logger.warn("Downloading data from www.phosposite.org. Data is under CC-BY-NC-SA license. Please link to site and cite: ");
+		logger.warn("Hornbeck PV, Kornhauser JM, Tkachev S, Zhang B, Skrzypek E, Murray B, Latham V, Sullivan M (2012) PhosphoSitePlus: a comprehensive resource for investigating the structure and function of experimentally determined post-translational modifications in man and mouse. Nucleic Acids Res. 40(Database issue), D261–70.");
 
-        File dir = getLocalDir();
+		File dir = getLocalDir();
 
-        if ( ! dir.exists()) {
+		if ( ! dir.exists()) {
 
-            // need to download all...
+			// need to download all...
 
-            dir.mkdir();
+			dir.mkdir();
 
 
-        }
+		}
 
-        String[] files = getRemoteFiles();
+		String[] files = getRemoteFiles();
 
-        for ( String f : files){
+		for ( String f : files){
 
-            try {
+			try {
 
 
-                int slashIndex = f.lastIndexOf("/");
+				int slashIndex = f.lastIndexOf("/");
 
-                String fileName = f.substring(slashIndex);
+				String fileName = f.substring(slashIndex);
 
-                File localFile = new File(dir+"/" + fileName);
+				File localFile = new File(dir+"/" + fileName);
 
-                if ( ! localFile.exists()){
+				if ( ! localFile.exists()){
 
-                    URL u = new URL(f);
-                    downloadFile(u, localFile);
-                }
+					URL u = new URL(f);
+					downloadFile(u, localFile);
+				}
 
 
-            } catch (Exception e){
+			} catch (Exception e){
 
-                e.printStackTrace();
-            }
+				e.printStackTrace();
+			}
 
 
-        }
+		}
 
-    }
+	}
 
-    private void downloadFile(URL u, File localFile) throws IOException {
+	public void downloadFile(URL u, File localFile) throws IOException {
 
-        System.out.println("Downloading " + u);
+		logger.info("Downloading " + u);
 
-        File tmp = File.createTempFile("tmp","phosphosite");
+		File tmp = File.createTempFile("tmp","phosphosite");
 
-        InputStream is = u.openStream();
+		InputStream is = u.openStream();
 
-        BufferedInputStream in = new BufferedInputStream(is);
+		BufferedInputStream in = new BufferedInputStream(is);
 
-        FileOutputStream w = new FileOutputStream(tmp);
+		FileOutputStream w = new FileOutputStream(tmp);
 
-        int i= 0;
-        byte[] bytesIn = new byte[300000];
-        while ((i = in.read(bytesIn)) >= 0) {
-            w.write(bytesIn,0,i);
-        }
-        in.close();
-        w.close();
+		int i= 0;
+		byte[] bytesIn = new byte[300000];
+		while ((i = in.read(bytesIn)) >= 0) {
+			w.write(bytesIn,0,i);
+		}
+		in.close();
+		w.close();
 
 
-        // now copy  tmp file to localFile
-        copyFile(tmp, localFile);
+		// now copy  tmp file to localFile
+		copyFile(tmp, localFile);
 
-    }
+	}
 
 
 
-    public static void copyFile(File src, File dst) throws IOException
-    {
+	public static void copyFile(File src, File dst) throws IOException
+	{
 
-        // TODO: upgrade to Java 7:
+		Files.copy(src.toPath(), dst.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
-        // Files.copy(src.toPath(), dst.toPath(), StandardCopyOption.REPLACE_EXISTING);
+	}
 
 
+	public static void main(String[] args) {
 
-        long p = 0, dp, size;
-        FileChannel in = null, out = null;
+		Dataset ds = new Dataset();
 
-        try
-        {
-            if (!dst.exists()) dst.createNewFile();
+		ds.download();
 
-            in = new FileInputStream(src).getChannel();
-            out = new FileOutputStream(dst).getChannel();
-            size = in.size();
+		try {
 
-            while ((dp = out.transferFrom(in, p, size)) > 0)
-            {
-                p += dp;
-            }
-        }
-        finally {
-            try
-            {
-                if (out != null) out.close();
-            }
-            finally {
-                if (in != null) in.close();
-            }
-        }
-    }
+			for (File f : ds.getLocalFiles()) {
 
+				logger.info(f.getAbsolutePath());
 
-    public static void main(String[] args) {
+				List<Site> sites = Site.parseSites(f);
 
-        Dataset ds = new Dataset();
+				logger.info("Got " + sites.size() + " sites");
+				for (Site s : sites) {
+					if (s.getUniprot().equals("P50225") || s.getUniprot().equals("P48025")) {
+						logger.info(s.toString());
+					}
+				}
 
-        ds.download();
+			}
 
-        try {
 
-
-            for (File f : ds.getLocalFiles()) {
-
-                System.out.println(f.getAbsoluteFile());
-
-                List<Site> sites = Site.parseSites(f);
-
-                for (Site s : sites) {
-                    if (s.getUniprot().equals("P50225") || s.getUniprot().equals("P48025")) {
-                        System.out.println(s);
-                    }
-                }
-
-            }
-
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
 
 }

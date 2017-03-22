@@ -18,7 +18,7 @@
  *      http://www.biojava.org/
  *
  * Created on May 17, 2010
- * Author: Andreas Prlic 
+ * Author: Andreas Prlic
  *
  */
 
@@ -32,9 +32,9 @@ import org.biojava.nbio.structure.io.StructureProvider;
 import java.util.List;
 
 /** An example of how to read MMcif files
- * 
+ *
  * @author Andreas Prlic
- * 
+ *
  */
 public class DemoMMCIFReader
 {
@@ -45,12 +45,13 @@ public class DemoMMCIFReader
 
 		demo.loadSimple();
 
-		//demo.loadFromDirectAccess();
+		demo.loadFromDirectAccess();
 
 	}
 
-	/** A basic example how to load an mmCif file and get a Structure object
-	 *  
+	/** 
+	 * A basic example how to load an mmCif file and get a Structure object
+	 *
 	 */
 	public void loadSimple(){
 		String pdbId = "4hhb";
@@ -71,9 +72,10 @@ public class DemoMMCIFReader
 	}
 
 
-	/** An example demonstrating how to directly use the mmCif file parsing classes. This could potentially be used
+	/**
+	 * An example demonstrating how to directly use the mmCif file parsing classes. This could potentially be used
 	 * to use the parser to populate a data-structure that is different from the biojava-structure data model.
-	 * 
+	 *
 	 */
 	public void loadFromDirectAccess(){
 		String pdbId = "1A4W";
@@ -82,19 +84,22 @@ public class DemoMMCIFReader
 
 		try {
 			Structure s = pdbreader.getStructureById(pdbId);
+			
+			System.out.println("Getting chain H of 1A4W");
 
-			Chain h = s.getChainByPDB("H");
+			List<Chain> hs = s.getNonPolyChainsByPDB("H");
 
-			List<Group> ligands = h.getAtomLigands();
+			Chain h = hs.get(0);
+			List<Group> ligands = h.getAtomGroups();
 
-			System.out.println("These ligands have been found in chain " + h.getChainID());
+			System.out.println("These ligands have been found in chain " + h.getName());
 
 			for (Group l:ligands){
 				System.out.println(l);
 			}
 
 			System.out.println("Accessing QWE directly: ");
-			Group qwe = h.getGroupByPDB(new ResidueNumber("H",373,null));
+			Group qwe = s.getNonPolyChainsByPDB("H").get(2).getGroupByPDB(new ResidueNumber("H",373,null));
 
 			System.out.println(qwe.getChemComp());
 
@@ -102,7 +107,7 @@ public class DemoMMCIFReader
 			System.out.println(h.getAtomSequence());
 			System.out.println(h.getAtomGroups(GroupType.HETATM));
 
-			System.out.println("Compounds: " + s.getCompounds());
+			System.out.println("Entities: " + s.getEntityInfos());
 
 		} catch (Exception e) {
 			e.printStackTrace();

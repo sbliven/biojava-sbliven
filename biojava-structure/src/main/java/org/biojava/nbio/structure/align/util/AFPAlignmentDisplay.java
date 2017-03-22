@@ -22,6 +22,8 @@ package org.biojava.nbio.structure.align.util;
 import org.biojava.nbio.structure.*;
 import org.biojava.nbio.structure.align.ce.GuiWrapper;
 import org.biojava.nbio.structure.align.model.AFPChain;
+import org.biojava.nbio.structure.geometry.Matrices;
+import org.biojava.nbio.structure.geometry.SuperPositions;
 import org.biojava.nbio.structure.jama.Matrix;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,32 +31,34 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 
+import javax.vecmath.Matrix4d;
+
 
 public class AFPAlignmentDisplay
 {
 	private static final Logger logger = LoggerFactory.getLogger(AFPAlignmentDisplay.class);
 
 	private static final int[][] aaMatrix = new int[][] {{6,0,-2,-3,-2,0,-1,0,-2,-2,-2,-2,-2,-3,-4,-4,-3,-3,-3,-2,-4},
-		{0,4,-1,0,0,1,-2,-2,-1,-1,-1,-2,-1,0,-1,-1,-1,-2,-2,-3,-4},
-		{-2,-1,7,-3,-1,-1,-1,-2,-1,-1,-1,-2,-2,-2,-3,-3,-2,-4,-3,-4,-4},
-		{-3,0,-3,9,-1,-1,-3,-3,-4,-3,-3,-3,-3,-1,-1,-1,-1,-2,-2,-2,-4},
-		{-2,0,-1,-1,5,1,-1,0,-1,-1,-1,-2,-1,0,-1,-1,-1,-2,-2,-2,-4},
-		{0,1,-1,-1,1,4,0,1,0,0,0,-1,-1,-2,-2,-2,-1,-2,-2,-3,-4},
-		{-1,-2,-1,-3,-1,0,6,1,2,0,-1,-1,-2,-3,-3,-4,-3,-3,-3,-4,-4},
-		{0,-2,-2,-3,0,1,1,6,0,0,0,1,0,-3,-3,-3,-2,-3,-2,-4,-4},
-		{-2,-1,-1,-4,-1,0,2,0,5,2,1,0,0,-2,-3,-3,-2,-3,-2,-3,-4},
-		{-2,-1,-1,-3,-1,0,0,0,2,5,1,0,1,-2,-3,-2,0,-3,-1,-2,-4},
-		{-2,-1,-1,-3,-1,0,-1,0,1,1,5,-1,2,-2,-3,-2,-1,-3,-2,-3,-4},
-		{-2,-2,-2,-3,-2,-1,-1,1,0,0,-1,8,0,-3,-3,-3,-2,-1,2,-2,-4},
-		{-2,-1,-2,-3,-1,-1,-2,0,0,1,2,0,5,-3,-3,-2,-1,-3,-2,-3,-4},
-		{-3,0,-2,-1,0,-2,-3,-3,-2,-2,-2,-3,-3,4,3,1,1,-1,-1,-3,-4},
-		{-4,-1,-3,-1,-1,-2,-3,-3,-3,-3,-3,-3,-3,3,4,2,1,0,-1,-3,-4},
-		{-4,-1,-3,-1,-1,-2,-4,-3,-3,-2,-2,-3,-2,1,2,4,2,0,-1,-2,-4},
-		{-3,-1,-2,-1,-1,-1,-3,-2,-2,0,-1,-2,-1,1,1,2,5,0,-1,-1,-4},
-		{-3,-2,-4,-2,-2,-2,-3,-3,-3,-3,-3,-1,-3,-1,0,0,0,6,3,1,-4},
-		{-3,-2,-3,-2,-2,-2,-3,-2,-2,-1,-2,2,-2,-1,-1,-1,-1,3,7,2,-4},
-		{-2,-3,-4,-2,-2,-3,-4,-4,-3,-2,-3,-2,-3,-3,-3,-2,-1,1,2,11,-4},
-		{-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,1}};
+			{0,4,-1,0,0,1,-2,-2,-1,-1,-1,-2,-1,0,-1,-1,-1,-2,-2,-3,-4},
+			{-2,-1,7,-3,-1,-1,-1,-2,-1,-1,-1,-2,-2,-2,-3,-3,-2,-4,-3,-4,-4},
+			{-3,0,-3,9,-1,-1,-3,-3,-4,-3,-3,-3,-3,-1,-1,-1,-1,-2,-2,-2,-4},
+			{-2,0,-1,-1,5,1,-1,0,-1,-1,-1,-2,-1,0,-1,-1,-1,-2,-2,-2,-4},
+			{0,1,-1,-1,1,4,0,1,0,0,0,-1,-1,-2,-2,-2,-1,-2,-2,-3,-4},
+			{-1,-2,-1,-3,-1,0,6,1,2,0,-1,-1,-2,-3,-3,-4,-3,-3,-3,-4,-4},
+			{0,-2,-2,-3,0,1,1,6,0,0,0,1,0,-3,-3,-3,-2,-3,-2,-4,-4},
+			{-2,-1,-1,-4,-1,0,2,0,5,2,1,0,0,-2,-3,-3,-2,-3,-2,-3,-4},
+			{-2,-1,-1,-3,-1,0,0,0,2,5,1,0,1,-2,-3,-2,0,-3,-1,-2,-4},
+			{-2,-1,-1,-3,-1,0,-1,0,1,1,5,-1,2,-2,-3,-2,-1,-3,-2,-3,-4},
+			{-2,-2,-2,-3,-2,-1,-1,1,0,0,-1,8,0,-3,-3,-3,-2,-1,2,-2,-4},
+			{-2,-1,-2,-3,-1,-1,-2,0,0,1,2,0,5,-3,-3,-2,-1,-3,-2,-3,-4},
+			{-3,0,-2,-1,0,-2,-3,-3,-2,-2,-2,-3,-3,4,3,1,1,-1,-1,-3,-4},
+			{-4,-1,-3,-1,-1,-2,-3,-3,-3,-3,-3,-3,-3,3,4,2,1,0,-1,-3,-4},
+			{-4,-1,-3,-1,-1,-2,-4,-3,-3,-2,-2,-3,-2,1,2,4,2,0,-1,-2,-4},
+			{-3,-1,-2,-1,-1,-1,-3,-2,-2,0,-1,-2,-1,1,1,2,5,0,-1,-1,-4},
+			{-3,-2,-4,-2,-2,-2,-3,-3,-3,-3,-3,-1,-3,-1,0,0,0,6,3,1,-4},
+			{-3,-2,-3,-2,-2,-2,-3,-2,-2,-1,-2,2,-2,-1,-1,-1,-1,3,7,2,-4},
+			{-2,-3,-4,-2,-2,-3,-4,-4,-3,-2,-3,-2,-3,-3,-3,-2,-1,1,2,11,-4},
+			{-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,1}};
 
 	private static Character[] aa1 = new Character[]{  'G',   'A',   'P',   'C',   'T',   'S','D',   'N',   'E',   'Q',   'K',   'H',   'R', 'V',   'I',   'L',   'M',   'F',   'Y',   'W', '-'};
 
@@ -65,9 +69,10 @@ public class AFPAlignmentDisplay
 		Atom[] a1 = getAlignedAtoms1(afpChain,ca1);
 		Atom[] a2 = getAlignedAtoms2(afpChain,ca2);
 
-		SVDSuperimposer svd = new SVDSuperimposer(a1,a2);
-
-		return svd.getRotation();
+		Matrix4d trans = SuperPositions.superpose(Calc.atomsToPoints(a1), 
+				Calc.atomsToPoints(a2));
+		
+		return Matrices.getRotationJAMA(trans);
 
 	}
 
@@ -77,9 +82,10 @@ public class AFPAlignmentDisplay
 		Atom[] a1 = getAlignedAtoms1(afpChain,ca1);
 		Atom[] a2 = getAlignedAtoms2(afpChain,ca2);
 
-		SVDSuperimposer svd = new SVDSuperimposer(a1,a2);
-
-		return svd.getTranslation();
+		Matrix4d trans = SuperPositions.superpose(Calc.atomsToPoints(a1), 
+				Calc.atomsToPoints(a2));
+		
+		return Calc.getTranslationVector(trans);
 
 	}
 
@@ -128,20 +134,20 @@ public class AFPAlignmentDisplay
 
 
 	/**
-     * Extract the alignment output
-     * <p>eg<pre>
-     * STWNTWACTWHLKQP--WSTILILA
-     * 111111111111     22222222
-     * SQNNTYACSWKLKSWNNNSTILILG
-     * </pre>
-     * Those position pairs labeled by 1 and 2 are equivalent positions, belongs to
-     * two blocks 1 and 2. The residues between labeled residues are non-equivalent,
-     * with '-' filling in their resulting gaps.
-     * <p>
-     * The three lines can be accessed using 
-     * {@link AFPChain#getAlnseq1()}, {@link AFPChain#getAlnsymb()},
-     * and {@link AFPChain#getAlnseq2()}.
-     * 
+	 * Extract the alignment output
+	 * <p>eg<pre>
+	 * STWNTWACTWHLKQP--WSTILILA
+	 * 111111111111     22222222
+	 * SQNNTYACSWKLKSWNNNSTILILG
+	 * </pre>
+	 * Those position pairs labeled by 1 and 2 are equivalent positions, belongs to
+	 * two blocks 1 and 2. The residues between labeled residues are non-equivalent,
+	 * with '-' filling in their resulting gaps.
+	 * <p>
+	 * The three lines can be accessed using
+	 * {@link AFPChain#getAlnseq1()}, {@link AFPChain#getAlnsymb()},
+	 * and {@link AFPChain#getAlnseq2()}.
+	 *
 	 */
 	public static void getAlign(AFPChain afpChain,Atom[] ca1,Atom[] ca2) {
 		getAlign(afpChain, ca1, ca2, false);
@@ -154,7 +160,7 @@ public class AFPAlignmentDisplay
 	 *  {@link AFPChain#setAlnseq2(char[]) alnseq2},
 	 *  and {@link AFPChain#setAlnsymb(char[]) alnsymb}</li>
 	 * <li>{@link AFPChain#setAlnbeg1(int) alnbeg1} and 2</li>
-	 * <li>{@link AFPChain#setAlnLength(int) alnLength} and 
+	 * <li>{@link AFPChain#setAlnLength(int) alnLength} and
 	 *  {@link AFPChain#setGapLen(int) gapLen}</li>
 	 * </ul>
 	 * <p>
@@ -162,11 +168,11 @@ public class AFPAlignmentDisplay
 	 * <ul>
 	 * <li>{@link AFPChain#getOptAln()} and lengths
 	 * </ul>
-	 * 
+	 *
 	 * <section>Known Bugs</section>
 	 * Expects the alignment to have linear topology. May give odd results
 	 * for circular permutations and other complicated topologies.
-	 * 
+	 *
 	 * @param afpChain Alignment between ca1 and ca2
 	 * @param ca1 CA atoms of the first protein
 	 * @param ca2 CA atoms of the second protein
@@ -216,7 +222,7 @@ public class AFPAlignmentDisplay
 				optLen[oi] = 0;
 		}
 		int     len = 0;
-		for(i = 0; i < blockNum; i ++)  {        	
+		for(i = 0; i < blockNum; i ++)  {
 			for(j = 0; j < optLen[i]; j ++) {
 				p1 = optAln[i][0][j];
 				p2 = optAln[i][1][j];
@@ -246,10 +252,10 @@ public class AFPAlignmentDisplay
 					alnbeg1 = p1; //the first position of sequence in alignment
 					alnbeg2 = p2;
 				}
-				
+
 				if ( p1 < ca1.length && p2<ca2.length) {
-				
-					alnseq1[len] = getOneLetter(ca1[p1].getGroup());              
+
+					alnseq1[len] = getOneLetter(ca1[p1].getGroup());
 					alnseq2[len] = getOneLetter(ca2[p2].getGroup());
 				} else {
 					//TODO handle permutations
@@ -264,7 +270,7 @@ public class AFPAlignmentDisplay
 
 						if ( score > 1)
 							alnsymb[len ++] = ':';
-						else 
+						else
 							alnsymb[len ++] = '.';
 					}
 				} else {
@@ -320,7 +326,7 @@ public class AFPAlignmentDisplay
 	public static Map<String,Double> calcIdSimilarity(char[] seq1, char[] seq2, int alnLength){
 		double identity = 0.0;
 		double similarity = 0.0;
-		
+
 		if ( seq1 == null || seq2 == null){
 			logger.warn("Can't calc %ID for an empty alignment! ");
 			Map<String, Double> m = new HashMap<String, Double>();
@@ -328,34 +334,50 @@ public class AFPAlignmentDisplay
 			m.put("identity", identity);
 			return m;
 		}
-		
+
 		int     i;
+		int eqr = 0;
 
+		int count = 0;
 		for(i = 0; i < alnLength; i ++) {
-		
-				if(seq1[i] == seq2[i])  {
 
-					identity += 1.0;
-				} else if(seq1[i] == '-' || seq1[i] == '*' || seq1[i] == '.' ||
-						seq2[i] == '-' || seq2[i] == '*' || seq2[i] == '.' ) {
-				} else if(aaScore(seq1[i], seq2[i]) > 0)  similarity += 1.0;
+			//System.out.println(i + " " + count + " " + seq1[i] + " " + seq2[i]);
+			// ignore gaps
+			if(seq1[i] == '-' || seq1[i] == '*' || seq1[i] == '.' ||
+					seq2[i] == '-' || seq2[i] == '*' || seq2[i] == '.' )
+				continue ;
+
+			eqr++;
+
+			if(seq1[i] == seq2[i])  {
+
+				identity   += 1.0;
+				similarity += 1.0;
+				count++;
+
+			} else if(aaScore(seq1[i], seq2[i]) > 0) {
+
+				similarity += 1.0;
+				count++;
+
+			}
 		}
 
 
 		if ( alnLength > 0){
-			similarity = (identity + similarity) / alnLength;
-			identity = identity/alnLength;
+			similarity = (similarity) / eqr;
+			identity = identity/eqr;
 		}
 		Map<String, Double> m = new HashMap<String, Double>();
 		m.put("similarity", similarity);
 		m.put("identity", identity);
-		
+
 		return m;
 	}
 
 
 	/**
-	 * 
+	 *
 	 * @param afpChain
 	 * @param ca1
 	 * @param ca2
@@ -366,7 +388,7 @@ public class AFPAlignmentDisplay
 	 * @throws IllegalAccessException If an error occurs when invoking jmol
 	 */
 	public static Structure createArtificalStructure(AFPChain afpChain, Atom[] ca1,
-			Atom[] ca2) throws ClassNotFoundException, NoSuchMethodException,
+													 Atom[] ca2) throws ClassNotFoundException, NoSuchMethodException,
 			InvocationTargetException, IllegalAccessException
 	{
 
@@ -415,9 +437,9 @@ public class AFPAlignmentDisplay
 
 		return GuiWrapper.getAlignedStructure(arr1,arr2);
 	}
-	
+
 	/** get the block number for an aligned position
-	 * 
+	 *
 	 * @param afpChain
 	 * @param aligPos
 	 * @return
@@ -434,7 +456,7 @@ public class AFPAlignmentDisplay
 		int p1b=0;
 		int p2b=0;
 
-		for(int i = 0; i < blockNum; i ++)  {   
+		for(int i = 0; i < blockNum; i ++)  {
 
 			for(int j = 0; j < optLen[i]; j ++) {
 
@@ -449,7 +471,7 @@ public class AFPAlignmentDisplay
 					}
 				}
 
-				
+
 				p1b = p1;
 				p2b = p2;
 				if ( len >= aligPos) {

@@ -26,14 +26,13 @@ import java.util.List;
 
 import org.biojava.nbio.structure.Atom;
 import org.biojava.nbio.structure.Calc;
-import org.biojava.nbio.structure.SVDSuperimposer;
 import org.biojava.nbio.structure.StructureException;
 import org.biojava.nbio.structure.align.multiple.MultipleAlignment;
 import org.biojava.nbio.structure.jama.Matrix;
 
 /**
  * Utility class for calculating common scores of {@link MultipleAlignment}s.
- * 
+ *
  * @author Spencer Bliven
  * @author Aleix Lafita
  * @since 4.1.0
@@ -53,7 +52,7 @@ public class MultipleAlignmentScorer {
 	/**
 	 * Calculates and puts the RMSD and the average TM-Score of the
 	 * MultipleAlignment.
-	 * 
+	 *
 	 * @param alignment
 	 * @throws StructureException
 	 * @see #getAvgTMScore(MultipleAlignment)
@@ -84,12 +83,12 @@ public class MultipleAlignmentScorer {
 	 * The formula used is just the sqroot of the average distance of all
 	 * possible pairs of atoms. Thus, for R structures aligned over C columns
 	 * without gaps, we have
-	 * 
+	 *
 	 * <pre>
-	 * RMSD = \sqrt{1/(C*(R*(R-1)/2)) * \sum_{r1=1}^{R-1} 
+	 * RMSD = \sqrt{1/(C*(R*(R-1)/2)) * \sum_{r1=1}^{R-1}
 	 * \sum_{r2=r1+1}^{R-1} \sum_{j=0}^{C-1} (atom[r1][c]-atom[r2][c])^2}
 	 * </pre>
-	 * 
+	 *
 	 * @param alignment
 	 * @return double RMSD
 	 */
@@ -101,7 +100,7 @@ public class MultipleAlignmentScorer {
 	/**
 	 * Calculates the RMSD of all-to-all structure comparisons (distances),
 	 * given a set of superimposed atoms.
-	 * 
+	 *
 	 * @param transformed
 	 * @return double RMSD
 	 * @see #getRMSD(MultipleAlignment)
@@ -147,16 +146,16 @@ public class MultipleAlignmentScorer {
 	 * from an atom to the aligned atom from the reference. Thus, for R
 	 * structures aligned over C columns (with structure 0 as the reference), we
 	 * have:
-	 * 
+	 *
 	 * <pre>
-	 * RefRMSD = \sqrt{ 1/(C*(R-1)) * \sum_{r=1}^{R-1} \sum_{j=0}^{C-1} 
+	 * RefRMSD = \sqrt{ 1/(C*(R-1)) * \sum_{r=1}^{R-1} \sum_{j=0}^{C-1}
 	 * (atom[1][c]-atom[r][c])^2 }
 	 * </pre>
 	 * <p>
 	 * For gapped alignments, null atoms are omitted from consideration, so that
 	 * the RMSD is the average over all columns with non-null reference of the
 	 * average RMSD within the non-null elements of the column.
-	 * 
+	 *
 	 * @param alignment
 	 *            MultipleAlignment
 	 * @param ref
@@ -179,16 +178,16 @@ public class MultipleAlignmentScorer {
 	 * from an atom to the aligned atom from the reference. Thus, for R
 	 * structures aligned over C columns (with structure 0 as the reference), we
 	 * have:
-	 * 
+	 *
 	 * <pre>
-	 * RefRMSD = \sqrt{ 1/(C*(R-1)) * \sum_{r=1}^{R-1} \sum_{j=0}^{C-1} 
+	 * RefRMSD = \sqrt{ 1/(C*(R-1)) * \sum_{r=1}^{R-1} \sum_{j=0}^{C-1}
 	 * (atom[1][c]-atom[r][c])^2 }
 	 * </pre>
 	 * <p>
 	 * For gapped alignments, null atoms are omitted from consideration, so that
 	 * the RMSD is the average over all columns with non-null reference of the
 	 * average RMSD within the non-null elements of the column.
-	 * 
+	 *
 	 * @param transformed
 	 * @param reference
 	 * @return
@@ -228,7 +227,7 @@ public class MultipleAlignmentScorer {
 	 * <p>
 	 * Complexity: T(n,l) = O(l*n^2), if n=number of structures and l=alignment
 	 * length.
-	 * 
+	 *
 	 * @param alignment
 	 * @return double Average TMscore
 	 * @throws StructureException
@@ -252,7 +251,7 @@ public class MultipleAlignmentScorer {
 	 * <p>
 	 * Complexity: T(n,l) = O(l*n^2), if n=number of structures and l=alignment
 	 * length.
-	 * 
+	 *
 	 * @param transformed
 	 *            aligned Atoms transformed
 	 * @param lengths
@@ -289,7 +288,7 @@ public class MultipleAlignmentScorer {
 					ref = Arrays.copyOf(ref, nonNullLen);
 					aln = Arrays.copyOf(aln, nonNullLen);
 				}
-				sumTM += SVDSuperimposer.getTMScore(ref, aln, lengths.get(r1),
+				sumTM += Calc.getTMScore(ref, aln, lengths.get(r1),
 						lengths.get(r2));
 				comparisons++;
 			}
@@ -303,7 +302,7 @@ public class MultipleAlignmentScorer {
 	 * <p>
 	 * Complexity: T(n,l) = O(l*n), if n=number of structures and l=alignment
 	 * length.
-	 * 
+	 *
 	 * @param alignment
 	 * @param reference
 	 *            Index of the reference structure
@@ -328,7 +327,7 @@ public class MultipleAlignmentScorer {
 	 * <p>
 	 * Complexity: T(n,l) = O(l*n^2), if n=number of structures and l=alignment
 	 * length.
-	 * 
+	 *
 	 * @param transformed
 	 *            Arrays of aligned atoms, after superposition
 	 * @param lengths
@@ -368,7 +367,7 @@ public class MultipleAlignmentScorer {
 				ref = Arrays.copyOf(ref, nonNullLen);
 				aln = Arrays.copyOf(aln, nonNullLen);
 			}
-			sumTM += SVDSuperimposer.getTMScore(ref, aln,
+			sumTM += Calc.getTMScore(ref, aln,
 					lengths.get(reference), lengths.get(r));
 			comparisons++;
 		}
@@ -385,7 +384,7 @@ public class MultipleAlignmentScorer {
 	 * <p>
 	 * Complexity: T(n,l) = O(l*n^2), if n=number of structures and l=alignment
 	 * length.
-	 * 
+	 *
 	 * @param alignment
 	 * @param gapOpen
 	 *            penalty for gap opening (reasonable values are in the range
@@ -427,7 +426,7 @@ public class MultipleAlignmentScorer {
 	 * <p>
 	 * Complexity: T(n,l) = O(l*n^2), if n=number of structures and l=alignment
 	 * length.
-	 * 
+	 *
 	 * @param transformed
 	 *            List of transformed Atom arrays
 	 * @param d0

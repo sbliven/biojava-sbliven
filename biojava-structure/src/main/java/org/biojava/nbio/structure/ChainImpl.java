@@ -25,8 +25,6 @@ package org.biojava.nbio.structure;
 
 
 import org.biojava.nbio.structure.io.FileConvert;
-import org.biojava.nbio.structure.io.PDBFileReader;
-import org.biojava.nbio.structure.io.SeqRes2AtomAligner;
 import org.biojava.nbio.structure.io.mmcif.ChemCompGroupFactory;
 import org.biojava.nbio.structure.io.mmcif.chem.PolymerType;
 import org.biojava.nbio.structure.io.mmcif.model.ChemComp;
@@ -58,20 +56,19 @@ public class ChainImpl implements Chain, Serializable {
 	/**
 	 * The default chain identifier used to be an empty space
 	 */
-	public static String DEFAULT_CHAIN_ID = "A";
+	private static final String DEFAULT_CHAIN_ID = "A";
 
 	private String swissprot_id ;
-	private String chainID ; // the chain identifier as in PDB files
+	private String authId; // the 'public' chain identifier as assigned by authors in PDB files
 
 	private List <Group> groups;
 	private List<Group> seqResGroups;
 
-	private Long id;
-	private Compound mol;
+	private EntityInfo entity;
 	private Structure parent;
 
 	private Map<String, Integer> pdbResnumMap;
-	private String internalChainID; // the chain identifier used in mmCIF files
+	private String asymId; // the 'internal' chain identifier as used in mmCIF files
 
 
 	private List<SeqMisMatch> seqMisMatches = null;
@@ -81,12 +78,12 @@ public class ChainImpl implements Chain, Serializable {
 	public ChainImpl() {
 		super();
 
-		chainID = DEFAULT_CHAIN_ID;
-		groups = new ArrayList<Group>() ;
+		authId = DEFAULT_CHAIN_ID;
+		groups = new ArrayList<>() ;
 
-		seqResGroups = new ArrayList<Group>();
-		pdbResnumMap = new HashMap<String,Integer>();
-		internalChainID = null;
+		seqResGroups = new ArrayList<>();
+		pdbResnumMap = new HashMap<>();
+		asymId = null;
 
 	}
 
@@ -94,17 +91,29 @@ public class ChainImpl implements Chain, Serializable {
 	 *
 	 */
 	@Override
-	public Long getId() {
-		return id;
+	public String getId() {
+		return asymId;
 	}
 
 	/** {@inheritDoc}
 	 *
 	 */
 	@Override
-	public void setId(Long id) {
-		this.id = id;
+	public void setId(String asymId) {
+		this.asymId = asymId;
 	}
+
+	/** {@inheritDoc}
+	 *
+	 */
+	@Override
+	public String getName() { return authId; }
+
+	/** {@inheritDoc}
+	 *
+	 */
+	@Override
+	public void setName(String authId) { this.authId = authId; }
 
 	/** {@inheritDoc}
 	 *
@@ -143,7 +152,6 @@ public class ChainImpl implements Chain, Serializable {
 	@Deprecated
 	public Structure getParent() {
 
-
 		return getStructure();
 	}
 
@@ -156,14 +164,14 @@ public class ChainImpl implements Chain, Serializable {
 		ChainImpl n = new ChainImpl();
 		// copy chain data:
 
-		n.setChainID( getChainID());
+		n.setId(getId());
+		n.setName(getName());
 		n.setSwissprotId ( getSwissprotId());
 
-		// NOTE the Compound will be reset at the parent level (Structure) if cloning is happening from parent level
+		// NOTE the EntityInfo will be reset at the parent level (Structure) if cloning is happening from parent level
 		// here we don't deep-copy it and just keep the same reference, in case the cloning is happening at the Chain level only
-		n.setCompound(this.mol);
+		n.setEntityInfo(this.entity);
 
-		n.setInternalChainID(internalChainID);
 
 		for (Group group : groups) {
 			Group g = (Group) group.clone();
@@ -171,50 +179,50 @@ public class ChainImpl implements Chain, Serializable {
 			g.setChain(n);
 		}
 
-		if (!seqResGroups.isEmpty()){
+		if (seqResGroups!=null){
+
+			List<Group> tmpSeqRes = new ArrayList<>();
 
 			// cloning seqres and atom groups is ugly, due to their
 			// nested relationship (some of the atoms can be in the seqres, but not all)
 
-			List<Group> tmpSeqRes = new ArrayList<Group>();
 			for (Group seqResGroup : seqResGroups) {
-				Group g = (Group) seqResGroup.clone();
+
+				int i = groups.indexOf(seqResGroup);
+
+				Group g ;
+
+				if (i!=-1) {
+					// group found in atom groups, we get the equivalent reference from the newly cloned atom groups
+					g = n.getAtomGroup(i);
+				} else {
+					// group not found in atom groups, we clone the seqres group
+					g = (Group) seqResGroup.clone();
+				}
 				g.setChain(n);
 				tmpSeqRes.add(g);
 			}
 
-			Chain tmp = new ChainImpl();
-			// that's a bit confusing, but that's how to set the seqres so that SeqRes2AtomAligner can use them
-			tmp.setAtomGroups(tmpSeqRes);
-
-			// now match them up..
-			SeqRes2AtomAligner seqresaligner = new SeqRes2AtomAligner();
-
-			seqresaligner.mapSeqresRecords(n, tmp);
-
-
+			n.setSeqResGroups(tmpSeqRes);
 		}
-
 
 		return n ;
 	}
 
-
-
 	/** {@inheritDoc}
 	 *
 	 */
 	@Override
-	public void setCompound(Compound mol) {
-		this.mol = mol;
+	public void setEntityInfo(EntityInfo mol) {
+		this.entity = mol;
 	}
 
 	/** {@inheritDoc}
 	 *
 	 */
 	@Override
-	public Compound getCompound() {
-		return this.mol;
+	public EntityInfo getEntityInfo() {
+		return this.entity;
 	}
 
 	/** set the Swissprot id of this chains .
@@ -243,6 +251,11 @@ public class ChainImpl implements Chain, Serializable {
 
 		group.setChain(this);
 
+		// Set the altlocs chain as well
+		for(Group g : group.getAltLocs()) {
+			g.setChain(this);
+		}
+
 		groups.add(group);
 
 		// store the position internally for quick access of this group
@@ -255,19 +268,23 @@ public class ChainImpl implements Chain, Serializable {
 			Integer pos = groups.size() - 1;
 			// ARGH sometimes numbering in PDB files is confusing.
 			// e.g. PDB: 1sfe
-		/*
-		 * ATOM    620  N   GLY    93     -24.320  -6.591   4.210  1.00 46.82           N
-		 * ATOM    621  CA  GLY    93     -24.960  -6.849   5.497  1.00 47.35           C
-		 * ATOM    622  C   GLY    93     -26.076  -5.873   5.804  1.00 47.24           C
-		 * ATOM    623  O   GLY    93     -26.382  -4.986   5.006  1.00 47.56           O
-         and ...
-		 * HETATM 1348  O   HOH    92     -21.853 -16.886  19.138  1.00 66.92           O
-		 * HETATM 1349  O   HOH    93     -26.126   1.226  29.069  1.00 71.69           O
-		 * HETATM 1350  O   HOH    94     -22.250 -18.060  -6.401  1.00 61.97           O
-		 */
+			/*
+			 * ATOM    620  N   GLY    93     -24.320  -6.591   4.210  1.00 46.82           N
+			 * ATOM    621  CA  GLY    93     -24.960  -6.849   5.497  1.00 47.35           C
+			 * ATOM    622  C   GLY    93     -26.076  -5.873   5.804  1.00 47.24           C
+			 * ATOM    623  O   GLY    93     -26.382  -4.986   5.006  1.00 47.56           O
+			 *    and ...
+			 * HETATM 1348  O   HOH    92     -21.853 -16.886  19.138  1.00 66.92           O
+			 * HETATM 1349  O   HOH    93     -26.126   1.226  29.069  1.00 71.69           O
+			 * HETATM 1350  O   HOH    94     -22.250 -18.060  -6.401  1.00 61.97           O
+			 */
 
 			// this check is to give in this case the entry priority that is an AminoAcid / comes first...
+			// a good example of same residue number for 2 residues is 3th3, chain T, residue 201 (a LYS and a sugar BGC covalently attached to it) - JD 2016-03-09
 			if (  pdbResnumMap.containsKey(pdbResnum)) {
+
+				logger.warn("Adding residue {}({}) to chain {} but a residue with same residue number is already present: {}({}). Will add only the aminoacid residue (if any) to the lookup, lookups for that residue number won't work properly.",
+						pdbResnum, group.getPDBName(), getChainID(), groups.get(pdbResnumMap.get(pdbResnum)).getResidueNumber(), groups.get(pdbResnumMap.get(pdbResnum)).getPDBName());
 				if ( group instanceof AminoAcid)
 					pdbResnumMap.put(pdbResnum,pos);
 			} else
@@ -292,7 +309,7 @@ public class ChainImpl implements Chain, Serializable {
 	@Override
 	public List<Group> getAtomGroups(GroupType type){
 
-		List<Group> tmp = new ArrayList<Group>() ;
+		List<Group> tmp = new ArrayList<>() ;
 		for (Group g : groups) {
 			if (g.getType().equals(type)) {
 				tmp.add(g);
@@ -323,65 +340,60 @@ public class ChainImpl implements Chain, Serializable {
 	}
 
 	@Override
-	@Deprecated // TODO dmyersturnbull: why is this deprecated if it's declared in Chain?
 	public Group[] getGroupsByPDB(ResidueNumber start, ResidueNumber end, boolean ignoreMissing)
 			throws StructureException {
-
-		if (! ignoreMissing )
-			return getGroupsByPDB(start, end);
-
-
-		List<Group> retlst = new ArrayList<Group>();
-
-		String pdbresnumStart = start.toString();
-		String pdbresnumEnd   = end.toString();
+		// Short-circut for include all groups
+		if(start == null && end == null) {
+			return groups.toArray(new Group[groups.size()]);
+		}
 
 
-		int startPos = Integer.MIN_VALUE;
-		int endPos   = Integer.MAX_VALUE;
+		List<Group> retlst = new ArrayList<>();
 
+		boolean adding, foundStart;
+		if( start == null ) {
+			// start with first group
+			adding = true;
+			foundStart = true;
+		} else {
+			adding = false;
+			foundStart = false;
+		}
 
-		startPos = start.getSeqNum();
-		endPos   = end.getSeqNum();
-
-
-
-		boolean adding = false;
-		boolean foundStart = false;
-
+		
 		for (Group g: groups){
 
-			if ( g.getResidueNumber().toString().equals(pdbresnumStart)) {
+			// Check for start
+			if (!adding && start.equalsPositional(g.getResidueNumber())) {
 				adding = true;
 				foundStart = true;
 			}
 
-			if ( ! (foundStart && adding) ) {
+			// Check if past start
+			if ( ignoreMissing && ! (foundStart && adding) ) {
+				ResidueNumber pos = g.getResidueNumber();
 
-
-				int pos = g.getResidueNumber().getSeqNum();
-
-				if ( pos >= startPos) {
+				if ( start != null && start.compareToPositional(pos) <= 0) {
 					foundStart = true;
 					adding = true;
 				}
-
-
 			}
 
 			if ( adding)
 				retlst.add(g);
 
-			if ( g.getResidueNumber().toString().equals(pdbresnumEnd)) {
+			// check for end
+			if ( end != null && end.equalsPositional(g.getResidueNumber())) {
 				if ( ! adding)
-					throw new StructureException("did not find start PDB residue number " + pdbresnumStart + " in chain " + chainID);
+					throw new StructureException("did not find start PDB residue number " + start + " in chain " + authId);
 				adding = false;
 				break;
 			}
-			if (adding){
+			// check if past end
+			if ( ignoreMissing && adding && end != null){
 
-				int pos = g.getResidueNumber().getSeqNum();
-				if (pos >= endPos) {
+				ResidueNumber pos = g.getResidueNumber();
+				if ( end.compareToPositional(pos) <= 0) {
 					adding = false;
 					break;
 				}
@@ -390,7 +402,10 @@ public class ChainImpl implements Chain, Serializable {
 		}
 
 		if ( ! foundStart){
-			throw new StructureException("did not find start PDB residue number " + pdbresnumStart + " in chain " + chainID);
+			throw new StructureException("did not find start PDB residue number " + start + " in chain " + authId);
+		}
+		if ( end != null && adding && !ignoreMissing) {
+			throw new StructureException("did not find end PDB residue number " + end + " in chain " + authId);
 		}
 
 
@@ -411,7 +426,7 @@ public class ChainImpl implements Chain, Serializable {
 			Integer pos = pdbResnumMap.get(pdbresnum);
 			return groups.get(pos);
 		} else {
-			throw new StructureException("unknown PDB residue number " + pdbresnum + " in chain " + chainID);
+			throw new StructureException("unknown PDB residue number " + pdbresnum + " in chain " + authId);
 		}
 	}
 
@@ -422,42 +437,7 @@ public class ChainImpl implements Chain, Serializable {
 	@Override
 	public Group[] getGroupsByPDB(ResidueNumber start, ResidueNumber end)
 			throws StructureException {
-
-		String pdbresnumStart = start.toString();
-		String pdbresnumEnd   = end.toString();
-
-		List<Group> retlst = new ArrayList<Group>();
-
-		Iterator<Group> iter = groups.iterator();
-		boolean adding = false;
-		boolean foundStart = false;
-
-		while ( iter.hasNext()){
-			Group g = iter.next();
-			if ( g.getResidueNumber().toString().equals(pdbresnumStart)) {
-				adding = true;
-				foundStart = true;
-			}
-
-			if ( adding)
-				retlst.add(g);
-
-			if ( g.getResidueNumber().toString().equals(pdbresnumEnd)) {
-				if ( ! adding)
-					throw new StructureException("did not find start PDB residue number " + pdbresnumStart + " in chain " + chainID);
-				adding = false;
-				break;
-			}
-		}
-
-		if ( ! foundStart){
-			throw new StructureException("did not find start PDB residue number " + pdbresnumStart + " in chain " + chainID);
-		}
-		if ( adding) {
-			throw new StructureException("did not find end PDB residue number " + pdbresnumEnd + " in chain " + chainID);
-		}
-
-		return retlst.toArray(new Group[retlst.size()] );
+		return getGroupsByPDB(start, end, false);
 	}
 
 
@@ -475,14 +455,14 @@ public class ChainImpl implements Chain, Serializable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void   setChainID(String nam) { chainID = nam;   }
+	public void   setChainID(String asymId) { this.asymId = asymId;   }
 
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public String getChainID()           {	return chainID;  }
+	public String getChainID()           {	return this.asymId;  }
 
 
 
@@ -493,14 +473,14 @@ public class ChainImpl implements Chain, Serializable {
 	public String toString(){
 		String newline = System.getProperty("line.separator");
 		StringBuilder str = new StringBuilder();
-		str.append("Chain >").append(getChainID()).append("<").append(newline);
-		if ( mol != null ){
-			if ( mol.getMolName() != null){
-				str.append(mol.getMolName()).append(newline);
+		str.append("Chain asymId:").append(getChainID()).append(" authId:").append(getName()).append(newline);
+		if ( entity != null ){
+			if ( entity.getDescription() != null){
+				str.append(entity.getDescription()).append(newline);
 			}
 		}
 		str.append("total SEQRES length: ").append(getSeqResGroups().size()).append(" total ATOM length:")
-				.append(getAtomLength()).append(" residues ").append(newline);
+		.append(getAtomLength()).append(" residues ").append(newline);
 
 		return str.toString() ;
 
@@ -533,49 +513,25 @@ public class ChainImpl implements Chain, Serializable {
 	@Override
 	public String getAtomSequence(){
 
-		String prop = System.getProperty(PDBFileReader.LOAD_CHEM_COMP_PROPERTY);
 
-		if ( prop != null && prop.equalsIgnoreCase("true")){
-
-			logger.info("The property {} is true. Will use the chemical component dictionary files to produce the atom sequence",
-					PDBFileReader.LOAD_CHEM_COMP_PROPERTY);
-
-			List<Group> groups = getAtomGroups();
-			StringBuilder sequence = new StringBuilder() ;
-
-			for ( Group g: groups){
-				ChemComp cc = g.getChemComp();
-
-				if ( PolymerType.PROTEIN_ONLY.contains(cc.getPolymerType()) ||
-						PolymerType.POLYNUCLEOTIDE_ONLY.contains(cc.getPolymerType())){
-					// an amino acid residue.. use for alignment
-					String oneLetter= ChemCompGroupFactory.getOneLetterCode(cc);
-					if ( oneLetter == null)
-						oneLetter = Character.toString(StructureTools.UNKNOWN_GROUP_LABEL);
-					sequence.append(oneLetter);
-				}
-
-			}
-			return sequence.toString();
-		}
-
-		logger.info("The property {} is false or not set. Will use only amino acids for the atom sequence",
-				PDBFileReader.LOAD_CHEM_COMP_PROPERTY);
-
-		// not using ChemComp records...
-		List<Group> aminos = getAtomGroups(GroupType.AMINOACID);
+		List<Group> groups = getAtomGroups();
 		StringBuilder sequence = new StringBuilder() ;
-		for (Group amino : aminos) {
-			if (amino instanceof AminoAcid) {
-				AminoAcid a = (AminoAcid) amino;
-				sequence.append(a.getAminoType());
-			} else {
-				// I suppose this can't happen, but just in case...
-				logger.warn("Group {} is tagged as GroupType.AMINOACID but its class is not AminoAcid", amino.toString());
-			}
-		}
 
+		for ( Group g: groups){
+			ChemComp cc = g.getChemComp();
+
+			if ( PolymerType.PROTEIN_ONLY.contains(cc.getPolymerType()) ||
+					PolymerType.POLYNUCLEOTIDE_ONLY.contains(cc.getPolymerType())){
+				// an amino acid residue.. use for alignment
+				String oneLetter= ChemCompGroupFactory.getOneLetterCode(cc);
+				if ( oneLetter == null)
+					oneLetter = Character.toString(StructureTools.UNKNOWN_GROUP_LABEL);
+				sequence.append(oneLetter);
+			}
+
+		}
 		return sequence.toString();
+
 
 	}
 
@@ -585,47 +541,57 @@ public class ChainImpl implements Chain, Serializable {
 	@Override
 	public String getSeqResSequence(){
 
-		String prop = System.getProperty(PDBFileReader.LOAD_CHEM_COMP_PROPERTY);
-
-		if ( prop != null && prop.equalsIgnoreCase("true")) {
-
-			logger.info("The property {} is true. Will use the chemical component dictionary files to produce the seqres sequence",
-					PDBFileReader.LOAD_CHEM_COMP_PROPERTY);
-
-			StringBuilder str = new StringBuilder();
-			for (Group g : seqResGroups) {
-				ChemComp cc = g.getChemComp();
-				if ( cc == null) {
-					logger.warn("Could not load ChemComp for group: ", g);
-					str.append(StructureTools.UNKNOWN_GROUP_LABEL);
-				} else if ( PolymerType.PROTEIN_ONLY.contains(cc.getPolymerType()) ||
-						PolymerType.POLYNUCLEOTIDE_ONLY.contains(cc.getPolymerType())){
-					// an amino acid residue.. use for alignment
-					String oneLetter= ChemCompGroupFactory.getOneLetterCode(cc);
-					if ( oneLetter == null || oneLetter.isEmpty() || oneLetter.equals("?"))
-						oneLetter = Character.toString(StructureTools.UNKNOWN_GROUP_LABEL);
-					str.append(oneLetter);
-				} else {
-					str.append(StructureTools.UNKNOWN_GROUP_LABEL);
-				}
-			}
-			return str.toString();
-		}
-
-		logger.info("The property {} is false or not set. Will use only amino acids for the seqres sequence",
-				PDBFileReader.LOAD_CHEM_COMP_PROPERTY);
-
 		StringBuilder str = new StringBuilder();
-		for (Group group : seqResGroups) {
-			if (group instanceof AminoAcid) {
-				AminoAcid aa = (AminoAcid)group;
-				str.append(aa.getAminoType()) ;
+		for (Group g : seqResGroups) {
+			ChemComp cc = g.getChemComp();
+			if ( cc == null) {
+				logger.warn("Could not load ChemComp for group: ", g);
+				str.append(StructureTools.UNKNOWN_GROUP_LABEL);
+			} else if ( PolymerType.PROTEIN_ONLY.contains(cc.getPolymerType()) ||
+					PolymerType.POLYNUCLEOTIDE_ONLY.contains(cc.getPolymerType())){
+				// an amino acid residue.. use for alignment
+				String oneLetter= ChemCompGroupFactory.getOneLetterCode(cc);
+				// AB oneLetter.length() should be one. e.g. in 1EMA it is 3 and this makes mapping residue to sequence impossible.
+				if ( oneLetter == null || oneLetter.isEmpty() || oneLetter.equals("?")) {
+					oneLetter = Character.toString(StructureTools.UNKNOWN_GROUP_LABEL);
+				}
+				str.append(oneLetter);
 			} else {
 				str.append(StructureTools.UNKNOWN_GROUP_LABEL);
 			}
 		}
 		return str.toString();
+	}
+	
+	/**
+	 * Get the one letter sequence so that Sequence is guaranteed to
+	 * be the same length as seqResGroups.
+	 * Method related to https://github.com/biojava/biojava/issues/457
+	 * @return a string of the sequence guaranteed to be the same length
+	 * as seqResGroups.
+	 */
+	public String getSeqResOneLetterSeq(){
 
+		StringBuilder str = new StringBuilder();
+		for (Group g : seqResGroups) {
+			ChemComp cc = g.getChemComp();
+			if ( cc == null) {
+				logger.warn("Could not load ChemComp for group: ", g);
+				str.append(StructureTools.UNKNOWN_GROUP_LABEL);
+			} else if ( PolymerType.PROTEIN_ONLY.contains(cc.getPolymerType()) ||
+					PolymerType.POLYNUCLEOTIDE_ONLY.contains(cc.getPolymerType())){
+				// an amino acid residue.. use for alignment
+				String oneLetter= ChemCompGroupFactory.getOneLetterCode(cc);
+				// AB oneLetter.length() should be one. e.g. in 1EMA it is 3 and this makes mapping residue to sequence impossible.
+				if ( oneLetter == null || oneLetter.isEmpty() || oneLetter.equals("?") || oneLetter.length()!=1) {
+					oneLetter = Character.toString(StructureTools.UNKNOWN_GROUP_LABEL);
+				}
+				str.append(oneLetter);
+			} else {
+				str.append(StructureTools.UNKNOWN_GROUP_LABEL);
+			}
+		}
+		return str.toString();
 	}
 
 
@@ -643,7 +609,7 @@ public class ChainImpl implements Chain, Serializable {
 	 */
 	@Override
 	public List<Group> getSeqResGroups(GroupType type) {
-		List<Group> tmp = new ArrayList<Group>() ;
+		List<Group> tmp = new ArrayList<>() ;
 		for (Group g : seqResGroups) {
 			if (g.getType().equals(type)) {
 				tmp.add(g);
@@ -672,10 +638,6 @@ public class ChainImpl implements Chain, Serializable {
 		this.seqResGroups = groups;
 	}
 
-	protected void addSeqResGroup(Group g){
-		seqResGroups.add(g);
-	}
-
 
 	/** {@inheritDoc}
 	 *
@@ -691,7 +653,7 @@ public class ChainImpl implements Chain, Serializable {
 	 */
 	@Override
 	public List<Group> getAtomLigands(){
-		List<Group> ligands = new ArrayList<Group>();
+		List<Group> ligands = new ArrayList<>();
 
 		for (Group g : groups)
 			if (!seqResGroups.contains(g) && !g.isWater())
@@ -702,12 +664,12 @@ public class ChainImpl implements Chain, Serializable {
 
 	@Override
 	public String getInternalChainID() {
-		return internalChainID;
+		return asymId;
 	}
 
 	@Override
 	public void setInternalChainID(String internalChainID) {
-		this.internalChainID = internalChainID;
+		this.asymId = internalChainID;
 
 	}
 
@@ -730,5 +692,105 @@ public class ChainImpl implements Chain, Serializable {
 	public List<SeqMisMatch> getSeqMisMatches() {
 		return seqMisMatches;
 	}
+	
+	@Override
+	public EntityType getEntityType() {
+		if (getEntityInfo()==null) return null;
+		return getEntityInfo().getType();
+	}
+
+	@Override
+	public boolean isWaterOnly() {
+		for (Group g : getAtomGroups()) {
+			if (!g.isWater())
+				return false;
+		}
+		return true;
+	}
+
+	@Override
+	public boolean isPureNonPolymer() {
+		for (Group g : getAtomGroups()) {
+
+			ChemComp cc = g.getChemComp();
+
+			if ( 	g.isPolymeric() &&
+					!g.isHetAtomInFile() ) {
+
+				// important: the aminoacid or nucleotide residue can be in Atom records
+
+				return false;
+			}
+
+		}
+		return true;
+	}
+
+	@Override
+	public GroupType getPredominantGroupType(){
+
+		double ratioResiduesToTotal = StructureTools.RATIO_RESIDUES_TO_TOTAL;
+
+		int sizeAminos = getAtomGroups(GroupType.AMINOACID).size();
+		int sizeNucleotides = getAtomGroups(GroupType.NUCLEOTIDE).size();
+		List<Group> hetAtoms = getAtomGroups(GroupType.HETATM);
+		int sizeHetatoms = hetAtoms.size();
+		int sizeWaters = 0;
+		for (Group g : hetAtoms) {
+			if (g.isWater())
+				sizeWaters++;
+		}
+		int sizeHetatomsWithoutWater = sizeHetatoms - sizeWaters;
+
+		int fullSize = sizeAminos + sizeNucleotides + sizeHetatomsWithoutWater;
+
+		if ((double) sizeAminos / (double) fullSize > ratioResiduesToTotal)
+			return GroupType.AMINOACID;
+
+		if ((double) sizeNucleotides / (double) fullSize > ratioResiduesToTotal)
+			return GroupType.NUCLEOTIDE;
+
+		if ((double) (sizeHetatomsWithoutWater) / (double) fullSize > ratioResiduesToTotal)
+			return GroupType.HETATM;
+
+		// finally if neither condition works, we try based on majority, but log
+		// it
+		GroupType max;
+		if (sizeNucleotides > sizeAminos) {
+			if (sizeNucleotides > sizeHetatomsWithoutWater) {
+				max = GroupType.NUCLEOTIDE;
+			} else {
+				max = GroupType.HETATM;
+			}
+		} else {
+			if (sizeAminos > sizeHetatomsWithoutWater) {
+				max = GroupType.AMINOACID;
+			} else {
+				max = GroupType.HETATM;
+			}
+		}
+		logger.debug(
+				"Ratio of residues to total for chain with asym_id {} is below {}. Assuming it is a {} chain. "
+						+ "Counts: # aa residues: {}, # nuc residues: {}, # non-water het residues: {}, # waters: {}, "
+						+ "ratio aa/total: {}, ratio nuc/total: {}",
+				getId(), ratioResiduesToTotal, max, sizeAminos,
+				sizeNucleotides, sizeHetatomsWithoutWater, sizeWaters,
+				(double) sizeAminos / (double) fullSize,
+				(double) sizeNucleotides / (double) fullSize);
+
+		return max;
+	}
+
+	@Override
+	public  boolean isProtein() {
+		return getPredominantGroupType() == GroupType.AMINOACID;
+	}
+
+	@Override
+	public  boolean isNucleicAcid() {
+		return getPredominantGroupType() == GroupType.NUCLEOTIDE;
+	}
+
+
 }
 

@@ -31,7 +31,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 
-/** an iterator over all atoms of a structure / group. 
+/** an iterator over all atoms of a structure / group.
  * @author Andreas Prlic
  * @since 1.4
  * @version %I% %G%
@@ -41,30 +41,44 @@ public class AtomIterator implements Iterator<Atom> {
 
 	private final static Logger logger = LoggerFactory.getLogger(AtomIterator.class);
 
-	Structure structure     ;
-	Group     group         ;
-	int current_atom_pos    ;
-	GroupIterator groupiter ;
+	private Group     group         ;
+	private int current_atom_pos    ;
+	private GroupIterator groupiter ;
 
 	/**
-	 * Constructs an AtomIterator object.
+	 * Constructs an AtomIterator object over all models
 	 *
 	 * @param struct  a Structure object
 	 */
 	public AtomIterator(Structure struct) {
-		structure = struct;
 		current_atom_pos = -1 ;
 
-		groupiter = new GroupIterator(structure) ;
+		groupiter = new GroupIterator(struct) ;
 		if ( groupiter.hasNext() ) {
 			group = groupiter.next() ;
 		}
-		else 
+		else
+			group = null ;
+	}
+	
+	/**
+	 * Constructs an AtomIterator object over a single model
+	 *
+	 * @param struct  a Structure object
+	 */
+	public AtomIterator(Structure struct,int modelNr) {
+		current_atom_pos = -1 ;
+
+		groupiter = new GroupIterator(struct,modelNr) ;
+		if ( groupiter.hasNext() ) {
+			group = groupiter.next() ;
+		}
+		else
 			group = null ;
 	}
 
 	/** Get the  chain that contains the current atom.
-	 * 
+	 *
 	 * @return a Chain object
 	 */
 	public Chain getCurrentChain(){
@@ -73,7 +87,7 @@ public class AtomIterator implements Iterator<Atom> {
 
 
 	/** Get the model number of the model containing the current atom.
-	 * 
+	 *
 	 * @return the number of the model
 	 */
 	public int getCurrentModel(){
@@ -86,16 +100,13 @@ public class AtomIterator implements Iterator<Atom> {
 	 * @param g  a Group object
 	 */
 	public AtomIterator(Group g) {
-		structure = null;
 		group = g ;
 		current_atom_pos = -1 ;
 		groupiter = null ;
-
-
 	}
 
 	/** Is there a next atom ?
-	 * @return true if there is an atom after the current one 
+	 * @return true if there is an atom after the current one
 	 * */
 	@Override
 	public boolean hasNext() {
@@ -106,9 +117,9 @@ public class AtomIterator implements Iterator<Atom> {
 			return false;
 
 		// if there is another group ...
-		if ( current_atom_pos < group.size()-1 ) {	    
+		if ( current_atom_pos < group.size()-1 ) {
 			return true ;
-		} else { 
+		} else {
 			// search through the next groups if they contain an atom
 			if (groupiter != null) {
 				GroupIterator tmp = (GroupIterator) groupiter.clone() ;
@@ -134,7 +145,7 @@ public class AtomIterator implements Iterator<Atom> {
 	 * @throws NoSuchElementException if there is no atom after the current one
 	 */
 	@Override
-	public Atom next() 
+	public Atom next()
 	throws NoSuchElementException
 	{
 		current_atom_pos++ ;
@@ -150,15 +161,15 @@ public class AtomIterator implements Iterator<Atom> {
 			} else {
 				throw new NoSuchElementException("no more atoms found in structure!");
 			}
-		} 
+		}
 
 		Atom a ;
 
-		
+
 		a = group.getAtom(current_atom_pos);
 		if ( a == null) {
 			logger.error("current_atom_pos {} group {} size: {}", current_atom_pos, group, group.size());
-			
+
 			throw new NoSuchElementException("error wile trying to retrieve atom");
 		}
 

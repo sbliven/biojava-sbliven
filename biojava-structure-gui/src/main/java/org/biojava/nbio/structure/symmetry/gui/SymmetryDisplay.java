@@ -21,139 +21,168 @@
 package org.biojava.nbio.structure.symmetry.gui;
 
 import java.awt.event.KeyEvent;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
-import javax.vecmath.Matrix4d;
-import org.biojava.nbio.structure.*;
-import org.biojava.nbio.structure.align.gui.MultipleAlignmentDisplay;
+
+import org.biojava.nbio.structure.Atom;
+import org.biojava.nbio.structure.Group;
+import org.biojava.nbio.structure.StructureException;
+import org.biojava.nbio.structure.StructureTools;
+import org.biojava.nbio.structure.align.gui.MultipleAlignmentJmolDisplay;
+import org.biojava.nbio.structure.align.gui.StructureAlignmentDisplay;
+import org.biojava.nbio.structure.align.gui.jmol.AbstractAlignmentJmol;
 import org.biojava.nbio.structure.align.gui.jmol.MultipleAlignmentJmol;
 import org.biojava.nbio.structure.align.multiple.MultipleAlignment;
 import org.biojava.nbio.structure.align.util.RotationAxis;
-import org.biojava.nbio.structure.symmetry.core.AxisAligner;
+import org.biojava.nbio.structure.symmetry.axis.AxisAligner;
 import org.biojava.nbio.structure.symmetry.core.QuatSymmetryResults;
+import org.biojava.nbio.structure.symmetry.internal.CeSymmResult;
 import org.biojava.nbio.structure.symmetry.internal.SymmetryAxes;
+import org.biojava.nbio.structure.symmetry.internal.SymmetryAxes.Axis;
 import org.biojava.nbio.structure.symmetry.jmolScript.JmolSymmetryScriptGenerator;
 import org.biojava.nbio.structure.symmetry.jmolScript.JmolSymmetryScriptGeneratorPointGroup;
 import org.biojava.nbio.structure.symmetry.utils.SymmetryTools;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Class that provides visualizations methods for symmetry alignments. Call the
  * display() method for the default visualization of symmetry.
- * 
+ *
  * @author Aleix Lafita
  * @since 4.2.0
- * 
+ *
  */
 public class SymmetryDisplay {
 
+	private static final Logger logger = LoggerFactory
+			.getLogger(SymmetryDisplay.class);
+
 	/**
-	 * Displays a multiple alignment of the symmetry subunits.
-	 * 
-	 * @param msa
-	 *            the symmetry multiple alignment obtained from CeSymm
+	 * Displays a multiple alignment of the symmetry repeats.
+	 *
+	 * * @param symm CeSymmResult
+	 *
 	 * @throws StructureException
 	 */
-	public static MultipleAlignmentJmol displaySubunits(MultipleAlignment msa)
+	public static MultipleAlignmentJmol displayRepeats(CeSymmResult symm)
 			throws StructureException {
 
-		MultipleAlignment subunits = SymmetryTools.toSubunitAlignment(msa);
-		return MultipleAlignmentDisplay.display(subunits);
+		MultipleAlignment repeats = SymmetryTools.toRepeatsAlignment(symm);
+		MultipleAlignmentJmol jmol = MultipleAlignmentJmolDisplay
+				.display(repeats);
+		jmol.setTitle(getSymmTitle(symm));
+		return jmol;
 	}
 
 	/**
 	 * Displays a multiple alignment of the whole structure transformations
-	 * colored by blocks, corresponding to the subunits.
-	 * 
-	 * @param msa
-	 *            the symmetry multiple alignment obtained from CeSymm
+	 * colored by blocks, corresponding to the symmetric protodomains.
+	 *
+	 * @param symm
+	 *            CeSymmResult
 	 * @throws StructureException
 	 */
-	public static MultipleAlignmentJmol displayFull(MultipleAlignment msa)
+	public static MultipleAlignmentJmol displayFull(CeSymmResult symm)
 			throws StructureException {
 
-		MultipleAlignment full = SymmetryTools.toFullAlignment(msa);
+		MultipleAlignment full = SymmetryTools.toFullAlignment(symm);
 
-		MultipleAlignmentJmol jmol = MultipleAlignmentDisplay.display(full);
+		MultipleAlignmentJmol jmol = MultipleAlignmentJmolDisplay.display(full);
 		jmol.setColorByBlocks(true);
+		jmol.setTitle(getSymmTitle(symm));
 
 		return jmol;
 	}
 
 	/**
 	 * Displays a single structure in a cartoon representation with each
-	 * symmetric subunit colored differently.
-	 * 
-	 * @param msa
-	 *            the symmetry multiple alignment obtained from CeSymm
-	 * @param axes
-	 *            symmetry axes
-	 * @throws StructureException
-	 */
-	public static MultipleAlignmentJmol display(MultipleAlignment msa,
-			SymmetryAxes axes) throws StructureException {
-
-		MultipleAlignmentJmol jmol = null;
-
-		if (SymmetryTools.isRefined(msa)) {
-			List<Atom[]> atoms = msa.getAtomArrays();
-			jmol = new MultipleAlignmentJmol(msa, atoms);
-			jmol.setTitle(jmol.getStructure().getPDBHeader().getTitle());
-			addSymmetryMenu(jmol, axes);
-			jmol.evalString(printPointGroupAxes(msa));
-			jmol.evalString(printSymmetryAxes(msa, axes, false));
-		} else {
-			// Show the optimal alignment if it was not refined
-			jmol = MultipleAlignmentDisplay.display(msa);
-			jmol.setColorByBlocks(true);
-		}
-
-		return jmol;
-	}
-
-	/**
-	 * Displays a single structure in a cartoon representation with each
-	 * symmetric subunit colored differently.
-	 * 
+	 * symmetric repeat colored differently.
+	 *
 	 * @param msa
 	 *            the symmetry multiple alignment obtained from CeSymm
 	 * @throws StructureException
 	 */
-	public static MultipleAlignmentJmol display(MultipleAlignment msa)
+	public static AbstractAlignmentJmol display(CeSymmResult symmResult)
 			throws StructureException {
-		return display(msa, null);
+
+		if (symmResult.isSignificant() && symmResult.isRefined()) {
+			// Show the structure colored by repeat (do not rotate)
+			MultipleAlignment msa = symmResult.getMultipleAlignment();
+			List<Atom[]> atoms = msa.getAtomArrays();
+
+			// Add non polymer protein groups
+			Atom[] allAtoms = atoms.get(0);
+			List<Group> hetatms = StructureTools.getUnalignedGroups(allAtoms);
+			allAtoms = Arrays
+					.copyOf(allAtoms, allAtoms.length + hetatms.size());
+			for (int h = 0; h < hetatms.size(); h++) {
+				int index = (allAtoms.length - hetatms.size()) + h;
+				allAtoms[index] = hetatms.get(h).getAtom(0);
+			}
+			for (int s = 0; s < msa.size(); s++)
+				atoms.set(s, allAtoms);
+
+			MultipleAlignmentJmol jmol = new MultipleAlignmentJmol(msa, atoms);
+			jmol.setTitle(jmol.getStructure().getPDBHeader().getTitle());
+			addSymmetryMenu(jmol, symmResult);
+			jmol.evalString(printSymmetryGroup(symmResult));
+			jmol.evalString(printSymmetryAxes(symmResult));
+			jmol.setTitle(getSymmTitle(symmResult));
+			jmol.evalString("save STATE state_1");
+			return jmol;
+		} else {
+			// Show the optimal self-alignment
+			logger.info("Showing optimal self-alignment");
+			Atom[] cloned = StructureTools
+					.cloneAtomArray(symmResult.getAtoms());
+			AbstractAlignmentJmol jmol = StructureAlignmentDisplay.display(
+					symmResult.getSelfAlignment(), symmResult.getAtoms(),
+					cloned);
+			RotationAxis axis = new RotationAxis(symmResult.getSelfAlignment());
+			jmol.evalString(axis.getJmolScript(symmResult.getAtoms()));
+			jmol.evalString("save STATE state_1");
+			return jmol;
+		}
 	}
 
 	/**
 	 * Adds a Symmetry menu to the Jmol display, so that further symmetry
 	 * analysis can be triggered.
-	 * 
+	 *
 	 * @param jmol
 	 *            parent jmol
-	 * @param axes
-	 *            symmetry axes
+	 * @param symmResult
+	 *            CeSymmResult
 	 */
 	private static void addSymmetryMenu(MultipleAlignmentJmol jmol,
-			SymmetryAxes axes) {
+			CeSymmResult symmResult) {
 
 		JMenuBar menubar = jmol.getFrame().getJMenuBar();
 
 		JMenu symm = new JMenu("Symmetry");
 		symm.setMnemonic(KeyEvent.VK_S);
 
-		SymmetryListener li = new SymmetryListener(jmol, axes);
+		SymmetryListener li = new SymmetryListener(jmol, symmResult);
 
-		JMenuItem subunits = new JMenuItem("Subunit Superposition");
-		subunits.addActionListener(li);
-		symm.add(subunits);
+		JMenuItem repeats = new JMenuItem("Repeats Superposition");
+		repeats.addActionListener(li);
+		symm.add(repeats);
 
 		JMenuItem multiple = new JMenuItem("Multiple Structure Alignment");
 		multiple.addActionListener(li);
 		symm.add(multiple);
 
-		JMenuItem pg = new JMenuItem("Point Group Symmetry");
+		JMenuItem self = new JMenuItem("Optimal Self Alignment");
+		self.addActionListener(li);
+		symm.add(self);
+
+		JMenuItem pg = new JMenuItem("Show Symmetry Group");
 		pg.addActionListener(li);
 		symm.add(pg);
 
@@ -171,45 +200,73 @@ public class SymmetryDisplay {
 
 	/**
 	 * Generates a String that displays the symmetry axes of a structure.
-	 * 
-	 * @param msa
-	 * @param axes
-	 * @param elementary
-	 *            only print elementary axes if true
+	 *
+	 * @param symm
+	 *            CeSymmResult
 	 * @return
+	 * @throws StructureException
 	 */
-	public static String printSymmetryAxes(MultipleAlignment msa,
-			SymmetryAxes axes, boolean elementary) {
+	public static String printSymmetryAxes(CeSymmResult symm)
+			throws StructureException {
+		return printSymmetryAxes(symm,true);
+	}
+	
+	/**
+	 * Generates a String that displays the symmetry axes of a structure.
+	 *
+	 * @param symm
+	 *            CeSymmResult
+	 * @param allAxes Indicates whether all axes should be displayed or just
+	 *  the elemenatary ones
+	 * @return
+	 * @throws StructureException
+	 */
+	public static String printSymmetryAxes(CeSymmResult symm,boolean allAxes)
+			throws StructureException {
 
 		int id = 0;
 		String script = "";
-		Atom[] atoms = msa.getAtomArrays().get(0);
+		SymmetryAxes axes = symm.getAxes();
+		List<Atom[]> repeats = SymmetryTools.toRepeatsAlignment(symm)
+				.getAtomArrays();
 
-		List<Matrix4d> symmAxes = null;
-		if (elementary) {
-			symmAxes = axes.getElementaryAxes();
-		} else {
+		List<Axis> symmAxes;
+		if(allAxes) {
 			symmAxes = axes.getSymmetryAxes();
+		} else {
+			symmAxes= axes.getElementaryAxesObjects();
 		}
+		for (Axis a : symmAxes) {
+			RotationAxis rot = a.getRotationAxis();
+			List<List<Integer>> cyclicForm = axes.getRepeatsCyclicForm(a);
+			List<Atom> repAtoms = new ArrayList<Atom>();
+			for(List<Integer> cycle : cyclicForm) {
+				for(Integer repeat : cycle) {
+					repAtoms.addAll(Arrays.asList(repeats.get(repeat)));
+				}
+			}
 
-		for (Matrix4d axis : symmAxes) {
-			RotationAxis rot = new RotationAxis(axis);
-			script += rot.getJmolScript(atoms, id);
+			script += rot.getJmolScript(
+					repAtoms.toArray(new Atom[repAtoms.size()]), id);
 			id++;
 		}
+
 		return script;
 	}
 
 	/**
-	 * Given a symmetry alignment, it draws the point group symmetry axes and
-	 * the polyhedron box around the structure. It uses the quaternary symmetry
+	 * Given a symmetry alignment, it draws the symmetry group axes and the
+	 * polyhedron box around the structure. It uses the quaternary symmetry
 	 * detection code, but tries to factor out the alignment and detection
 	 * steps.
-	 * 
+	 *
 	 * @param symm
+	 *            CeSymmResult
 	 * @return
+	 * @throws StructureException
 	 */
-	public static String printPointGroupAxes(MultipleAlignment symm) {
+	public static String printSymmetryGroup(CeSymmResult symm)
+			throws StructureException {
 
 		QuatSymmetryResults gSymmetry = SymmetryTools
 				.getQuaternarySymmetry(symm);
@@ -230,6 +287,30 @@ public class SymmetryDisplay {
 		script += "draw axes* on; draw poly* on; ";
 
 		return script;
+	}
+
+	/**
+	 * Create a symmetry title for a display frame (Jmol, alignment, etc). The
+	 * title contains information about the algorithm, structure id and
+	 * parameters used.
+	 *
+	 * @param result
+	 * @return title String
+	 */
+	public static String getSymmTitle(CeSymmResult result) {
+
+		StringBuffer buff = new StringBuffer();
+
+		// Add algorithm name and version
+		buff.append(result.getMultipleAlignment().getEnsemble()
+				.getAlgorithmName());
+		buff.append(" V");
+		buff.append(result.getMultipleAlignment().getEnsemble().getVersion());
+		buff.append(": ");
+
+		// Add the result summary string
+		buff.append(result.toString());
+		return buff.toString();
 	}
 
 }

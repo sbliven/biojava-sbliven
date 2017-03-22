@@ -44,20 +44,20 @@ import java.util.zip.GZIPInputStream;
  * <pre>
  * SiftsChainToUniprot sifts = SiftsChainToUniprot.load();
  * SiftsChainEntry entry1 = sifts.getByUniProtId("P04585");
- * System.out.println(entry1.getPdbId() + "." + entry1.getChainId()); // 1hiv.A
+ * System.out.println(entry1.getPdbId() + "." + entry1.getChainName()); // 1hiv.A
  * System.out.println(entry1.getPdbStart() + "-" + entry1.getPdbStop()); // 1-99
  * SiftsChainEntry entry2 = sifts.getByChainId("1hiv", "A");
  * System.out.println(entry1.equals(entry2)); // true
  * </pre>
- * 
+ *
  * @author dmyersturnbull
  * @see SiftsChainEntry
  * @since 3.0.7
  */
 public class SiftsChainToUniprotMapping {
-	
+
 	private final static Logger logger = LoggerFactory.getLogger(SiftsChainToUniprotMapping.class);
-	
+
 
 	private static File DEFAULT_FILE;
 
@@ -92,13 +92,13 @@ public class SiftsChainToUniprotMapping {
 	 * @throws IOException If the local file could not be read and could not be downloaded (including if onlyLocal is true)
 	 */
 	public static SiftsChainToUniprotMapping load(boolean useOnlyLocal) throws IOException {
-		
+
 		UserConfiguration config = new UserConfiguration();
 		File cacheDir = new File(config.getCacheFilePath());
-		
+
 		DEFAULT_FILE = new File(cacheDir, DEFAULT_FILENAME);
-		 
-		
+
+
 		if (!DEFAULT_FILE.exists() || DEFAULT_FILE.length() == 0) {
 			if (useOnlyLocal) throw new IOException(DEFAULT_FILE + " does not exist, and did not download");
 			download();
@@ -139,9 +139,9 @@ public class SiftsChainToUniprotMapping {
 	}
 
 	private static void download() throws IOException {
-		
+
 		logger.info("Downloading {} to {}",DEFAULT_URL.toString(),DEFAULT_FILE);
-		
+
 		InputStream in = null;
 		OutputStream out = null;
 

@@ -94,13 +94,13 @@ public class FastaAFPChainConverterTest {
 	}
 
 	private AtomCache cache;
-	
+
 	@Before
 	public void setUp() {
 		cache = new AtomCache();
 		ScopFactory.setScopDatabase(ScopFactory.VERSION_1_75B);
 	}
-	
+
 	@Test
 	public void testCpAsymmetric() throws IOException, StructureException, CompoundNotFoundException {
 		Structure structure = cache.getStructure("1w0p");
@@ -120,7 +120,7 @@ public class FastaAFPChainConverterTest {
 		assertEquals("Wrong TM-score", 0.6284, afpChain.getTMScore(), 0.001);
 		assertEquals("Wrong RMSD", 2.50569, afpChain.getTotalRmsdOpt(), 0.001);
 	}
-	
+
 	@Test
 	public void testBug1() throws IOException, StructureException, CompoundNotFoundException {
 		/*
@@ -139,7 +139,7 @@ public class FastaAFPChainConverterTest {
 		assertEquals("Wrong RMSD", 2.681, afpChain.getTotalRmsdOpt(), 0.001);
 		assertEquals("Wrong TM-score", 0.69848, afpChain.getTMScore(), 0.001);
 	}
-	
+
 	@Test
 	public void testCpSymmetric1() throws IOException,StructureException, CompoundNotFoundException {
 		//cat 2GG6-best.fasta |tr -d \\n|pbcopy
@@ -150,15 +150,16 @@ public class FastaAFPChainConverterTest {
 		assertEquals("Wrong TM-score", 0.7701, afpChain.getTMScore(), 0.001);
 		assertEquals("Wrong RMSD", 3.035, afpChain.getTotalRmsdOpt(), 0.001);
 	}
-	
+
 	@Test
-	public void testFromFasta() throws IOException, StructureException, CompoundNotFoundException {  
+	public void testFromFasta() throws IOException, StructureException, CompoundNotFoundException {
 		Structure s1 = cache.getStructure("1w0p");
 		Structure s2 = cache.getStructure("1qdm");
 		ProteinSequence seq1 = new ProteinSequence("GWGG----SEL--YRRNTSLNS--QQDW-------QSNAKIRIVDGAA-----NQIQ");
 		ProteinSequence seq2 = new ProteinSequence("WMQNQLAQNKT--QDLILDYVNQLCNRL---PSPMESAV----DCGSLGSMPDIEFT");
 		AFPChain afpChain = FastaAFPChainConverter.fastaToAfpChain(seq1, seq2, s1, s2);
 		assertEquals("Wrong number of EQRs", 33, afpChain.getNrEQR());
+		assertEquals("Wrong number of alnLength",53,afpChain.getAlnLength());
 		String xml = AFPChainXMLConverter.toXML(afpChain);
 		File expected = new File("src/test/resources/1w0p_1qdm.xml");
 		File x = File.createTempFile("1w0p_1qdm_output", "xml.tmp");

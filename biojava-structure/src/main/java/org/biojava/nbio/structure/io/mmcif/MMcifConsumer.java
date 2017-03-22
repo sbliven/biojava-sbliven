@@ -51,6 +51,7 @@ public interface MMcifConsumer {
 	 */
 	public void newAtomSite(AtomSite atom);
 	public void newEntity(Entity entity);
+	public void newEntityPoly(EntityPoly entityPoly);
 	public void newEntityPolySeq(EntityPolySeq epolseq);
 	public void newStructAsym(StructAsym sasym);
 	public void setStruct(Struct struct);
@@ -61,9 +62,12 @@ public interface MMcifConsumer {
 	public void newCell(Cell cell);
 	public void newSymmetry(Symmetry symmetry);
 	public void newStructNcsOper(StructNcsOper sNcsOper);
+	public void newAtomSites(AtomSites atomSites);
 	public void newStructRef(StructRef sref);
 	public void newStructRefSeq(StructRefSeq sref);
 	public void newStructRefSeqDif(StructRefSeqDif sref);
+	public void newStructSite(StructSite sref);
+	public void newStructSiteGen(StructSiteGen sref);
 	public void newPdbxPolySeqScheme(PdbxPolySeqScheme ppss);
 	public void newPdbxNonPolyScheme(PdbxNonPolyScheme ppss);
 	public void newPdbxEntityNonPoly(PdbxEntityNonPoly pen);
@@ -82,7 +86,7 @@ public interface MMcifConsumer {
 	public void newEntitySrcNat(EntitySrcNat entitySrcNat);
 	public void newEntitySrcSyn(EntitySrcSyn entitySrcSyn);
 	public void newStructConn(StructConn structConn);
-	
+
 	/** AuditAuthor contains the info from the PDB-AUTHOR records.
 	 *
 	 * @param aa
@@ -100,11 +104,11 @@ public interface MMcifConsumer {
 	public void setFileParsingParameters(FileParsingParameters params);
 	public FileParsingParameters getFileParsingParameters();
 
-	
 
-	
 
-	
 
-	
+
+
+
+
 }

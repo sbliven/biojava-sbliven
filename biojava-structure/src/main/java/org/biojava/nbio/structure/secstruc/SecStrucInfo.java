@@ -26,7 +26,7 @@ import org.biojava.nbio.structure.Group;
  * Container for the secondary structure information of a single residue. This
  * class is designed to be stored inside an Amino Acid object. It can also
  * contain a back-reference to its parent AA.
- * 
+ *
  * @author Aleix Lafita
  * @since 4.1.1
  *
@@ -71,6 +71,15 @@ public class SecStrucInfo {
 	@Override
 	public String toString() {
 		return assignment + ": " + type;
+	}
+
+	@Override
+	public int hashCode() {
+	    final int prime = 31;
+	    int result = 1;
+	    result = prime * result
+		    + ((assignment == null) ? 0 : type.hashCode());
+	    return result;
 	}
 
 	@Override

@@ -18,24 +18,23 @@
  *      http://www.biojava.org/
  *
  */
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package org.biojava.nbio.survival.cox.comparators;
 
 import org.biojava.nbio.survival.cox.SurvivalInfo;
 
+import java.io.Serializable;
 import java.util.Comparator;
 
 /**
  *
  * @author Scooter Willis <willishf at gmail dot com>
  */
-public class SurvivalInfoComparator implements Comparator<SurvivalInfo> {
+public class SurvivalInfoComparator implements Comparator<SurvivalInfo>, Serializable {
+    private static final long serialVersionUID = 1;
 
-    public int compare(SurvivalInfo t, SurvivalInfo t1) {
-        return t.getOrder() - t1.getOrder();
-    }
-    
+	@Override
+	public int compare(SurvivalInfo t, SurvivalInfo t1) {
+		return t.getOrder() - t1.getOrder();
+	}
+
 }

@@ -43,8 +43,7 @@ import org.junit.Test;
 public class TestSequenceFunctionOrderDetector {
 
 	@Test
-	public void testGetSymmetryOrder() 
-			throws IOException, StructureException, RefinerFailedException {
+	public void testGetSymmetryOrder() throws IOException, StructureException, RefinerFailedException {
 		// List of alignments to try, along with proper symmetry
 		Map<String,Integer> orderMap = new HashMap<String,Integer>();
 		orderMap.put("1itb.A",3); // b-trefoil, C3
@@ -52,21 +51,21 @@ public class TestSequenceFunctionOrderDetector {
 		//orderMap.put("d1p9ha_",-1); // not rotational symmetry
 		orderMap.put("3HKE.A",2); // very questionable alignment
 		orderMap.put("d1jlya1",3); // a very nice trefoil
-		
+
 		AtomCache cache = new AtomCache();
-		
+
 		for(String name : orderMap.keySet()) {
-			CeSymm ce = new CeSymm();
-			ce.getParameters().setRefineMethod(RefineMethod.NOT_REFINED);
+			CESymmParameters params = new CESymmParameters();
+			params.setRefineMethod(RefineMethod.NOT_REFINED);
 			Atom[] ca1 = cache.getAtoms(name);
-			
-			ce.analyzeLevel(ca1);
-			AFPChain afpChain = ce.getSelfAlignments().get(0);
-			
+
+			CeSymmResult result = CeSymm.analyzeLevel(ca1, params);
+			AFPChain afpChain = result.getSelfAlignment();
+
 			int order = new SequenceFunctionOrderDetector().calculateOrder(afpChain, ca1);
-			
+
 			assertEquals("Wrong order for "+name,orderMap.get(name).intValue(), order);
 		}
 	}
-	
+
 }

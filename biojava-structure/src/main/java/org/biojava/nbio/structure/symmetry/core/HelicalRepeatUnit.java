@@ -20,20 +20,20 @@
  */
 package org.biojava.nbio.structure.symmetry.core;
 
-import org.biojava.nbio.structure.symmetry.geometry.SuperPosition;
-
+import org.biojava.nbio.structure.geometry.CalcPoint;
 import javax.vecmath.Point3d;
+
 import java.util.*;
 import java.util.Map.Entry;
 
 public class HelicalRepeatUnit {
-	private Subunits subunits = null;
+	private QuatSymmetrySubunits subunits = null;
 	private List<Point3d> repeatUnitCenters = new ArrayList<Point3d>();
 	private List<Point3d[]> repeatUnits = new ArrayList<Point3d[]>();
 	private List<List<Integer>> repeatUnitIndices = new ArrayList<List<Integer>>();
 	private Map<Integer[], Integer> interactingNeighbors = Collections.emptyMap();
 
-public HelicalRepeatUnit(Subunits subunits) {
+public HelicalRepeatUnit(QuatSymmetrySubunits subunits) {
 	this.subunits = subunits;
 }
 
@@ -72,15 +72,20 @@ private void run() {
 }
 
 private List<Point3d> calcRepeatUnitCenters() {
-	Set<Integer> uniqueModels = new HashSet<Integer>(subunits.getModelNumbers());
+	
+	// TODO why do we use models here? it should not matter. Setting to 0 all
+	List<Integer> models = new ArrayList<Integer>(subunits.getSubunitCount());
+	for (int s = 0; s <subunits.getSubunitCount(); s++)
+		models.add(0);
+	Set<Integer> uniqueModels = new HashSet<Integer>(Arrays.asList(1));
+	
 	int modelCount = uniqueModels.size();
 	List<Integer> folds = this.subunits.getFolds();
 	int maxFold = folds.get(folds.size()-1);
 
 	List<Point3d> repeatCenters = new ArrayList<Point3d>();
 	List<Point3d> centers = subunits.getCenters();
-	List<Integer> models = subunits.getModelNumbers();
-	
+
 //	if (modelCount == maxFold && subunits.getSubunitCount() > 3) {
 	if (maxFold%modelCount == 0 && modelCount > 1 && subunits.getSubunitCount() > 3) {
 //		System.out.println("calcRepeatUnitCenters case 1");
@@ -106,7 +111,7 @@ private List<Point3d> calcRepeatUnitCenters() {
 //		System.out.println("calcRepeatUnitCenters case21");
 		// TODO need to group subunits into repeating groups
 		// Case of 3B5U: A14, but seems to form (A2)*7 and symmetry related subunits don't have direct contact
-		List<Integer> sequenceClusterIds = subunits.getSequenceClusterIds();
+		List<Integer> sequenceClusterIds = subunits.getClusterIds();
 		for (int i = 0; i < subunits.getSubunitCount(); i++) {
 			List<Integer> subunitIndices = new ArrayList<Integer>(1);
 			if (sequenceClusterIds.get(i) == 0) {
@@ -117,26 +122,32 @@ private List<Point3d> calcRepeatUnitCenters() {
 			}
 		}
 	}
-	
+
 	// helixes should have at least 3 repeat centers
 //	System.out.println("Number of repeat centers: " + repeatCenters.size());
 	if (repeatCenters.size() < 3) {
 		repeatCenters.clear();
 	}
-	
+
 	return repeatCenters;
 }
 
 private List<Point3d[]> calcRepeatUnits() {
-	Set<Integer> uniqueModels = new HashSet<Integer>(subunits.getModelNumbers());
+	
+	// TODO why do we use models here? it should not matter. Setting to 0 all
+	List<Integer> models = new ArrayList<Integer>(
+			subunits.getSubunitCount());
+	for (int s = 0; s < subunits.getSubunitCount(); s++)
+		models.add(0);
+	Set<Integer> uniqueModels = new HashSet<Integer>(Arrays.asList(1));
+		
 	int modelCount = uniqueModels.size();
 	List<Integer> folds = this.subunits.getFolds();
 	int maxFold = folds.get(folds.size()-1);
 
 	List<Point3d[]> repeatTraces = new ArrayList<Point3d[]>();
-	List<Integer> models = subunits.getModelNumbers();
 	List<Point3d[]> traces = subunits.getTraces();
-	
+
 //	if (modelCount == maxFold && subunitCount > 3) {
 	if (maxFold%modelCount == 0 && modelCount > 1 && subunits.getSubunitCount() > 3) {
 		for (int i = 0; i < modelCount; i++) {
@@ -149,18 +160,18 @@ private List<Point3d[]> calcRepeatUnits() {
 			Point3d[] x = new Point3d[coords.size()];
 			coords.toArray(x);
 //			repeatTraces.add(x); // make sure we don't accidently change the original coordinates
-			repeatTraces.add(SuperPosition.clonePoint3dArray(x));
+			repeatTraces.add(CalcPoint.clonePoint3dArray(x));
 		}
 	} else {
-		List<Integer> sequenceClusterIds = subunits.getSequenceClusterIds();
+		List<Integer> sequenceClusterIds = subunits.getClusterIds();
 		for (int i = 0; i < subunits.getSubunitCount(); i++) {
 			if (sequenceClusterIds.get(i) == 0) {
 				Point3d[] x = subunits.getTraces().get(i);
-				repeatTraces.add(SuperPosition.clonePoint3dArray(x));
+				repeatTraces.add(CalcPoint.clonePoint3dArray(x));
 			}
 		}
 	}
-	
+
 //	for (int i = 0; i < repeatTraces.size(); i++) {
 //		System.out.println("Repeat " + i);
 //		System.out.println(Arrays.toString(repeatTraces.get(i)));
@@ -170,7 +181,7 @@ private List<Point3d[]> calcRepeatUnits() {
 
 private Map<Integer[], Integer> findInteractingNeigbors() {
 	Map<Integer[], Integer>  contactMap = new HashMap<Integer[], Integer>();
-	
+
 	Map<Integer, List<Integer[]>> distanceMap = findClosestPairs(8);
 	for (List<Integer[]> pairs: distanceMap.values())
 	for (Integer[] pair: pairs) {
@@ -180,7 +191,7 @@ private Map<Integer[], Integer> findInteractingNeigbors() {
 			contactMap.put(pair, contacts);
 		}
 	}
-	
+
 	return contactMap;
 }
 
@@ -201,7 +212,7 @@ private Map<Integer, List<Integer[]>> findClosestPairs(int maxNeighbors) {
 			List<Integer[]> pairs = distanceMap.get(intDist);
 			// save only one representative pair for each distance
 			if (pairs == null) {
-				pairs = new ArrayList<Integer[]>();	
+				pairs = new ArrayList<Integer[]>();
 			}
 			Integer[] pair = new Integer[2];
 			pair[0] = i;
@@ -224,7 +235,7 @@ private Map<Integer, List<Integer[]>> findClosestPairs(int maxNeighbors) {
 	}
 	distanceMap.clear();
 
-    return reducedMap;
+	return reducedMap;
 }
 
 private static int calcContactNumber(Point3d[] a, Point3d[] b) {

@@ -23,43 +23,47 @@
 
 package org.biojava.nbio.structure.io.mmcif.model;
 
+import java.io.Serializable;
 
-public class DatabasePdbrevRecord {
+public class DatabasePdbrevRecord implements Serializable {
 
-    String rev_num;
-    String type;
-    String details;
 
-    public String getRev_num() {
-        return rev_num;
-    }
+	private static final long serialVersionUID = 1L;
 
-    public void setRev_num(String rev_num) {
-        this.rev_num = rev_num;
-    }
+	String rev_num;
+	String type;
+	String details;
 
-    public String getType() {
-        return type;
-    }
+	public String getRev_num() {
+		return rev_num;
+	}
 
-    public void setType(String type) {
-        this.type = type;
-    }
+	public void setRev_num(String rev_num) {
+		this.rev_num = rev_num;
+	}
 
-    public String getDetails() {
-        return details;
-    }
+	public String getType() {
+		return type;
+	}
 
-    public void setDetails(String details) {
-        this.details = details;
-    }
+	public void setType(String type) {
+		this.type = type;
+	}
 
-    @Override
-    public String toString() {
-        return "DatabasePdbrevRecord{" +
-                "rev_num='" + rev_num + '\'' +
-                ", type='" + type + '\'' +
-                ", details='" + details + '\'' +
-                '}';
-    }
+	public String getDetails() {
+		return details;
+	}
+
+	public void setDetails(String details) {
+		this.details = details;
+	}
+
+	@Override
+	public String toString() {
+		return "DatabasePdbrevRecord{" +
+				"rev_num='" + rev_num + '\'' +
+				", type='" + type + '\'' +
+				", details='" + details + '\'' +
+				'}';
+	}
 }

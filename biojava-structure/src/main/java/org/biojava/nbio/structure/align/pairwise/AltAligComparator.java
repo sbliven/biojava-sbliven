@@ -16,52 +16,53 @@
  * at:
  *
  *      http://www.biojava.org/
- * 
+ *
  * Created on May 27, 2006
  *
  */
 package org.biojava.nbio.structure.align.pairwise;
 
+import java.io.Serializable;
 import java.util.Comparator;
 
 
 /** a comparator to sort AlternativeAlignments based on their number of equivalent residues
  * and RMSD.
- * 
+ *
  * @author Andreas Prlic
  *
  */
-public class AltAligComparator implements Comparator<AlternativeAlignment> {
+public class AltAligComparator implements Comparator<AlternativeAlignment>, Serializable {
+    private static final long serialVersionUID = 1;
 
+	public AltAligComparator() {
+		super();
 
-    public AltAligComparator() {
-        super();
+	}
 
-    }
-
-    @Override
+	@Override
 	public int compare(AlternativeAlignment a, AlternativeAlignment b) {
-        
-        int s1 = a.getIdx1().length;
-        int s2 = b.getIdx1().length;
-        
-        if ( s1 > s2)
-            return 1;
-        if ( s1 < s2)
-            return -1;
-        
-        // seem to have the same length
-        
-        double rms1 = a.getRmsd();
-        double rms2 = b.getRmsd();
-        
-        if ( rms1 < rms2)
-            return 1;
-        if ( rms1 < rms2)
-            return -1;
-        
-        return 0;
-    }
-   
+
+		int s1 = a.getIdx1().length;
+		int s2 = b.getIdx1().length;
+
+		if ( s1 > s2)
+			return 1;
+		if ( s1 < s2)
+			return -1;
+
+		// seem to have the same length
+
+		double rms1 = a.getRmsd();
+		double rms2 = b.getRmsd();
+
+		if ( rms1 < rms2)
+			return 1;
+		if ( rms1 < rms2)
+			return -1;
+
+		return 0;
+	}
+
 
 }

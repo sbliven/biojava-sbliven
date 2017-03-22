@@ -24,7 +24,7 @@ package org.biojava.nbio.structure.secstruc;
  * Container that represents a beta Bridge between two residues. It contains the
  * two partner indices and the type of the bridge. For consistency, partner1 is
  * always the small index.
- * 
+ *
  * @author Aleix Lafita
  *
  */
@@ -39,6 +39,17 @@ public class BetaBridge {
 		partner2 = Math.max(i, j);
 		type = t;
 	}
+
+	@Override
+        public int hashCode()
+        {
+            final int prime = 31;
+            int result = 1;
+            result = prime * result + getType().hashCode();
+            result = prime * result + partner1;
+            result = prime * result + partner2;
+            return result;
+        }
 
 	@Override
 	public boolean equals(Object o) {

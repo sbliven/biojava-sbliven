@@ -26,8 +26,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -35,16 +36,15 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
+
+import javax.vecmath.Matrix4d;
+import javax.vecmath.Point3d;
 
 import org.biojava.nbio.structure.align.util.AtomCache;
 import org.biojava.nbio.structure.contact.AtomContactSet;
 import org.biojava.nbio.structure.contact.Grid;
 import org.biojava.nbio.structure.io.FileParsingParameters;
 import org.biojava.nbio.structure.io.PDBFileParser;
-import org.biojava.nbio.structure.io.mmcif.chem.PolymerType;
-import org.biojava.nbio.structure.io.mmcif.chem.ResidueType;
-import org.biojava.nbio.structure.io.mmcif.model.ChemComp;
 import org.biojava.nbio.structure.io.util.FileDownloadUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,7 +54,6 @@ import org.slf4j.LoggerFactory;
  *
  * @author Andreas Prlic, Jules Jacobsen
  * @since 1.0
- * @version %I% %G%
  */
 public class StructureTools {
 
@@ -153,6 +152,11 @@ public class StructureTools {
 	 */
 	public static final double RATIO_RESIDUES_TO_TOTAL = 0.95;
 
+	/**
+	 * Threshold for plausible binding of a ligand to the selected substructure
+	 */
+	public static final double DEFAULT_LIGAND_PROXIMITY_CUTOFF = 5;
+
 	// there is a file format change in PDB 3.0 and nucleotides are being
 	// renamed
 	private static final Map<String, Character> nucleotides30;
@@ -182,27 +186,27 @@ public class StructureTools {
 		nucleotides30.put("TC1", UNKNOWN_GROUP_LABEL); // Furanosyl
 		nucleotides30.put("TFE", UNKNOWN_GROUP_LABEL); // Fluorinated Thymine
 		nucleotides30.put("TFO", UNKNOWN_GROUP_LABEL); // Tenofovir (3'
-														// terminator)
+		// terminator)
 		nucleotides30.put("TGP", UNKNOWN_GROUP_LABEL); // Guanine variant
 		nucleotides30.put("THX", UNKNOWN_GROUP_LABEL); // 5' terminator
 		nucleotides30.put("TLC", UNKNOWN_GROUP_LABEL); // Thymine with dicyclic
-														// sugar
+		// sugar
 		nucleotides30.put("TLN", UNKNOWN_GROUP_LABEL); // locked Thymine
 		nucleotides30.put("LCG", UNKNOWN_GROUP_LABEL); // locked Guanine
 		nucleotides30.put("TP1", UNKNOWN_GROUP_LABEL); // Thymine peptide
-														// nucleic acid, with
-														// added methyl
+		// nucleic acid, with
+		// added methyl
 		nucleotides30.put("CP1", UNKNOWN_GROUP_LABEL); // Cytidine peptide
-														// nucleic acid, with
-														// added methyl
+		// nucleic acid, with
+		// added methyl
 		nucleotides30.put("TPN", UNKNOWN_GROUP_LABEL); // Thymine peptide
-														// nucleic acid
+		// nucleic acid
 		nucleotides30.put("CPN", UNKNOWN_GROUP_LABEL); // Cytidine peptide
-														// nucleic acid
+		// nucleic acid
 		nucleotides30.put("GPN", UNKNOWN_GROUP_LABEL); // Guanine peptide
-														// nucleic acid
+		// nucleic acid
 		nucleotides30.put("APN", UNKNOWN_GROUP_LABEL); // Adenosine peptide
-														// nucleic acid
+		// nucleic acid
 		nucleotides30.put("TPC", UNKNOWN_GROUP_LABEL); // Thymine variant
 
 		// store nucleic acids (C, G, A, T, U, and I), and
@@ -347,8 +351,8 @@ public class StructureTools {
 	}
 
 	/**
-	 * Convert all atoms of the structure (first model) into an Atom array
-	 * 
+	 * Convert all atoms of the structure (all models) into an Atom array
+	 *
 	 * @param s
 	 *            input structure
 	 * @return all atom array
@@ -363,11 +367,29 @@ public class StructureTools {
 		}
 		return atoms.toArray(new Atom[atoms.size()]);
 	}
+	/**
+	 * Convert all atoms of the structure (specified model) into an Atom array
+	 *
+	 * @param s
+	 *            input structure
+	 * @return all atom array
+	 */
+	public static final Atom[] getAllAtomArray(Structure s, int model) {
+		List<Atom> atoms = new ArrayList<Atom>();
+
+		AtomIterator iter = new AtomIterator(s,model);
+		while (iter.hasNext()) {
+			Atom a = iter.next();
+			atoms.add(a);
+		}
+		return atoms.toArray(new Atom[atoms.size()]);
+
+	}
 
 	/**
-	 * Returns and array of all atoms of the chain (first model), including
+	 * Returns and array of all atoms of the chain, including
 	 * Hydrogens (if present) and all HETATOMs. Waters are not included.
-	 * 
+	 *
 	 * @param c
 	 *            input chain
 	 * @return all atom array
@@ -387,11 +409,11 @@ public class StructureTools {
 
 	/**
 	 * List of groups from the structure not included in ca (e.g. ligands).
-	 * 
+	 *
 	 * Unaligned groups are searched from all chains referenced in ca, as well
 	 * as any chains in the first model of the structure from ca[0], if any.
-	 * 
-	 * @param ca2
+	 *
+	 * @param ca an array of atoms
 	 * @return
 	 */
 	public static List<Group> getUnalignedGroups(Atom[] ca) {
@@ -442,18 +464,228 @@ public class StructureTools {
 	}
 
 	/**
+	 * Finds all ligand groups from the target which fall within the cutoff distance
+	 * of some atom from the query set.
+	 * 
+	 * @param target Set of groups including the ligands
+	 * @param query Atom selection
+	 * @param cutoff Distance from query atoms to consider, in angstroms
+	 * @return All groups from the target with at least one atom within cutoff of a query atom
+	 * @see StructureTools#DEFAULT_LIGAND_PROXIMITY_CUTOFF
+	 */
+	public static List<Group> getLigandsByProximity(Collection<Group> target, Atom[] query, double cutoff) {
+		// Geometric hashing of the reduced structure
+		Grid grid = new Grid(cutoff);
+		grid.addAtoms(query);
+
+		List<Group> ligands = new ArrayList<>();
+		for(Group g :target ) {
+			// don't worry about waters
+			if(g.isWater()) {
+				continue;
+			}
+
+			if(g.isPolymeric() ) {
+				// Polymers aren't ligands
+				continue;
+			}
+
+			// It is a ligand!
+
+			// Check that it's within cutoff of something in reduced
+			List<Atom> groupAtoms = g.getAtoms();
+			if( ! grid.hasAnyContact(Calc.atomsToPoints(groupAtoms))) {
+				continue;
+			}
+
+			ligands.add(g);
+		}
+		return ligands;
+	}
+	
+	/**
+	 * Adds a particular group to a structure. A new chain will be created if necessary.
+	 * 
+	 * <p>When adding multiple groups, pass the return value of one call as the
+	 * chainGuess parameter of the next call for efficiency.
+	 * <pre>
+	 * Chain guess = null;
+	 * for(Group g : groups) {
+	 *     guess = addGroupToStructure(s, g, guess );
+	 * }
+	 * </pre>
+	 * @param s structure to receive the group
+	 * @param g group to add
+	 * @param chainGuess (optional) If not null, should be a chain from s. Used
+	 *  to improve performance when adding many groups from the same chain
+	 * @param clone Indicates whether the input group should be cloned before
+	 *  being added to the new chain
+	 * @return the chain g was added to
+	 */
+	public static Chain addGroupToStructure(Structure s, Group g, int model, Chain chainGuess, boolean clone ) {
+		synchronized(s) {
+			// Find or create the chain
+			String chainId = g.getChainId();
+			assert !chainId.isEmpty();
+			Chain chain;
+			if(chainGuess != null && chainGuess.getId() == chainId) {
+				// previously guessed chain
+				chain = chainGuess;
+			} else {
+				// Try to guess
+				chain = s.getChain(chainId, model);
+				if(chain == null) {
+					// no chain found
+					chain = new ChainImpl();
+					chain.setId(chainId);
+
+					Chain oldChain = g.getChain();
+					chain.setName(oldChain.getName());
+
+					EntityInfo oldEntityInfo = oldChain.getEntityInfo();
+
+					EntityInfo newEntityInfo = s.getEntityById(oldEntityInfo.getMolId());
+					if( newEntityInfo == null ) {
+						newEntityInfo = new EntityInfo(oldEntityInfo);
+						s.addEntityInfo(newEntityInfo);
+					}
+					newEntityInfo.addChain(chain);
+					chain.setEntityInfo(newEntityInfo);
+					
+					// TODO Do the seqres need to be cloned too? -SB 2016-10-7
+					chain.setSeqResGroups(oldChain.getSeqResGroups());
+					chain.setSeqMisMatches(oldChain.getSeqMisMatches());
+					
+					s.addChain(chain,model);
+				}
+			}
+
+			// Add cloned group
+			if(clone) {
+				g = (Group)g.clone();
+			}
+			chain.addGroup(g);
+
+			return chain;
+		}
+	}
+
+	/**
+	 * Add a list of groups to a new structure. Chains will be automatically
+	 * created in the new structure as needed.
+	 * @param s structure to receive the group
+	 * @param g group to add
+	 * @param clone Indicates whether the input groups should be cloned before
+	 *  being added to the new chain
+	 */
+	public static void addGroupsToStructure(Structure s, Collection<Group> groups, int model, boolean clone) {
+		Chain chainGuess = null;
+		for(Group g : groups) {
+			chainGuess = addGroupToStructure(s, g, model, chainGuess, clone);
+		}
+	}
+	
+	/**
+	 * Expand a set of atoms into all groups from the same structure.
+	 * 
+	 * If the structure is set, only the first atom is used (assuming all
+	 * atoms come from the same original structure).
+	 * If the atoms aren't linked to a structure (for instance, for cloned atoms),
+	 * searches all chains of all atoms for groups.
+	 * @param atoms Sample of atoms
+	 * @return All groups from all chains accessible from the input atoms
+	 */
+	public static Set<Group> getAllGroupsFromSubset(Atom[] atoms) {
+		return getAllGroupsFromSubset(atoms,null);
+	}
+	/**
+	 * Expand a set of atoms into all groups from the same structure.
+	 * 
+	 * If the structure is set, only the first atom is used (assuming all
+	 * atoms come from the same original structure).
+	 * If the atoms aren't linked to a structure (for instance, for cloned atoms),
+	 * searches all chains of all atoms for groups.
+	 * @param atoms Sample of atoms
+	 * @param types Type of groups to return (useful for getting only ligands, for instance).
+	 *  Null gets all groups.
+	 * @return All groups from all chains accessible from the input atoms
+	 */
+	public static Set<Group> getAllGroupsFromSubset(Atom[] atoms,GroupType types) {
+		// Get the full structure
+		Structure s = null;
+		if (atoms.length > 0) {
+			Group g = atoms[0].getGroup();
+			if (g != null) {
+				Chain c = g.getChain();
+				if (c != null) {
+					s = c.getStructure();
+				}
+			}
+		}
+		// Collect all groups from the structure
+		Set<Chain> allChains = new HashSet<>();
+		if( s != null ) {
+			allChains.addAll(s.getChains());
+		}
+		// In case the structure wasn't set, need to use ca chains too
+		for(Atom a : atoms) {
+			Group g = a.getGroup();
+			if(g != null) {
+				Chain c = g.getChain();
+				if( c != null ) {
+					allChains.add(c);
+				}
+			}
+		}
+
+		if(allChains.isEmpty() ) {
+			return Collections.emptySet();
+		}
+		
+		// Extract all ligand groups
+		Set<Group> full = new HashSet<>();
+		for(Chain c : allChains) {
+			if(types == null) {
+				full.addAll(c.getAtomGroups());
+			} else {
+				full.addAll(c.getAtomGroups(types));
+			}
+		}
+
+		return full;
+	}
+
+
+	/**
 	 * Returns and array of all non-Hydrogen atoms in the given Structure,
 	 * optionally including HET atoms or not. Waters are not included.
-	 * 
+	 *
 	 * @param s
 	 * @param hetAtoms
 	 *            if true HET atoms are included in array, if false they are not
 	 * @return
 	 */
 	public static final Atom[] getAllNonHAtomArray(Structure s, boolean hetAtoms) {
+		AtomIterator iter = new AtomIterator(s);
+		return getAllNonHAtomArray(s, hetAtoms, iter);
+	}
+	/**
+	 * Returns and array of all non-Hydrogen atoms in the given Structure,
+	 * optionally including HET atoms or not. Waters are not included.
+	 *
+	 * @param s
+	 * @param hetAtoms
+	 *            if true HET atoms are included in array, if false they are not
+	 * @param modelNr Model number to draw atoms from
+	 * @return
+	 */
+	public static final Atom[] getAllNonHAtomArray(Structure s, boolean hetAtoms, int modelNr) {
+		AtomIterator iter = new AtomIterator(s,modelNr);
+		return getAllNonHAtomArray(s, hetAtoms, iter);
+	}
+	private static final Atom[] getAllNonHAtomArray(Structure s, boolean hetAtoms, AtomIterator iter) {
 		List<Atom> atoms = new ArrayList<Atom>();
 
-		AtomIterator iter = new AtomIterator(s);
 		while (iter.hasNext()) {
 			Atom a = iter.next();
 			if (a.getElement() == Element.H)
@@ -475,7 +707,7 @@ public class StructureTools {
 	/**
 	 * Returns and array of all non-Hydrogen atoms in the given Chain,
 	 * optionally including HET atoms or not Waters are not included.
-	 * 
+	 *
 	 * @param c
 	 * @param hetAtoms
 	 *            if true HET atoms are included in array, if false they are not
@@ -500,12 +732,41 @@ public class StructureTools {
 		}
 		return atoms.toArray(new Atom[atoms.size()]);
 	}
+	
+	/**
+	 * Returns and array of all non-Hydrogen atoms coordinates in the given Chain,
+	 * optionally including HET atoms or not Waters are not included.
+	 *
+	 * @param c
+	 * @param hetAtoms
+	 *            if true HET atoms are included in array, if false they are not
+	 * @return
+	 */
+	public static final Point3d[] getAllNonHCoordsArray(Chain c, boolean hetAtoms) {
+		List<Point3d> atoms = new ArrayList<Point3d>();
+
+		for (Group g : c.getAtomGroups()) {
+			if (g.isWater())
+				continue;
+			for (Atom a : g.getAtoms()) {
+
+				if (a.getElement() == Element.H)
+					continue;
+
+				if (!hetAtoms && g.getType().equals(GroupType.HETATM))
+					continue;
+
+				atoms.add(a.getCoordsAsPoint3d());
+			}
+		}
+		return atoms.toArray(new Point3d[atoms.size()]);
+	}
 
 	/**
 	 * Adds to the given atoms list, all atoms of groups that contained all
 	 * requested atomNames, i.e. if a group does not contain all of the
 	 * requested atom names, its atoms won't be added.
-	 * 
+	 *
 	 * @param atomNames
 	 * @param chains
 	 * @param atoms
@@ -594,7 +855,7 @@ public class StructureTools {
 	/**
 	 * Returns an Atom array of the C-alpha atoms. Any atom that is a carbon and
 	 * has CA name will be returned.
-	 * 
+	 *
 	 * @param c
 	 *            the structure object
 	 * @return an Atom[] array
@@ -616,13 +877,13 @@ public class StructureTools {
 	/**
 	 * Gets a representative atom for each group that is part of the chain
 	 * backbone. Note that modified aminoacids won't be returned as part of the
-	 * backbone if the {@link ReducedChemCompProvider} was used to load the
+	 * backbone if the {@link org.biojava.nbio.structure.io.mmcif.ReducedChemCompProvider} was used to load the
 	 * structure.
-	 * 
+	 *
 	 * For amino acids, the representative is a CA carbon. For nucleotides, the
 	 * representative is the {@value #NUCLEOTIDE_REPRESENTATIVE}. Other group
 	 * types will be ignored.
-	 * 
+	 *
 	 * @param c
 	 * @return representative Atoms of the chain backbone
 	 * @since Biojava 4.1.0
@@ -657,7 +918,7 @@ public class StructureTools {
 	 * Provides an equivalent copy of Atoms in a new array. Clones everything,
 	 * starting with parent groups and chains. The chain will only contain
 	 * groups that are part of the input array.
-	 * 
+	 *
 	 * @param ca
 	 *            array of representative atoms, e.g. CA atoms
 	 * @return Atom array
@@ -672,7 +933,7 @@ public class StructureTools {
 	 * Provides an equivalent copy of Atoms in a new array. Clones everything,
 	 * starting with parent groups and chains. The chain will only contain
 	 * groups that are part of the input array.
-	 * 
+	 *
 	 * @param ca
 	 *            array of representative atoms, e.g. CA atoms
 	 * @return Atom array
@@ -690,28 +951,36 @@ public class StructureTools {
 
 			Chain newChain = null;
 			for (Chain c : model) {
-				if (c.getChainID().equals(parentC.getChainID())) {
+				if (c.getName().equals(parentC.getName())) {
 					newChain = c;
 					break;
 				}
 			}
 			if (newChain == null) {
 				newChain = new ChainImpl();
-				newChain.setChainID(parentC.getChainID());
+				newChain.setId(parentC.getId());
+				newChain.setName(parentC.getName());
 				model.add(newChain);
 			}
 
 			Group parentN = (Group) parentG.clone();
 
 			newCA[apos] = parentN.getAtom(a.getName());
-			newChain.addGroup(parentN);
+			try {
+				// if the group doesn't exist yet, this produces a StructureException
+				newChain.getGroupByPDB(parentN.getResidueNumber());
+			} catch (StructureException e) {
+				// the group doesn't exist yet in the newChain, let's add it
+				newChain.addGroup(parentN);
+			}
+
 		}
 		return newCA;
 	}
 
 	/**
 	 * Clone a set of representative Atoms, but returns the parent groups
-	 * 
+	 *
 	 * @param ca
 	 *            Atom array
 	 * @return Group array
@@ -728,14 +997,14 @@ public class StructureTools {
 
 			Chain newChain = null;
 			for (Chain c : model) {
-				if (c.getChainID().equals(parentC.getChainID())) {
+				if (c.getName().equals(parentC.getName())) {
 					newChain = c;
 					break;
 				}
 			}
 			if (newChain == null) {
 				newChain = new ChainImpl();
-				newChain.setChainID(parentC.getChainID());
+				newChain.setName(parentC.getName());
 				model.add(newChain);
 			}
 
@@ -749,7 +1018,7 @@ public class StructureTools {
 	/**
 	 * Utility method for working with circular permutations. Creates a
 	 * duplicated and cloned set of Calpha atoms from the input array.
-	 * 
+	 *
 	 * @param ca2
 	 *            atom array
 	 * @return cloned and duplicated set of input array
@@ -764,17 +1033,19 @@ public class StructureTools {
 		String prevChainId = "";
 		for (Atom a : ca2) {
 			Group g = (Group) a.getGroup().clone(); // works because each group
-													// has only a single atom
+			// has only a single atom
 
 			if (c == null) {
 				c = new ChainImpl();
 				Chain orig = a.getGroup().getChain();
-				c.setChainID(orig.getChainID());
+				c.setId(orig.getId());
+				c.setName(orig.getName());
 			} else {
 				Chain orig = a.getGroup().getChain();
-				if (!orig.getChainID().equals(prevChainId)) {
+				if (!orig.getId().equals(prevChainId)) {
 					c = new ChainImpl();
-					c.setChainID(orig.getChainID());
+					c.setId(orig.getId());
+					c.setName(orig.getName());
 				}
 			}
 
@@ -793,12 +1064,14 @@ public class StructureTools {
 			if (c == null) {
 				c = new ChainImpl();
 				Chain orig = a.getGroup().getChain();
-				c.setChainID(orig.getChainID());
+				c.setId(orig.getId());
+				c.setName(orig.getName());
 			} else {
 				Chain orig = a.getGroup().getChain();
-				if (!orig.getChainID().equals(prevChainId)) {
+				if (!orig.getId().equals(prevChainId)) {
 					c = new ChainImpl();
-					c.setChainID(orig.getChainID());
+					c.setId(orig.getId());
+					c.setName(orig.getName());
 				}
 			}
 
@@ -815,7 +1088,7 @@ public class StructureTools {
 	/**
 	 * Return an Atom array of the C-alpha atoms. Any atom that is a carbon and
 	 * has CA name will be returned.
-	 * 
+	 *
 	 * @param s
 	 *            the structure object
 	 * @return an Atom[] array
@@ -840,13 +1113,13 @@ public class StructureTools {
 	/**
 	 * Gets a representative atom for each group that is part of the chain
 	 * backbone. Note that modified aminoacids won't be returned as part of the
-	 * backbone if the {@link ReducedChemCompProvider} was used to load the
+	 * backbone if the {@link org.biojava.nbio.structure.io.mmcif.ReducedChemCompProvider} was used to load the
 	 * structure.
-	 * 
+	 *
 	 * For amino acids, the representative is a CA carbon. For nucleotides, the
 	 * representative is the {@value #NUCLEOTIDE_REPRESENTATIVE}. Other group
 	 * types will be ignored.
-	 * 
+	 *
 	 * @param s
 	 *            Input structure
 	 * @return representative Atoms of the structure backbone
@@ -869,7 +1142,7 @@ public class StructureTools {
 	/**
 	 * Return an Atom array of the main chain atoms: CA, C, N, O Any group that
 	 * contains those atoms will be included, be it a standard aminoacid or not
-	 * 
+	 *
 	 * @param s
 	 *            the structure object
 	 * @return an Atom[] array
@@ -939,7 +1212,7 @@ public class StructureTools {
 	 * convert CYS to C. Valid 3-letter codes will be those of the standard 20
 	 * amino acids plus MSE, CSE, SEC, PYH, PYL (see the {@link #aminoAcids}
 	 * map)
-	 * 
+	 *
 	 * @return the 1 letter code, or null if the given 3 letter code does not
 	 *         correspond to an amino acid code
 	 * @param groupCode3
@@ -951,7 +1224,7 @@ public class StructureTools {
 	}
 
 	/**
-	 * 
+	 *
 	 * @param code3
 	 * @return
 	 * @deprecated Use {@link #get1LetterCodeAmino(String)} instead
@@ -967,7 +1240,7 @@ public class StructureTools {
 	 * nucleotide, returns {@link #UNKNOWN_GROUP_LABEL}.
 	 *
 	 * Returned null for nucleotides prior to version 4.0.1.
-	 * 
+	 *
 	 * @param groupCode3
 	 *            three letter representation
 	 * @return The 1-letter abbreviation
@@ -1006,8 +1279,8 @@ public class StructureTools {
 	/**
 	 * Test if the three-letter code of an ATOM entry corresponds to a
 	 * nucleotide or to an aminoacid.
-	 * 
-	 * @param a
+	 *
+	 * @param groupCode3
 	 *            3-character code for a group.
 	 *
 	 */
@@ -1019,15 +1292,17 @@ public class StructureTools {
 
 	/**
 	 * Reduce a structure to provide a smaller representation . Only takes the
-	 * first model of the structure. If chainId is provided only return a
+	 * first model of the structure. If chainName is provided only return a
 	 * structure containing that Chain ID. Converts lower case chain IDs to
 	 * upper case if structure does not contain a chain with that ID.
-	 * 
+	 *
 	 * @param s
 	 * @param chainId
 	 * @return Structure
 	 * @since 3.0
+	 * @deprecated Use {@link StructureIdentifier#reduce(Structure)} instead (v. 4.2.0)
 	 */
+	@Deprecated
 	public static final Structure getReducedStructure(Structure s,
 			String chainId) throws StructureException {
 		// since we deal here with structure alignments,
@@ -1041,8 +1316,7 @@ public class StructureTools {
 		newS.setDBRefs(s.getDBRefs());
 		newS.setSites(s.getSites());
 		newS.setBiologicalAssembly(s.isBiologicalAssembly());
-		newS.setCompounds(s.getCompounds());
-		newS.setConnections(s.getConnections());
+		newS.setEntityInfos(s.getEntityInfos());
 		newS.setSSBonds(s.getSSBonds());
 		newS.setSites(s.getSites());
 
@@ -1070,13 +1344,13 @@ public class StructureTools {
 		}
 		if (c != null) {
 			newS.addChain(c);
-			for (Compound comp : s.getCompounds()) {
+			for (EntityInfo comp : s.getEntityInfos()) {
 				if (comp.getChainIds() != null
 						&& comp.getChainIds().contains(c.getChainID())) {
-					// found matching compound. set description...
+					// found matching entity info. set description...
 					newS.getPDBHeader().setDescription(
 							"Chain " + c.getChainID() + " of " + s.getPDBCode()
-									+ " " + comp.getMolName());
+							+ " " + comp.getDescription());
 				}
 			}
 		}
@@ -1088,33 +1362,33 @@ public class StructureTools {
 	 * Reduce a structure to provide a smaller representation. Only takes the
 	 * first model of the structure. If chainNr >=0 only takes the chain at that
 	 * position into account.
-	 * 
+	 *
 	 * @param s
 	 * @param chainNr
 	 *            can be -1 to request all chains of model 0, otherwise will
 	 *            only add chain at this position
 	 * @return Structure object
 	 * @since 3.0
+	 * @deprecated Use {@link StructureIdentifier#reduce(Structure)} instead (v. 4.2.0)
 	 */
-	public static final Structure getReducedStructure(Structure s, int chainNr)
-			throws StructureException {
+	@Deprecated
+	public static final Structure getReducedStructure(Structure s, int chainNr) {
 		// since we deal here with structure alignments,
 		// only use Model 1...
 
-		Structure newS = new StructureImpl();
-		newS.setPDBCode(s.getPDBCode());
-		newS.setPDBHeader(s.getPDBHeader());
-		newS.setName(s.getName());
-		newS.setSSBonds(s.getSSBonds());
-		newS.setDBRefs(s.getDBRefs());
-		newS.setSites(s.getSites());
-		newS.setBiologicalAssembly(s.isBiologicalAssembly());
-		newS.setCompounds(s.getCompounds());
-		newS.setConnections(s.getConnections());
-		newS.setSSBonds(s.getSSBonds());
-		newS.setSites(s.getSites());
-		newS.setCrystallographicInfo(s.getCrystallographicInfo());
-		newS.getPDBHeader().setDescription(
+		Structure newStructure = new StructureImpl();
+		newStructure.setPDBCode(s.getPDBCode());
+		newStructure.setPDBHeader(s.getPDBHeader());
+		newStructure.setName(s.getName());
+		newStructure.setSSBonds(s.getSSBonds());
+		newStructure.setDBRefs(s.getDBRefs());
+		newStructure.setSites(s.getSites());
+		newStructure.setBiologicalAssembly(s.isBiologicalAssembly());
+		newStructure.setEntityInfos(s.getEntityInfos());
+		newStructure.setSSBonds(s.getSSBonds());
+		newStructure.setSites(s.getSites());
+		newStructure.setCrystallographicInfo(s.getCrystallographicInfo());
+		newStructure.getPDBHeader().setDescription(
 				"subset of " + s.getPDBCode() + " "
 						+ s.getPDBHeader().getDescription());
 
@@ -1123,17 +1397,17 @@ public class StructureTools {
 			// only get model 0
 			List<Chain> model0 = s.getModel(0);
 			for (Chain c : model0) {
-				newS.addChain(c);
+				newStructure.addChain(c);
 			}
-			return newS;
+			return newStructure;
 		}
 		Chain c = null;
 
-		c = s.getChain(0, chainNr);
+		c = s.getChainByIndex(0, chainNr);
 
-		newS.addChain(c);
+		newStructure.addChain(c);
 
-		return newS;
+		return newStructure;
 	}
 
 	/**
@@ -1141,32 +1415,35 @@ public class StructureTools {
 	 * {@link #getReducedStructure(Structure, int)} and
 	 * {@link #getReducedStructure(Structure, String)}, also provides a way to
 	 * specify sub-regions of a structure with the following specification:
-	 * 
+	 *
 	 * <p>
 	 * <li>ranges can be surrounded by ( and ). (but will be removed).</li>
 	 * <li>ranges are specified as PDBresnum1 : PDBresnum2</li>
-	 * 
+	 *
 	 * <li>a list of ranges is separated by ,</li>
 	 * </p>
 	 * Example
-	 * 
+	 *
 	 * <pre>
 	 *  4GCR (A:1-83)
 	 *  1CDG (A:407-495,A:582-686)
 	 *  1CDG (A_407-495,A_582-686)
 	 * </pre>
-	 * 
+	 *
 	 * @param s
 	 *            The full structure
 	 * @param ranges
-	 *            A comma-seperated list of ranges, optionally surrounded by
+	 *            A comma-separated list of ranges, optionally surrounded by
 	 *            parentheses
 	 * @return Substructure of s specified by ranges
+	 * @throws IllegalArgumentException for malformed range strings
+	 * @throws StructureException for errors when reducing the Structure
+	 * @deprecated Use {@link StructureIdentifier} instead (4.2.0)
 	 */
-	public static final Structure getSubRanges(Structure s, String ranges)
-			throws StructureException {
-		Structure struc = getReducedStructure(s, null);
-
+	@Deprecated
+	public static final Structure getSubRanges(Structure s, String ranges )
+			throws StructureException
+	{
 		if (ranges == null || ranges.equals(""))
 			throw new IllegalArgumentException("ranges can't be null or empty");
 
@@ -1183,148 +1460,9 @@ public class StructureTools {
 			return s;
 		}
 
-		Structure newS = new StructureImpl();
-
-		newS.setPDBCode(s.getPDBCode());
-		newS.setPDBHeader(s.getPDBHeader());
-		newS.setName(s.getName());
-		newS.setDBRefs(s.getDBRefs());
-		newS.setBiologicalAssembly(s.isBiologicalAssembly());
-		newS.getPDBHeader().setDescription(
-				"sub-range " + ranges + " of " + newS.getPDBCode() + " "
-						+ s.getPDBHeader().getDescription());
-		newS.setCrystallographicInfo(s.getCrystallographicInfo());
-		// TODO The following should be only copied for atoms which are present
-		// in the range.
-		// newS.setCompounds(s.getCompounds());
-		// newS.setConnections(s.getConnections());
-		// newS.setSSBonds(s.getSSBonds());
-		// newS.setSites(s.getSites());
-
-		String[] rangS = ranges.split(",");
-
-		StringWriter name = new StringWriter();
-		name.append(s.getName());
-		boolean firstRange = true;
-		String prevChainId = null;
-
-		// parse the ranges, adding the specified residues to newS
-		for (String r : rangS) {
-
-			// Match a single range, eg "A_4-27"
-
-			Matcher matcher = ResidueRange.RANGE_REGEX.matcher(r);
-			if (!matcher.matches()) {
-				throw new StructureException(
-						"wrong range specification, should be provided as chainID_pdbResnum1-pdbRensum2: "
-								+ ranges);
-			}
-			String chainId = matcher.group(1);
-			Chain chain;
-
-			if (chainId.equals("_")) {
-				// Handle special case of "_" chain for single-chain proteins
-				chain = struc.getChain(0);
-
-				if (struc.size() != 1) {
-					// SCOP 1.71 uses this for some proteins with multiple
-					// chains
-					// Print a warning in this ambiguous case
-					logger.warn(
-							"Multiple possible chains match '_'. Using chain {}",
-							chain.getChainID());
-				}
-			} else {
-				// Explicit chain
-				chain = struc.getChainByPDB(chainId);
-			}
-
-			Group[] groups;
-
-			String pdbresnumStart = matcher.group(2);
-			String pdbresnumEnd = matcher.group(3);
-
-			if (pdbresnumEnd == null) {
-				// Single residue range
-				pdbresnumEnd = pdbresnumStart;
-			}
-
-			if (!firstRange) {
-				name.append(",");
-			} else {
-				name.append(AtomCache.CHAIN_SPLIT_SYMBOL);
-			}
-			if (pdbresnumStart != null && pdbresnumEnd != null) {
-				// not a full chain
-				// since Java doesn't allow '+' before integers, fix this up.
-				if (pdbresnumStart.charAt(0) == '+')
-					pdbresnumStart = pdbresnumStart.substring(1);
-				if (pdbresnumEnd.charAt(0) == '+')
-					pdbresnumEnd = pdbresnumEnd.substring(1);
-
-				ResidueNumber pdbresnum1 = ResidueNumber
-						.fromString(pdbresnumStart);
-				ResidueNumber pdbresnum2 = ResidueNumber
-						.fromString(pdbresnumEnd);
-
-				// Trim extra residues off the range
-				Atom[] allAtoms = StructureTools
-						.getRepresentativeAtomArray(struc);
-				AtomPositionMap map = new AtomPositionMap(allAtoms);
-				ResidueRange trimmed = map
-						.trimToValidResidues(new ResidueRange(chain
-								.getChainID(), pdbresnum1, pdbresnum2));
-				if (trimmed != null) {
-					pdbresnum1 = trimmed.getStart();
-					pdbresnum2 = trimmed.getEnd();
-				}
-				groups = chain.getGroupsByPDB(pdbresnum1, pdbresnum2);
-
-				name.append(chainId).append(AtomCache.UNDERSCORE)
-						.append(pdbresnumStart).append("-")
-						.append(pdbresnumEnd);
-
-			} else {
-				// full chain
-				groups = chain.getAtomGroups().toArray(
-						new Group[chain.getAtomGroups().size()]);
-				name.append(chainId);
-			}
-
-			firstRange = true;
-
-			// Create new chain, if needed
-			Chain c = null;
-			if (prevChainId == null) {
-				// first chain...
-				c = new ChainImpl();
-				c.setChainID(chain.getChainID());
-				newS.addChain(c);
-			} else if (prevChainId.equals(chain.getChainID())) {
-				c = newS.getChainByPDB(prevChainId);
-
-			} else {
-				try {
-					c = newS.getChainByPDB(chain.getChainID());
-				} catch (StructureException e) {
-					// chain not in structure yet...
-					c = new ChainImpl();
-					c.setChainID(chain.getChainID());
-					newS.addChain(c);
-				}
-			}
-
-			// add the groups to the chain:
-			for (Group g : groups) {
-				c.addGroup(g);
-			}
-
-			prevChainId = c.getChainID();
-		}
-
-		newS.setName(name.toString());
-
-		return newS;
+		List<ResidueRange> resRanges = ResidueRange.parseMultiple(ranges);
+		SubstructureIdentifier structId = new SubstructureIdentifier(null,resRanges);
+		return structId.reduce(s);
 	}
 
 	public static final String convertAtomsToSeq(Atom[] atoms) {
@@ -1354,7 +1492,7 @@ public class StructureTools {
 
 	/**
 	 * Get a group represented by a ResidueNumber.
-	 * 
+	 *
 	 * @param struc
 	 *            a {@link Structure}
 	 * @param pdbResNum
@@ -1369,7 +1507,7 @@ public class StructureTools {
 			throw new IllegalArgumentException("Null argument(s).");
 		}
 
-		Chain chain = struc.findChain(pdbResNum.getChainId());
+		Chain chain = struc.getPolyChainByPDB(pdbResNum.getChainName());
 
 		return chain.getGroupByPDB(pdbResNum);
 	}
@@ -1380,7 +1518,7 @@ public class StructureTools {
 	 * speeds up the calculation without need of full distance matrix. The
 	 * parsing mode {@link FileParsingParameters#setAlignSeqRes(boolean)} needs
 	 * to be set to true for this to work.
-	 * 
+	 *
 	 * @param chain
 	 * @param atomNames
 	 *            the array with atom names to be used. Beware: CA will do both
@@ -1399,10 +1537,14 @@ public class StructureTools {
 		} else {
 			atoms = getAtomArray(chain, atomNames);
 		}
-
+		// If tha
+		if(atoms.length==0){ 
+			logger.warn("No atoms found for buidling grid!");
+			return new AtomContactSet(cutoff);
+		}
 		grid.addAtoms(atoms);
 
-		return grid.getContacts();
+		return grid.getAtomContacts();
 	}
 
 	/**
@@ -1412,7 +1554,7 @@ public class StructureTools {
 	 * matrix. The parsing mode
 	 * {@link FileParsingParameters#setAlignSeqRes(boolean)} needs to be set to
 	 * true for this to work.
-	 * 
+	 *
 	 * @param chain
 	 * @param cutoff
 	 * @return
@@ -1428,7 +1570,7 @@ public class StructureTools {
 	 * the calculation without need of full distance matrix. The parsing mode
 	 * {@link FileParsingParameters#setAlignSeqRes(boolean)} needs to be set to
 	 * true for this to work.
-	 * 
+	 *
 	 * @param chain
 	 * @param cutoff
 	 * @return
@@ -1441,7 +1583,7 @@ public class StructureTools {
 
 		grid.addAtoms(atoms);
 
-		return grid.getContacts();
+		return grid.getAtomContacts();
 	}
 
 	/**
@@ -1449,7 +1591,7 @@ public class StructureTools {
 	 * or C3' atoms (including non-standard aminoacids appearing as HETATM
 	 * groups), i.e. the contact map. Uses a geometric hashing algorithm that
 	 * speeds up the calculation without need of full distance matrix.
-	 * 
+	 *
 	 * @param chain
 	 * @param cutoff
 	 * @return
@@ -1463,7 +1605,7 @@ public class StructureTools {
 
 		grid.addAtoms(atoms);
 
-		return grid.getContacts();
+		return grid.getAtomContacts();
 	}
 
 	/**
@@ -1472,7 +1614,7 @@ public class StructureTools {
 	 * the calculation without need of full distance matrix. The parsing mode
 	 * {@link FileParsingParameters#setAlignSeqRes(boolean)} needs to be set to
 	 * true for this to work.
-	 * 
+	 *
 	 * @param chain1
 	 * @param chain2
 	 * @param atomNames
@@ -1498,7 +1640,7 @@ public class StructureTools {
 		}
 		grid.addAtoms(atoms1, atoms2);
 
-		return grid.getContacts();
+		return grid.getAtomContacts();
 	}
 
 	/**
@@ -1507,7 +1649,7 @@ public class StructureTools {
 	 * calculation without need of full distance matrix. The parsing mode
 	 * {@link FileParsingParameters#setAlignSeqRes(boolean)} needs to be set to
 	 * true for this to work.
-	 * 
+	 *
 	 * @param chain1
 	 * @param chain2
 	 * @param cutoff
@@ -1523,7 +1665,7 @@ public class StructureTools {
 	/**
 	 * Finds Groups in {@code structure} that contain at least one Atom that is
 	 * within {@code radius} Angstroms of {@code centroid}.
-	 * 
+	 *
 	 * @param structure
 	 *            The structure from which to find Groups
 	 * @param centroid
@@ -1661,7 +1803,7 @@ public class StructureTools {
 	 * <p>
 	 * Updated 18-Sep-2015 sroughley to return a Set so only a unique set of
 	 * Groups returned
-	 * 
+	 *
 	 * @param structure
 	 *            The structure to work with
 	 * @param group
@@ -1691,7 +1833,7 @@ public class StructureTools {
 
 	/**
 	 * Remove all models from a Structure and keep only the first
-	 * 
+	 *
 	 * @param s
 	 *            original Structure
 	 * @return a structure that contains only the first model
@@ -1712,9 +1854,8 @@ public class StructureTools {
 		// TODO: do deep copying of data!
 		n.setPDBHeader(s.getPDBHeader());
 		n.setDBRefs(s.getDBRefs());
-		n.setConnections(s.getConnections());
+
 		n.setSites(s.getSites());
-		n.setCrystallographicInfo(s.getCrystallographicInfo());
 
 		n.setChains(s.getModel(0));
 
@@ -1724,21 +1865,16 @@ public class StructureTools {
 
 	/**
 	 * Removes all polymeric and solvent groups from a list of groups
-	 * 
+	 *
 	 */
 	public static List<Group> filterLigands(List<Group> allGroups) {
 
 		List<Group> groups = new ArrayList<Group>();
 		for (Group g : allGroups) {
 
-			ChemComp cc = g.getChemComp();
-
-			if (ResidueType.lPeptideLinking.equals(cc.getResidueType())
-					|| PolymerType.PROTEIN_ONLY.contains(cc.getPolymerType())
-					|| PolymerType.POLYNUCLEOTIDE_ONLY.contains(cc
-							.getPolymerType())) {
+			if ( g.isPolymeric())
 				continue;
-			}
+
 			if (!g.isWater()) {
 				groups.add(g);
 			}
@@ -1750,14 +1886,14 @@ public class StructureTools {
 	/**
 	 * Short version of {@link #getStructure(String, PDBFileParser, AtomCache)}
 	 * which creates new parsers when needed
-	 * 
+	 *
 	 * @param name
 	 * @return
 	 * @throws IOException
 	 * @throws StructureException
 	 */
 	public static Structure getStructure(String name) throws IOException,
-			StructureException {
+	StructureException {
 		return StructureTools.getStructure(name, null, null);
 	}
 
@@ -1773,7 +1909,7 @@ public class StructureTools {
 	 * <li>Residue ranges
 	 * <li>Other formats supported by AtomCache
 	 * </ol>
-	 * 
+	 *
 	 * @param name
 	 *            Some reference to the protein structure
 	 * @param parser
@@ -1807,126 +1943,160 @@ public class StructureTools {
 	}
 
 	/**
-	 * Tell whether given chain is a protein chain
-	 * 
-	 * @param c
-	 * @return true if protein, false if nucleotide or ligand
-	 * @see #getPredominantGroupType(Chain)
+	 * @deprecated  use {@link Chain#isProtein()} instead.
 	 */
+	@Deprecated
 	public static boolean isProtein(Chain c) {
-		return getPredominantGroupType(c) == GroupType.AMINOACID;
+
+		return c.isProtein();
 	}
 
 	/**
-	 * Tell whether given chain is DNA or RNA
-	 * 
-	 * @param c
-	 * @return true if nucleic acid, false if protein or ligand
-	 * @see #getPredominantGroupType(Chain)
-	 */
+	 * @deprecated use {@link Chain#isNucleicAcid()} instead.
+ 	 */
+	@Deprecated
 	public static boolean isNucleicAcid(Chain c) {
-		return getPredominantGroupType(c) == GroupType.NUCLEOTIDE;
+		return c.isNucleicAcid();
 	}
 
 	/**
-	 * Get the predominant {@link GroupType} for a given Chain, following these
-	 * rules: <li>if the ratio of number of residues of a certain
-	 * {@link GroupType} to total non-water residues is above the threshold
-	 * {@value #RATIO_RESIDUES_TO_TOTAL}, then that {@link GroupType} is
-	 * returned</li> <li>if there is no {@link GroupType} that is above the
-	 * threshold then the {@link GroupType} with most members is chosen, logging
-	 * it</li>
-	 * <p>
-	 * See also {@link ChemComp#getPolymerType()} and
-	 * {@link ChemComp#getResidueType()} which follow the PDB chemical component
-	 * dictionary and provide a much more accurate description of groups and
-	 * their linking.
-	 * </p>
-	 * 
-	 * @param c
-	 * @return
+	 * @deprecated use {@link Chain#getPredominantGroupType()} instead.
 	 */
+	@Deprecated
 	public static GroupType getPredominantGroupType(Chain c) {
-		int sizeAminos = c.getAtomGroups(GroupType.AMINOACID).size();
-		int sizeNucleotides = c.getAtomGroups(GroupType.NUCLEOTIDE).size();
-		List<Group> hetAtoms = c.getAtomGroups(GroupType.HETATM);
-		int sizeHetatoms = hetAtoms.size();
-		int sizeWaters = 0;
-		for (Group g : hetAtoms) {
-			if (g.isWater())
-				sizeWaters++;
-		}
-		int sizeHetatomsWithoutWater = sizeHetatoms - sizeWaters;
-
-		int fullSize = sizeAminos + sizeNucleotides + sizeHetatomsWithoutWater;
-
-		if ((double) sizeAminos / (double) fullSize > RATIO_RESIDUES_TO_TOTAL)
-			return GroupType.AMINOACID;
-
-		if ((double) sizeNucleotides / (double) fullSize > RATIO_RESIDUES_TO_TOTAL)
-			return GroupType.NUCLEOTIDE;
-
-		if ((double) (sizeHetatomsWithoutWater) / (double) fullSize > RATIO_RESIDUES_TO_TOTAL)
-			return GroupType.HETATM;
-
-		// finally if neither condition works, we try based on majority, but log
-		// it
-		GroupType max;
-		if (sizeNucleotides > sizeAminos) {
-			if (sizeNucleotides > sizeHetatomsWithoutWater) {
-				max = GroupType.NUCLEOTIDE;
-			} else {
-				max = GroupType.HETATM;
-			}
-		} else {
-			if (sizeAminos > sizeHetatomsWithoutWater) {
-				max = GroupType.AMINOACID;
-			} else {
-				max = GroupType.HETATM;
-			}
-		}
-		logger.debug(
-				"Ratio of residues to total for chain {} is below {}. Assuming it is a {} chain. "
-						+ "Counts: # aa residues: {}, # nuc residues: {}, # non-water het residues: {}, # waters: {}, "
-						+ "ratio aa/total: {}, ratio nuc/total: {}",
-				c.getChainID(), RATIO_RESIDUES_TO_TOTAL, max, sizeAminos,
-				sizeNucleotides, sizeHetatomsWithoutWater, sizeWaters,
-				(double) sizeAminos / (double) fullSize,
-				(double) sizeNucleotides / (double) fullSize);
-
-		return max;
+		return c.getPredominantGroupType();
 	}
 
 	/**
-	 * Returns true if the given chain is composed of water molecules only
-	 * 
-	 * @param c
-	 * @return
+	 * @deprecated use {@link Chain#isWaterOnly()} instead.
 	 */
+	@Deprecated
 	public static boolean isChainWaterOnly(Chain c) {
-		boolean waterOnly = true;
-		for (Group g : c.getAtomGroups()) {
-			if (!g.isWater())
-				waterOnly = false;
-			break;
-		}
-		return waterOnly;
+		return c.isWaterOnly();
 	}
 
-	/**
-	 * Returns true if the given chain is composed of non-polymeric groups only
-	 * 
-	 * @param c
-	 * @return
+	/** @deprecated  use {@link Chain#isPureNonPolymer()} instead.
 	 */
+	@Deprecated
 	public static boolean isChainPureNonPolymer(Chain c) {
 
-		for (Group g : c.getAtomGroups()) {
-			if (g.getType() == GroupType.AMINOACID
-					|| g.getType() == GroupType.NUCLEOTIDE)
-				return false;
+		return c.isPureNonPolymer();
+	}
 
+	/**
+	 * Cleans up the structure's alternate location groups. All alternate location groups should have all atoms (except in the case of microheterogenity) or when a deuetuim exiss.
+	 * Ensure that all the alt loc groups have all the atoms in the main group
+	 * @param structure The Structure to be cleaned up
+	 */
+	public static void cleanUpAltLocs(Structure structure) {
+		for (int i =0; i< structure.nrModels() ; i++){
+			for (Chain chain : structure.getModel(i)) {
+				for (Group group : chain.getAtomGroups()) {
+					for (Group altLocGroup : group.getAltLocs()) { 
+						for ( Atom groupAtom : group.getAtoms()) {
+							// If this alt loc doesn't have this atom
+							if (! altLocGroup.hasAtom(groupAtom.getName())) {
+								// Fix for microheterogenity
+								if (altLocGroup.getPDBName().equals(group.getPDBName())) {
+									// If it's a Hydrogen then we check for it's Deuterated brother
+									if(hasDeuteratedEquiv(groupAtom, altLocGroup)){
+										
+									}
+									else{
+										altLocGroup.addAtom(groupAtom);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 		}
-		return true;
+	}
+
+	/**
+	 * Expands the NCS operators in the given Structure adding new chains as needed.
+	 * The new chains are assigned ids of the form: original_chain_id+ncs_operator_index+"n"
+	 * @param structure
+	 */
+	public static void expandNcsOps(Structure structure) {
+		PDBCrystallographicInfo xtalInfo = structure.getCrystallographicInfo();
+		if (xtalInfo ==null) return;
+
+		if (xtalInfo.getNcsOperators()==null || xtalInfo.getNcsOperators().length==0) return;
+
+		List<Chain> chainsToAdd = new ArrayList<>();
+		int i = 0;
+		for (Matrix4d m:xtalInfo.getNcsOperators()) {
+			i++;
+
+			for (Chain c:structure.getChains()) {
+				Chain clonedChain = (Chain)c.clone();
+				String newChainId = c.getId()+i+"n";
+				String newChainName = c.getName()+i+"n";
+				clonedChain.setId(newChainId);
+				clonedChain.setName(newChainName);
+				setChainIdsInResidueNumbers(clonedChain, newChainName);
+				Calc.transform(clonedChain, m);
+				chainsToAdd.add(clonedChain);
+				c.getEntityInfo().addChain(clonedChain);
+			}
+		}
+
+		for (Chain c:chainsToAdd) {
+			structure.addChain(c);
+		}
+	}
+
+	/**
+	 * Auxiliary method to reset chain ids of residue numbers in a chain.
+	 * Used when cloning chains and resetting their ids: one needs to take care of 
+	 * resetting the ids within residue numbers too.
+	 * @param c
+	 * @param newChainName
+	 */
+	private static void setChainIdsInResidueNumbers(Chain c, String newChainName) {
+		for (Group g:c.getAtomGroups()) {
+			g.setResidueNumber(newChainName, g.getResidueNumber().getSeqNum(), g.getResidueNumber().getInsCode());
+		}
+		for (Group g:c.getSeqResGroups()) {
+			if (g.getResidueNumber()==null) continue;
+			g.setResidueNumber(newChainName, g.getResidueNumber().getSeqNum(), g.getResidueNumber().getInsCode());
+		}
+	}
+
+	/**
+	 * Check to see if an Deuterated atom has a non deuterated brother in the group.
+	 * @param atom the input atom that is putatively deuterium
+	 * @param currentGroup the group the atom is in
+	 * @return true if the atom is deuterated and it's hydrogen equive exists.
+	 */
+	public static boolean hasNonDeuteratedEquiv(Atom atom, Group currentGroup) {
+		if(atom.getElement()==Element.D && currentGroup.hasAtom(replaceFirstChar(atom.getName(),'D', 'H'))) {
+			// If it's deuterated and has a non-deuterated brother
+			return true;
+		}
+		return false;
+	}
+	
+	/**
+	 * Check to see if a Hydorgen has a  Deuterated brother in the group.
+	 * @param atom the input atom that is putatively hydorgen
+	 * @param currentGroup the group the atom is in
+	 * @return true if the atom is hydrogen and it's Deuterium equiv exists.
+	 */
+	public static boolean hasDeuteratedEquiv(Atom atom, Group currentGroup) {
+		if(atom.getElement()==Element.H && currentGroup.hasAtom(replaceFirstChar(atom.getName(),'H', 'D'))) {
+			// If it's hydrogen and has a deuterated brother
+			return true;
+		}
+		return false;
+	}
+
+	private static String replaceFirstChar(String name, char c, char d) {
+		if(name.charAt(0)==c){
+			return name.replaceFirst(String.valueOf(c), String.valueOf(d));
+		}
+		return name;
 	}
 }

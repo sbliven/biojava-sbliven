@@ -22,7 +22,7 @@ package org.biojava.nbio.structure.rcsb;
 
 import org.biojava.nbio.structure.align.client.JFatCatClient;
 import org.biojava.nbio.structure.align.client.StructureName;
-import org.biojava.nbio.structure.align.util.HTTPConnectionTools;
+import org.biojava.nbio.structure.align.util.URLConnectionTools;
 import org.biojava.nbio.structure.align.xml.RepresentativeXMLConverter;
 
 import java.io.BufferedReader;
@@ -45,9 +45,9 @@ public class GetRepresentatives {
 	// available sequence clusters
 	private static List<Integer> seqIdentities = Arrays.asList(30, 40, 50, 70, 90, 95, 100);
 
-	
+
 	/**
-	 * Returns a representative set of PDB protein chains at the specified sequence 
+	 * Returns a representative set of PDB protein chains at the specified sequence
 	 * identity cutoff. See http://www.pdb.org/pdb/statistics/clusterStatistics.do
 	 * for more information.
 	 * @param sequenceIdentity sequence identity threshold
@@ -67,7 +67,7 @@ public class GetRepresentatives {
 
 			URL u = new URL(clusterUrl + sequenceIdentity);
 
-			InputStream stream = HTTPConnectionTools.getInputStream(u, 60000);
+			InputStream stream = URLConnectionTools.getInputStream(u, 60000);
 
 			String xml = null;
 
@@ -89,7 +89,7 @@ public class GetRepresentatives {
 
 		return representatives;
 	}
-	
+
 	/**
 	 * Returns the current list of all PDB IDs.
 	 * @return PdbChainKey set of all PDB IDs.
@@ -101,7 +101,7 @@ public class GetRepresentatives {
 
 			URL u = new URL(allUrl);
 
-			InputStream stream = HTTPConnectionTools.getInputStream(u, 60000);
+			InputStream stream = URLConnectionTools.getInputStream(u, 60000);
 
 			if (stream != null) {
 				BufferedReader reader = new BufferedReader(

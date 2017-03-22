@@ -18,10 +18,6 @@
  *      http://www.biojava.org/
  *
  */
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 
 package org.biojava.nbio.structure.symmetry.core;
 
@@ -31,13 +27,14 @@ import javax.vecmath.Vector3d;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 
 /**
- *
+ * @see http://en.wikipedia.org/wiki/Rotation_group_SO(3)
  * @author Peter
  */
-public class RotationGroup {
+public class RotationGroup implements Iterable<Rotation> {
 	private List<Rotation> rotations = new ArrayList<Rotation>();
 	private int principalAxisIndex = 0;
 	private int higherOrderRotationAxis = 0;
@@ -68,7 +65,7 @@ public class RotationGroup {
 		for (int i = 0; i < n; i++) {
 			permutation.add(i);
 		}
-		r.setPermutation(permutation);   
+		r.setPermutation(permutation);
 		Matrix4d m = new Matrix4d();
 		m.setIdentity();
 		r.setTransformation(m);
@@ -110,7 +107,7 @@ public class RotationGroup {
 	}
 
 	/**
-	 * Returns QuatSymmetryScores averaged over all rotations 
+	 * Returns QuatSymmetryScores averaged over all rotations
 	 * (except the first rotation, which is the unit operation E)
 	 * @return mean scores average over rotations
 	 */
@@ -118,7 +115,7 @@ public class RotationGroup {
 		QuatSymmetryScores scores = new QuatSymmetryScores();
 
 		int n = rotations.size()-1;
-		
+
 		if (n > 0) {
 			double[] values = new double[n];
 
@@ -174,7 +171,7 @@ public class RotationGroup {
 				values[i-1] = rotations.get(i).getScores().getRmsdIntra();
 			}
 			scores.setRmsdIntra(averageScores(values));
-			
+
 			// SymDeviation
 			scores.setSymDeviation(symmetryDeviation);
 		}
@@ -197,11 +194,11 @@ public class RotationGroup {
 		StringBuilder sb = new StringBuilder();
 		sb.append("Rotations: " + rotations.size() + "\n");
 		for (Rotation s: rotations) {
-			sb.append(s.toString() + "\n");
+			sb.append(s.toString()).append("\n");
 		}
 		return sb.toString();
 	}
-	
+
 	private double averageScores(double[] scores) {
 		double sum = 0;
 		for (double s: scores) {
@@ -209,7 +206,7 @@ public class RotationGroup {
 		}
 		return sum/scores.length;
 	}
-	
+
 	private double minScores(double[] scores) {
 		double score = Double.MAX_VALUE;
 		for (double s: scores) {
@@ -217,7 +214,7 @@ public class RotationGroup {
 		}
 		return score;
 	}
-	
+
 	private double maxScores(double[] scores) {
 		double score = Double.MIN_VALUE;
 		for (double s: scores) {
@@ -308,7 +305,7 @@ public class RotationGroup {
 	public int getTwoFoldsPerpendicular(){
 		return twoFoldsPerpendicular;
 	}
-	
+
 	public int getPrincipalAxisIndex(){
 		return principalAxisIndex;
 	}
@@ -372,5 +369,10 @@ public class RotationGroup {
 				return delta;
 			}
 		});
+	}
+
+	@Override
+	public Iterator<Rotation> iterator() {
+		return rotations.iterator();
 	}
 }

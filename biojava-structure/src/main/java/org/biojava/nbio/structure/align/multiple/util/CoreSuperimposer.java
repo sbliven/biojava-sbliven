@@ -27,26 +27,27 @@ import javax.vecmath.Matrix4d;
 
 import org.biojava.nbio.structure.Atom;
 import org.biojava.nbio.structure.Calc;
-import org.biojava.nbio.structure.SVDSuperimposer;
 import org.biojava.nbio.structure.StructureException;
 import org.biojava.nbio.structure.StructureTools;
 import org.biojava.nbio.structure.align.multiple.Block;
 import org.biojava.nbio.structure.align.multiple.BlockSet;
 import org.biojava.nbio.structure.align.multiple.MultipleAlignment;
+import org.biojava.nbio.structure.geometry.SuperPositionSVD;
+import org.biojava.nbio.structure.geometry.SuperPositions;
 
 /**
- * Superimposes the core aligned residues of every structure in a 
+ * Superimposes the core aligned residues of every structure in a
  * {@link MultipleAlignment} onto a reference structure. This method
  * can eliminate the pairwise similarities of some structures to the
  * reference, when doing the superposition, taking into account only
  * those shared parts between the structures.
  * <p>
- * Performs a global superposition of the MultipleAlignment in case 
- * there is only one {@link BlockSet}, and a superposition for every 
+ * Performs a global superposition of the MultipleAlignment in case
+ * there is only one {@link BlockSet}, and a superposition for every
  * BlockSet in case there is more than one (flexible alignment).
  * <p>
- * This class uses the {@link SVDSuperimposer} algorithm.
- * 
+ * This class uses the {@link SuperPositionSVD} algorithm.
+ *
  * @author Aleix Lafita
  * @since 4.2.0
  *
@@ -56,7 +57,7 @@ public class CoreSuperimposer implements MultipleSuperimposer {
 	private int reference;
 
 	/**
-	 * Default Constructor. 
+	 * Default Constructor.
 	 * Uses the first structure as the reference.
 	 */
 	public CoreSuperimposer() {
@@ -65,8 +66,8 @@ public class CoreSuperimposer implements MultipleSuperimposer {
 
 	/**
 	 * Constructor using a specified structure as reference.
-	 * 
-	 * @param reference Index of the structure to use as a reference 
+	 *
+	 * @param reference Index of the structure to use as a reference
 	 * 			(it has to be > 0)
 	 */
 	public CoreSuperimposer(int reference) {
@@ -78,18 +79,18 @@ public class CoreSuperimposer implements MultipleSuperimposer {
 	}
 
 	@Override
-	public void superimpose(MultipleAlignment alignment) 
+	public void superimpose(MultipleAlignment alignment)
 			throws StructureException {
 
 		//Check for inconsistencies in the alignment
 		if(alignment.getEnsemble() == null) {
 			throw new NullPointerException("No ensemble set for this alignment."
 					+ " Structure information cannot be obtained.");
-		} 
+		}
 		if (alignment.size() < 1) {
 			throw new IndexOutOfBoundsException(
 					"No aligned structures, alignment size == 0.");
-		} 
+		}
 		if (alignment.getCoreLength() < 1){
 			throw new IndexOutOfBoundsException(
 					"Alignment too short, core alignment length < 1.");
@@ -102,14 +103,14 @@ public class CoreSuperimposer implements MultipleSuperimposer {
 							+ "only %d structures.",
 							reference,atomArrays.size()));
 		}
-		
+
 		alignment.clear();
 
 		//Calculate BlockSet transformations
 		for (BlockSet bs:alignment.getBlockSets()){
 
 			//Block transformations
-			List<Matrix4d> transforms = 
+			List<Matrix4d> transforms =
 					new ArrayList<Matrix4d>(atomArrays.size());
 
 			//Loop through structures
@@ -130,27 +131,27 @@ public class CoreSuperimposer implements MultipleSuperimposer {
 				List<Atom> atomSet2 = new ArrayList<Atom>();
 
 				for( Block blk : bs.getBlocks() ) {
-					
+
 					if( blk.size() != atomArrays.size()) {
 						throw new IllegalStateException(String.format(
 								"Mismatched block length. Expected %d "
 										+ "structures, found %d.",
 										atomArrays.size(),blk.size() ));
 					}
-					
-					List<Integer> corePositions = 
+
+					List<Integer> corePositions =
 							MultipleAlignmentTools.getCorePositions(blk);
-					
+
 					//Loop through all aligned residues
 					for (int j=0; j<blk.length(); j++){
 						//Check that the position is in the core
 						if (!corePositions.contains(j)) continue;
-						
+
 						Integer pos1 = blk.getAlignRes().get(reference).get(j);
 						Integer pos2 = blk.getAlignRes().get(i).get(j);
 
 						if (pos1==null || pos2==null) continue;
-						
+
 						atomSet1.add(ref[pos1]);
 						atomSet2.add(curr[pos2]);
 					}
@@ -161,9 +162,9 @@ public class CoreSuperimposer implements MultipleSuperimposer {
 				array2 = StructureTools.cloneAtomArray(array2);
 
 				//From the superimposer we obtain the rotation and translation
-				SVDSuperimposer svd = new SVDSuperimposer(array1, array2);
-				Calc.transform(array2, svd.getTransformation());
-				transforms.add(svd.getTransformation());
+				Matrix4d trans = SuperPositions.superpose(Calc.atomsToPoints(array1), 
+						Calc.atomsToPoints(array2));
+				transforms.add(trans);
 			}
 			//Set transformation of the BlockSet
 			bs.setTransformations(transforms);

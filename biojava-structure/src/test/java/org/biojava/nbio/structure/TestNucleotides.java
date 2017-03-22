@@ -41,14 +41,14 @@ import static org.junit.Assert.*;
 
 
 /** This class tests the correct loading of Nucleotides
- * 
+ *
  * @author Andreas Prlic
  * @since 3.0.3
  */
 public class TestNucleotides {
 
 	private static AtomCache cache;
-	
+
 	@BeforeClass
 	public static void beforeClass() {
 		cache = new AtomCache();
@@ -56,28 +56,28 @@ public class TestNucleotides {
 
 	@Test
 	public void test3T5N() throws IOException, StructureException{
-		
+
 		String pdbId = "3T5N";
 		Structure s = getStructure(pdbId);
 
 
-		assertEquals(2,s.getChains().size());
+		assertEquals(2,s.getPolyChains().size());
 
 		Chain c = s.getChains().get(1);
-		assertEquals("C", c.getChainID());
+		System.out.println(c);
+		assertEquals("C", c.getName());
 		List<Group> ngr = c.getAtomGroups(GroupType.NUCLEOTIDE);
 		assertEquals(6,ngr.size());
-		
-		
+
+
 		// now test if we download all definitions correctly for this one...
 		PDBFileReader reader = new PDBFileReader();
 		FileParsingParameters params = new FileParsingParameters();
 		params.setParseSecStruc(true);
 		params.setAlignSeqRes(true);
 		params.setParseCAOnly(false);
-		params.setLoadChemCompInfo(true);
 		reader.setFileParsingParameters(params);
-		
+
 		ChemCompProvider chemProv = ChemCompGroupFactory.getChemCompProvider();
 
 		DownloadChemCompProvider download = new DownloadChemCompProvider();
@@ -88,11 +88,11 @@ public class TestNucleotides {
 
 		assertNotNull(s1);
 
-		assertEquals(2,s1.getChains().size());
+		assertEquals(2,s1.getPolyChains().size());
 
 		Chain c1 = s1.getChains().get(1);
 
-		assertEquals("C", c1.getChainID());
+		assertEquals("C", c1.getName());
 
 		Group g = c1.getAtomGroup(0);
 		assertNotNull(g);
@@ -108,43 +108,42 @@ public class TestNucleotides {
 
 
 		ChemCompGroupFactory.setChemCompProvider(chemProv);
-		
-		
+
+
 	}
 
 	@Test
 	public void test1OFX() throws StructureException, IOException {
 		Structure s = getStructure("1OFX");
 
-		assertEquals(2,s.getChains().size());
+		assertEquals(2,s.getPolyChains().size());
 
 		Chain a = s.getChains().get(0);
-		assertEquals("A", a.getChainID());
+		assertEquals("A", a.getId());
 		List<Group> ngrA = a.getAtomGroups(GroupType.NUCLEOTIDE);
 		assertEquals(10,ngrA.size());
 
 		Chain b = s.getChains().get(1);
-		assertEquals("B", b.getChainID());
+		assertEquals("B", b.getId());
 		List<Group> ngrB = b.getAtomGroups(GroupType.NUCLEOTIDE);
 		assertEquals(10,ngrB.size());
 	}
 
 	private Structure getStructure(String pdbId) throws IOException, StructureException {
 		//System.out.println("cache: " + ChemCompGroupFactory.getChemCompProvider().getClass().getName());
-		
+
 		//System.out.println("cache: download chem comp:" + cache.getFileParsingParams().isLoadChemCompInfo());
 		return cache.getStructure(pdbId);
 	}
 
 	@Test
 	public void test1REP() throws StructureException, IOException{
-		
+
 		PDBFileReader reader = new PDBFileReader();
 		FileParsingParameters params = new FileParsingParameters();
 		params.setParseSecStruc(true);
 		params.setAlignSeqRes(true);
 		params.setParseCAOnly(false);
-		params.setLoadChemCompInfo(true);
 		reader.setFileParsingParameters(params);
 
 
@@ -152,10 +151,10 @@ public class TestNucleotides {
 		Structure s = reader.getStructureById("1REP");
 		//System.out.println(s);
 		//System.out.println(s.toPDB());
-		Chain b = s.getChainByPDB("B");
+		Chain b = s.getPolyChainByPDB("B");
 
 		assertEquals(22,b.getSeqResGroups().size());
-		assertEquals(23,b.getAtomGroups().size());
+		assertEquals(21,b.getAtomGroups().size());
 
 		Group n1 = b.getSeqResGroup(0);
 		Group n2 = b.getAtomGroup(0);
@@ -176,6 +175,6 @@ public class TestNucleotides {
 		assertEquals("23", n2.getResidueNumber().toString());
 		assertTrue(n1.getResidueNumber().equals(n2.getResidueNumber()));
 
-		
+
 	}
 }

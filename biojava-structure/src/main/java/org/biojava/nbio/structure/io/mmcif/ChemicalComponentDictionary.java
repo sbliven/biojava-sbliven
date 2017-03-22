@@ -126,7 +126,17 @@ public class ChemicalComponentDictionary {
 			isreplacedby.put(comp.getId(),isrep);
 		}
 	}
-	
+
+	/** Returns the number of ChemComps in this dictionary
+	 *
+	 * @return nr. of ChemComps
+	 */
+	public int size(){
+
+		return dictionary.size();
+
+	}
+
 	public ChemComp getChemComp(String id){
 		return dictionary.get(id);
 	}

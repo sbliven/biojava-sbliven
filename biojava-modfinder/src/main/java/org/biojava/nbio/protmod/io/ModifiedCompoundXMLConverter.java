@@ -47,15 +47,15 @@ public class ModifiedCompoundXMLConverter {
 	private static final Logger logger = LoggerFactory.getLogger(ModifiedCompoundXMLConverter.class);
 
 	public static String toXML(ModifiedCompound mc) throws IOException{
-		
-		if ( mc == null) { 
+
+		if ( mc == null) {
 			logger.warn("ModifiedCompound == null! ");
 			return "<modifiedCompound/>";
 		}
 		StringWriter out = new StringWriter();
 
 		PrettyXMLWriter xml = new PrettyXMLWriter(new PrintWriter(out));
-		
+
 		ProteinModification protMod = mc.getModification();
 		String modificationId = protMod==null?null:protMod.getId();
 
@@ -74,13 +74,13 @@ public class ModifiedCompoundXMLConverter {
 			for ( StructureAtomLinkage link: linkages){
 				pos ++;
 				xml.openTag("linkage");
-				xml.attribute("pos", pos+"");
-				xml.attribute("total", linkages.size()+"");
+				xml.attribute("pos", String.valueOf(pos));
+				xml.attribute("total", String.valueOf(linkages.size()));
 				StructureAtom atom1 = link.getAtom1();
 				StructureAtom atom2 = link.getAtom2();
 				double distance = link.getDistance();
 
-				xml.attribute("distance", distance+"");
+				xml.attribute("distance", String.valueOf(distance));
 				xml.openTag("atom1");
 				StructureAtomXMLConverter.toXML(atom1,xml);
 				xml.closeTag("atom1");
@@ -124,7 +124,7 @@ public class ModifiedCompoundXMLConverter {
 			doc.getDocumentElement().normalize();
 
 			NodeList listOfmodifications = doc.getElementsByTagName("modifiedCompound");
-			//int numArrays = listOfArrays.getLength();			
+			//int numArrays = listOfArrays.getLength();
 			// go over the blocks
 			for(int modPos=0; modPos<listOfmodifications.getLength() ; modPos++)
 			{
@@ -153,9 +153,9 @@ public class ModifiedCompoundXMLConverter {
 						double dist = Double.parseDouble(getAttribute(listOfConditions, "distance"));
 						int pos = Integer.parseInt(getAttribute(listOfConditions,"pos"));
 						int total = Integer.parseInt(getAttribute(listOfConditions,"total"));
-						if ( linkages == null) 
+						if ( linkages == null)
 							linkages = new StructureAtomLinkage[total];
-						
+
 						StructureAtom atom1 = getAtom("atom1", listOfConditions);
 						StructureAtom atom2 = getAtom("atom2",listOfConditions);
 						StructureAtomLinkage linkage = new StructureAtomLinkage(atom1, atom2, dist);
@@ -177,8 +177,8 @@ public class ModifiedCompoundXMLConverter {
 		catch (Throwable t) {
 			logger.error("Exception: ", t);
 		}
-		
-		 
+
+
 		if ( linkages != null) {
 			Collection<StructureAtomLinkage> links = Arrays.asList(linkages);
 			return new ModifiedCompoundImpl(modification, links);
@@ -218,7 +218,7 @@ public class ModifiedCompoundXMLConverter {
 	}
 
 	private static String getAttribute(Node node, String attr){
-		if( ! node.hasAttributes()) 
+		if( ! node.hasAttributes())
 			return null;
 
 		NamedNodeMap atts = node.getAttributes();

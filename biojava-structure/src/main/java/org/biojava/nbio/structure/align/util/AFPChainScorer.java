@@ -18,19 +18,20 @@
  *      http://www.biojava.org/
  *
  * Created on Apr 7, 2010
- * Author: Andreas Prlic 
+ * Author: Andreas Prlic
  *
  */
 
 package org.biojava.nbio.structure.align.util;
 
 
+import javax.vecmath.Matrix4d;
+
 import org.biojava.nbio.structure.Atom;
 import org.biojava.nbio.structure.Calc;
-import org.biojava.nbio.structure.SVDSuperimposer;
 import org.biojava.nbio.structure.StructureException;
 import org.biojava.nbio.structure.align.model.AFPChain;
-import org.biojava.nbio.structure.jama.Matrix;
+import org.biojava.nbio.structure.geometry.SuperPositions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +45,7 @@ public class AFPChainScorer {
 		if ( align.getNrEQR() == 0)
 			return -1;
 
-		
+
 		// Create new arrays for the subset of atoms in the alignment.
 		Atom[] ca1aligned = new Atom[align.getOptLength()];
 		Atom[] ca2aligned = new Atom[align.getOptLength()];
@@ -52,9 +53,9 @@ public class AFPChainScorer {
 		int[] blockLens = align.getOptLen();
 		int[][][] optAln = align.getOptAln();
 		assert(align.getBlockNum() <= optAln.length);
-		
+
 		for(int block=0;block< align.getBlockNum();block++) {
-		
+
 			if ( ! ( blockLens[block] <= optAln[block][0].length)) {
 				logger.warn("AFPChainScorer getTMScore: errors reconstructing alignment block [" + block + "]. Length is " + blockLens[block] + " but should be <=" + optAln[block][0].length);
 			}
@@ -64,14 +65,14 @@ public class AFPChainScorer {
 				int pos2 = optAln[block][1][i];
 				Atom a1 = ca1[pos1];
 				Atom a2 = (Atom) ca2[pos2].clone();
-								
+
 				ca1aligned[pos] = a1;
 				ca2aligned[pos] = a2;
 				pos++;
 			}
 		}
-		
-		// this can happen when we load an old XML serialization which did not support modern ChemComp representation of modified residues.		
+
+		// this can happen when we load an old XML serialization which did not support modern ChemComp representation of modified residues.
 		if ( pos != align.getOptLength()){
 			logger.warn("AFPChainScorer getTMScore: Problems reconstructing alignment! nr of loaded atoms is " + pos + " but should be " + align.getOptLength());
 			// we need to resize the array, because we allocated too many atoms earlier on.
@@ -79,16 +80,12 @@ public class AFPChainScorer {
 			ca2aligned = (Atom[]) resizeArray(ca2aligned, pos);
 		}
 		//Superimpose
-		SVDSuperimposer svd = new SVDSuperimposer(ca1aligned, ca2aligned);
-		Matrix matrix = svd.getRotation();
-		Atom shift = svd.getTranslation();
+		Matrix4d trans = SuperPositions.superpose(Calc.atomsToPoints(ca1aligned), 
+				Calc.atomsToPoints(ca2aligned));
 
-		for(Atom a : ca2aligned) {
-			Calc.rotate(a, matrix);
-			Calc.shift(a, shift);
-		}
+		Calc.transform(ca2aligned, trans);
 
-		return SVDSuperimposer.getTMScore(ca1aligned, ca2aligned, ca1.length, ca2.length);
+		return Calc.getTMScore(ca1aligned, ca2aligned, ca1.length, ca2.length);
 
 	}
 

@@ -27,11 +27,11 @@ import org.biojava.nbio.structure.align.ce.CeParameters;
 
 /**
  * Provides parameters to {@link CeSymm}.
- * 
+ *
  * @author Spencer Bliven
  * @author Aleix Lafita
  * @since 4.1.1
- * 
+ *
  */
 public class CESymmParameters extends CeParameters {
 
@@ -43,20 +43,22 @@ public class CESymmParameters extends CeParameters {
 	private boolean optimization;
 	private int rndSeed;
 	private int symmLevels;
-	private double scoreThreshold;
+	private double unrefinedScoreThreshold;
+	private double refinedScoreThreshold;
 	private int sseThreshold;
 	private int minCoreLength;
 	private double distanceCutoff;
 	private boolean gaps;
+	private int optimizationSteps;
 
 	public static enum OrderDetectorMethod {
-		SEQUENCE_FUNCTION, USER_INPUT;
+		SEQUENCE_FUNCTION, GRAPH_COMPONENT, ANGLE, USER_INPUT;
 		public static final OrderDetectorMethod DEFAULT = SEQUENCE_FUNCTION;
 	}
 
 	public static enum RefineMethod {
-		NOT_REFINED, SINGLE, MULTIPLE;
-		public static final RefineMethod DEFAULT = SINGLE;
+		NOT_REFINED, SEQUENCE_FUNCTION, GRAPH_COMPONENT;
+		public static final RefineMethod DEFAULT = SEQUENCE_FUNCTION;
 	}
 
 	public static final double DEFAULT_SYMMETRY_THRESHOLD = 0.4;
@@ -66,7 +68,7 @@ public class CESymmParameters extends CeParameters {
 	 * includes the circular and dihedral symmetries, and OPEN: includes the
 	 * helical and protein repeats symmetries.
 	 * <p>
-	 * All internal symmetry cases share one property: all the subunits have the
+	 * All internal symmetry cases share one property: all the repeats have the
 	 * same 3D transformation.
 	 * <p>
 	 * AUTO option automatically identifies the type. The criterion for
@@ -75,7 +77,7 @@ public class CESymmParameters extends CeParameters {
 	 * symmetry generates alignments without a CP (only one block in AFPChain).
 	 */
 	public enum SymmetryType {
-		CLOSE, OPEN, AUTO;
+		CLOSED, OPEN, AUTO;
 		public static final SymmetryType DEFAULT = AUTO;
 	}
 
@@ -85,38 +87,39 @@ public class CESymmParameters extends CeParameters {
 
 	@Override
 	public CESymmParameters clone() {
+		return new CESymmParameters(this);
+	}
+	
+	public CESymmParameters(CESymmParameters o) {
+		this.maxSymmOrder = o.maxSymmOrder;
+		this.symmType = o.symmType;
+		this.orderDetectorMethod = o.orderDetectorMethod;
+		this.userOrder = o.userOrder;
+		this.refineMethod = o.refineMethod;
+		this.optimization = o.optimization;
+		this.rndSeed = o.rndSeed;
+		this.symmLevels = o.symmLevels;
+		this.unrefinedScoreThreshold = o.unrefinedScoreThreshold;
+		this.refinedScoreThreshold = o.refinedScoreThreshold;
+		this.sseThreshold = o.sseThreshold;
+		this.minCoreLength = o.minCoreLength;
+		this.distanceCutoff = o.distanceCutoff;
+		this.gaps = o.gaps;
+		this.optimizationSteps = o.optimizationSteps;
 
-		CESymmParameters p = new CESymmParameters();
-
-		p.maxSymmOrder = maxSymmOrder;
-		p.symmType = symmType;
-		p.orderDetectorMethod = orderDetectorMethod;
-		p.userOrder = userOrder;
-		p.refineMethod = refineMethod;
-		p.optimization = optimization;
-		p.rndSeed = rndSeed;
-		p.symmLevels = symmLevels;
-		p.scoreThreshold = scoreThreshold;
-		p.sseThreshold = sseThreshold;
-		p.minCoreLength = minCoreLength;
-		p.distanceCutoff = distanceCutoff;
-		p.gaps = gaps;
-
-		p.winSize = winSize;
-		p.rmsdThr = rmsdThr;
-		p.rmsdThrJoin = rmsdThrJoin;
-		p.scoringStrategy = scoringStrategy;
-		p.maxGapSize = maxGapSize;
-		p.showAFPRanges = showAFPRanges;
-		p.maxOptRMSD = maxOptRMSD;
-		p.gapOpen = gapOpen;
-		p.gapExtension = gapExtension;
-		p.distanceIncrement = distanceIncrement;
-		p.oRmsdThr = oRmsdThr;
-		p.maxNrIterationsForOptimization = maxNrIterationsForOptimization;
-		p.seqWeight = seqWeight;
-
-		return p;
+		this.winSize = o.winSize;
+		this.rmsdThr = o.rmsdThr;
+		this.rmsdThrJoin = o.rmsdThrJoin;
+		this.scoringStrategy = o.scoringStrategy;
+		this.maxGapSize = o.maxGapSize;
+		this.showAFPRanges = o.showAFPRanges;
+		this.maxOptRMSD = o.maxOptRMSD;
+		this.gapOpen = o.gapOpen;
+		this.gapExtension = o.gapExtension;
+		this.distanceIncrement = o.distanceIncrement;
+		this.oRmsdThr = o.oRmsdThr;
+		this.maxNrIterationsForOptimization = o.maxNrIterationsForOptimization;
+		this.seqWeight = o.seqWeight;
 	}
 
 	@Override
@@ -130,11 +133,13 @@ public class CESymmParameters extends CeParameters {
 		optimization = true;
 		rndSeed = new Random().nextInt(10000);
 		symmLevels = 0;
-		scoreThreshold = DEFAULT_SYMMETRY_THRESHOLD;
-		sseThreshold = 2;
+		unrefinedScoreThreshold = DEFAULT_SYMMETRY_THRESHOLD;
+		refinedScoreThreshold = DEFAULT_SYMMETRY_THRESHOLD * 0.9;
+		sseThreshold = 0;
 		minCoreLength = 15;
 		distanceCutoff = 7.0;
 		gaps = true;
+		optimizationSteps = 0;
 	}
 
 	@Override
@@ -203,23 +208,34 @@ public class CESymmParameters extends CeParameters {
 				+ "found. If equal to 2, D and two-level hierarchical C and H "
 				+ "can be found, etc. If equal to 0, the number of recursive "
 				+ "iterations is unbounded (until thresholds reached).");
-		// score threshold
-		params.add("Score threshold: TM-score values below the "
+		// unrefined score threshold
+		params.add("Unrefined score threshold: TM-score values for the optimal"
+				+ " self-alignment, before refinement, below the "
+				+ "threshold will be considered asymmetric.");
+		// refined score threshold
+		params.add("Refined score threshold: TM-score values for the refined "
+				+ "multiple alignment of repeats below the "
 				+ "threshold will be considered asymmetric.");
 		// SSE threshold
 		params.add("SSE threshold: The minimum number of secondary structure "
-				+ "elements (strands or helices) in each symmetrical subunit. "
-				+ "If the subunits do not have enough SSE, the structure will "
+				+ "elements (strands or helices) in each symmetrical repeat. "
+				+ "If the repeats do not have enough SSE, the structure will "
 				+ "be considered asymmetric. 0 means no restriction.");
-		// min core subunit length
+		// min core repeat length
 		params.add("Minimum core length: the minimum number of non-gapped "
-				+ "residues in every symmetric subunit.");
+				+ "residues in every symmetric repeat.");
 		// distance cutoff
 		params.add("Distance Cutoff: the maximum allowed distance (in A) "
 				+ "between two aligned residues.");
 
 		// gaps
-		params.add("MStA Gaps: allow gaps in the multiple alignment if true.");
+		params.add("Internal Gaps: allow up to 50% of repeats to have gaps in "
+				+ "the multiple alignment if true, "
+				+ "otherwise all repeats must be aligned at each position.");
+
+		// optimization steps
+		params.add("Optimization Steps: maximum number of optimization steps:"
+				+ " 0 means calculated automatically with the alignment length.");
 
 		return params;
 	}
@@ -235,11 +251,13 @@ public class CESymmParameters extends CeParameters {
 		params.add("Optimization");
 		params.add("RndSeed");
 		params.add("SymmLevels");
-		params.add("ScoreThreshold");
+		params.add("UnrefinedScoreThreshold");
+		params.add("RefinedScoreThreshold");
 		params.add("SSEThreshold");
 		params.add("MinCoreLength");
 		params.add("DistanceCutoff");
 		params.add("Gaps");
+		params.add("OptimizationSteps");
 		return params;
 	}
 
@@ -254,11 +272,13 @@ public class CESymmParameters extends CeParameters {
 		params.add("Optimization");
 		params.add("Random Seed");
 		params.add("Symmetry Levels");
-		params.add("Score Threshold");
+		params.add("Unrefined Score Threshold");
+		params.add("Refined Score Threshold");
 		params.add("SSE Threshold");
 		params.add("Minimum Core Length");
 		params.add("Distance Cutoff");
-		params.add("MStA Gaps");
+		params.add("Internal Gaps");
+		params.add("Optimization Steps");
 		return params;
 	}
 
@@ -275,10 +295,12 @@ public class CESymmParameters extends CeParameters {
 		params.add(Integer.class);
 		params.add(Integer.class);
 		params.add(Double.class);
+		params.add(Double.class);
 		params.add(Integer.class);
 		params.add(Integer.class);
 		params.add(Double.class);
 		params.add(Boolean.class);
+		params.add(Integer.class);
 		return params;
 	}
 
@@ -355,14 +377,22 @@ public class CESymmParameters extends CeParameters {
 		this.symmLevels = symmLevels;
 	}
 
-	public double getScoreThreshold() {
-		return scoreThreshold;
+	public double getUnrefinedScoreThreshold() {
+		return unrefinedScoreThreshold;
 	}
 
-	public void setScoreThreshold(Double scoreThreshold) {
-		this.scoreThreshold = scoreThreshold;
+	public void setUnrefinedScoreThreshold(Double unrefinedScoreThreshold) {
+		this.unrefinedScoreThreshold = unrefinedScoreThreshold;
 	}
 	
+	public double getRefinedScoreThreshold() {
+		return refinedScoreThreshold;
+	}
+
+	public void setRefinedScoreThreshold(Double refinedScoreThreshold) {
+		this.refinedScoreThreshold = refinedScoreThreshold;
+	}
+
 	public int getSSEThreshold() {
 		return sseThreshold;
 	}
@@ -393,6 +423,29 @@ public class CESymmParameters extends CeParameters {
 
 	public void setGaps(Boolean gaps) {
 		this.gaps = gaps;
+	}
+
+	public int getOptimizationSteps() {
+		return optimizationSteps;
+	}
+
+	public void setOptimizationSteps(Integer optimizationSteps) {
+		this.optimizationSteps = optimizationSteps;
+	}
+
+	@Override
+	public String toString() {
+		return "CESymmParameters [maxSymmOrder=" + maxSymmOrder
+				+ ", userOrder=" + userOrder + ", symmType=" + symmType
+				+ ", orderDetectorMethod=" + orderDetectorMethod
+				+ ", refineMethod=" + refineMethod + ", optimization="
+				+ optimization + ", rndSeed=" + rndSeed + ", symmLevels="
+				+ symmLevels + ", unrefinedScoreThreshold="
+				+ unrefinedScoreThreshold + ", refinedScoreThreshold="
+				+ refinedScoreThreshold + ", sseThreshold=" + sseThreshold
+				+ ", minCoreLength=" + minCoreLength + ", distanceCutoff="
+				+ distanceCutoff + ", gaps=" + gaps + ", optimizationSteps="
+				+ optimizationSteps + "]";
 	}
 
 }

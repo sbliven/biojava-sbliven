@@ -27,8 +27,9 @@ import org.biojava.nbio.structure.io.FileConvert;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+
+import javax.vecmath.Point3d;
 
 
 /**
@@ -41,52 +42,40 @@ import java.util.List;
 public class AtomImpl implements Atom, Serializable, PDBRecord {
 
 	private static final long serialVersionUID = -2258364127420562883L;
-	String name     ;
-	Element element;
-	double[] coords ;
-	String pdbline  ;
-	int pdbserial   ;
 
-	double occupancy ;
-	double tempfactor;
+	/**
+	 * The inital capacity of the bonds list.
+	 * Most atoms have a maximum of 3 heavy atom neighbors.
+	 */
+	public static final int BONDS_INITIAL_CAPACITY = 3;
 
-	Character altLoc ;
-	Group parent;
-	long id;
+	private String name;
+	private Element element;	
+	private Point3d coords;
+	private int pdbserial;
+	private short charge;
+
+	private float occupancy ;
+	private float tempfactor;
+
+	private char altLoc ;
+	private Group parent;
 
 	private List<Bond> bonds;
 
 	public AtomImpl () {
-		name     = null        ;
-		element = Element.R;
-		coords   = new double[3];
-		pdbline  = ""          ;
-		occupancy  = 0.0       ;
-		tempfactor = 0.0       ;
-		altLoc = ' ';
-		altLoc = null;
-		parent = null;
-		bonds = Collections.emptyList();
-	}
-	/** Get the Hibernate database ID.
-	 *
-	 * @return the id
-	 * @see #setId(long)
-	 */
-	public long getId() {
-		return id;
+		name       = null;
+		element    = Element.R;
+		coords	   = new Point3d();
+		occupancy  = 0.0f;
+		tempfactor = 0.0f;
+		altLoc 	   = 0;
+		parent     = null;
+		bonds      = null; // let's save some memory and let's not initialise this until it's needed - JD 2016-03-02
+		charge     = 0;
 	}
 
-	/** Set the Hibernate database ID.
-	 *
-	 * @param id the hibernate id
-	 * @see #getId()
-	 */
-	public void setId(long id) {
-		this.id = id;
-	}
-
-	/** 
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override
@@ -98,92 +87,126 @@ public class AtomImpl implements Atom, Serializable, PDBRecord {
 	@Override
 	public String getName()         { return name ;}
 
-	/** 
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public void setPDBserial(int i) { pdbserial = i    ; }
 
-	/** 
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public int  getPDBserial()      { return pdbserial ; }
 
-	/** 
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void     setCoords( double[] c ) { coords = c   ; }
+	public void     setCoords( double[] c ) { 
+		coords = new Point3d(c); 
+	}
 
-	/** 
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public double[] getCoords()            { return coords ; }
+	public double[] getCoords() { 
+		double[] c = new double[3];
+		coords.get(c);
+		return c;		
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Point3d getCoordsAsPoint3d() {
+		return coords;
+	}
 
 	@Override
 	public void setX(double x) {
-		coords[0] = x ;
+		coords.x = x ;
 	}
+	
 	@Override
 	public void setY(double y) {
-		coords[1] = y ;
+		coords.y = y ;
 	}
+	
 	@Override
 	public void setZ(double z) {
-		coords[2] = z ;
+		coords.z = z ;
 	}
 
-	/** 
-	 * {@inheritDoc} 
-	 */
-	@Override
-	public double getX() { return coords[0]; }
-
-	/** 
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public double getY() { return coords[1]; }
+	public double getX() { return coords.x; }
 
-	/** 
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public double getZ() { return coords[2]; }
+	public double getY() { return coords.y; }
 
-	/** set alternate Location.
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public double getZ() { return coords.z; }
+
+	/**
+	 * Set alternate Location.
 	 * @see #getAltLoc
 	 */
 	@Override
 	public void setAltLoc(Character c) {
-		altLoc = c ;
+		// after changing altLoc from Character to char, we do this to keep the interface the same as it used to be - JD 2016-01-27
+		if (c==null)
+			altLoc = 0;
+		else
+			altLoc = c ;
 	}
-	/** get alternate Location.
+
+	/**
+	 * Get alternate Location.
 	 * @return a Character object representing the alt loc value
 	 * @see #setAltLoc
 	 */
 	@Override
 	public Character getAltLoc() {
+		// after changing altLoc from Character to char, we do this to keep the interface the same as it used to be - JD 2016-01-27
+		if (altLoc==0 ) return null;
 		return altLoc ;
 	}
 
-	/** string representation. */
 	@Override
 	public String toString() {
-		return name + " " + element + " " + pdbserial + " " + coords[0] + " " + coords[1] + " " + coords[2];
+		return name + " " + element + " " + pdbserial + " " + coords.x + " " + coords.y + " " + coords.z;
 	}
 
 	@Override
-	public void   setOccupancy(double occu){ occupancy = occu ;} ;
-	@Override
-	public double getOccupancy(){ return occupancy; } ;
+	public void   setOccupancy(float occu){
+		occupancy = occu ;
+	}
 
 	@Override
-	public void   setTempFactor(double temp){ tempfactor = temp ;} ;
+	public float getOccupancy(){
+		return occupancy;
+	}
+
 	@Override
-	public double getTempFactor(){ return tempfactor; } ;
+	public void   setTempFactor(float temp) {
+		tempfactor = temp ;
+	}
+
+	@Override
+	public float getTempFactor() {
+		return tempfactor;
+	}
 
 	/** returns and identical copy of this  object .
 	 * @return  and identical copy of this  object
@@ -193,7 +216,8 @@ public class AtomImpl implements Atom, Serializable, PDBRecord {
 		AtomImpl n = new AtomImpl();
 		n.setOccupancy(getOccupancy());
 		n.setTempFactor(getTempFactor());
-		n.setAltLoc(getAltLoc());
+		n.altLoc = altLoc; // since char is a primitive we can do this (to avoid going through getter/setter that check for nulls)
+		n.setCharge(getCharge());
 		double[] coords = getCoords();
 		n.setX(coords[0]);
 		n.setY(coords[1]);
@@ -201,6 +225,9 @@ public class AtomImpl implements Atom, Serializable, PDBRecord {
 		n.setPDBserial(getPDBserial());
 		n.setName(getName());
 		n.setElement(getElement());
+		// NOTE bonds can't be cloned here, they would need to be cloned at the
+		//      chain or group level (depending if they are intra or inter group bonds) -- JD 2016-03-02
+
 		return n ;
 	}
 
@@ -249,17 +276,55 @@ public class AtomImpl implements Atom, Serializable, PDBRecord {
 
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public List<Bond> getBonds() {
 		return bonds;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean hasBond(Atom other){
+		if ( bonds == null)
+			return false;
+
+		for (Bond b : bonds){
+			if ( b.getAtomA().equals(other) || b.getAtomB().equals(other))
+				return true;
+		}
+		return false;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void setBonds(List<Bond> bonds) {
+		this.bonds = bonds;
+	}
+
 	@Override
 	public void addBond(Bond bond) {
-		if (bonds.isEmpty()) {
-			// most atoms have a maximum of 3 heavy atom neighbors, so use this as the default size
-			bonds = new ArrayList<Bond>(3);
+		if (bonds==null) {
+			bonds = new ArrayList<Bond>(BONDS_INITIAL_CAPACITY);
 		}
 		bonds.add(bond);
+	}
+
+	@Override
+	public short getCharge() {
+		// Get the charge
+		return charge;
+	}
+
+	@Override
+	public void setCharge(short inputCharge) {
+		// Set the charge
+		charge = inputCharge;
+
 	}
 }

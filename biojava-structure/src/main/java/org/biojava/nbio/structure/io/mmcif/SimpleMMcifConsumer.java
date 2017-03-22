@@ -21,11 +21,84 @@
  */
 package org.biojava.nbio.structure.io.mmcif;
 
-import org.biojava.nbio.structure.*;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+import javax.vecmath.Matrix4d;
+
+import org.biojava.nbio.structure.AminoAcid;
+import org.biojava.nbio.structure.AminoAcidImpl;
+import org.biojava.nbio.structure.Atom;
+import org.biojava.nbio.structure.AtomImpl;
+import org.biojava.nbio.structure.Chain;
+import org.biojava.nbio.structure.ChainImpl;
+import org.biojava.nbio.structure.EntityInfo;
+import org.biojava.nbio.structure.EntityType;
+import org.biojava.nbio.structure.DBRef;
+import org.biojava.nbio.structure.Element;
+import org.biojava.nbio.structure.Group;
+import org.biojava.nbio.structure.GroupType;
+import org.biojava.nbio.structure.HetatomImpl;
+import org.biojava.nbio.structure.NucleotideImpl;
+import org.biojava.nbio.structure.PDBCrystallographicInfo;
+import org.biojava.nbio.structure.PDBHeader;
+import org.biojava.nbio.structure.ResidueNumber;
+import org.biojava.nbio.structure.SeqMisMatch;
+import org.biojava.nbio.structure.SeqMisMatchImpl;
+import org.biojava.nbio.structure.Site;
+import org.biojava.nbio.structure.Structure;
+import org.biojava.nbio.structure.StructureException;
+import org.biojava.nbio.structure.StructureImpl;
+import org.biojava.nbio.structure.StructureTools;
 import org.biojava.nbio.structure.io.BondMaker;
+import org.biojava.nbio.structure.io.ChargeAdder;
+import org.biojava.nbio.structure.io.EntityFinder;
 import org.biojava.nbio.structure.io.FileParsingParameters;
 import org.biojava.nbio.structure.io.SeqRes2AtomAligner;
-import org.biojava.nbio.structure.io.mmcif.model.*;
+import org.biojava.nbio.structure.io.mmcif.model.AtomSite;
+import org.biojava.nbio.structure.io.mmcif.model.AtomSites;
+import org.biojava.nbio.structure.io.mmcif.model.AuditAuthor;
+import org.biojava.nbio.structure.io.mmcif.model.Cell;
+import org.biojava.nbio.structure.io.mmcif.model.ChemComp;
+import org.biojava.nbio.structure.io.mmcif.model.ChemCompAtom;
+import org.biojava.nbio.structure.io.mmcif.model.ChemCompBond;
+import org.biojava.nbio.structure.io.mmcif.model.ChemCompDescriptor;
+import org.biojava.nbio.structure.io.mmcif.model.DatabasePDBremark;
+import org.biojava.nbio.structure.io.mmcif.model.DatabasePDBrev;
+import org.biojava.nbio.structure.io.mmcif.model.DatabasePdbrevRecord;
+import org.biojava.nbio.structure.io.mmcif.model.Entity;
+import org.biojava.nbio.structure.io.mmcif.model.EntityPoly;
+import org.biojava.nbio.structure.io.mmcif.model.EntityPolySeq;
+import org.biojava.nbio.structure.io.mmcif.model.EntitySrcGen;
+import org.biojava.nbio.structure.io.mmcif.model.EntitySrcNat;
+import org.biojava.nbio.structure.io.mmcif.model.EntitySrcSyn;
+import org.biojava.nbio.structure.io.mmcif.model.Exptl;
+import org.biojava.nbio.structure.io.mmcif.model.PdbxChemCompDescriptor;
+import org.biojava.nbio.structure.io.mmcif.model.PdbxChemCompIdentifier;
+import org.biojava.nbio.structure.io.mmcif.model.PdbxEntityNonPoly;
+import org.biojava.nbio.structure.io.mmcif.model.PdbxNonPolyScheme;
+import org.biojava.nbio.structure.io.mmcif.model.PdbxPolySeqScheme;
+import org.biojava.nbio.structure.io.mmcif.model.PdbxStructAssembly;
+import org.biojava.nbio.structure.io.mmcif.model.PdbxStructAssemblyGen;
+import org.biojava.nbio.structure.io.mmcif.model.PdbxStructOperList;
+import org.biojava.nbio.structure.io.mmcif.model.Refine;
+import org.biojava.nbio.structure.io.mmcif.model.Struct;
+import org.biojava.nbio.structure.io.mmcif.model.StructAsym;
+import org.biojava.nbio.structure.io.mmcif.model.StructConn;
+import org.biojava.nbio.structure.io.mmcif.model.StructKeywords;
+import org.biojava.nbio.structure.io.mmcif.model.StructNcsOper;
+import org.biojava.nbio.structure.io.mmcif.model.StructRef;
+import org.biojava.nbio.structure.io.mmcif.model.StructRefSeq;
+import org.biojava.nbio.structure.io.mmcif.model.StructRefSeqDif;
+import org.biojava.nbio.structure.io.mmcif.model.StructSite;
+import org.biojava.nbio.structure.io.mmcif.model.StructSiteGen;
+import org.biojava.nbio.structure.io.mmcif.model.Symmetry;
 import org.biojava.nbio.structure.quaternary.BioAssemblyInfo;
 import org.biojava.nbio.structure.quaternary.BiologicalAssemblyBuilder;
 import org.biojava.nbio.structure.quaternary.BiologicalAssemblyTransformation;
@@ -35,29 +108,35 @@ import org.biojava.nbio.structure.xtal.SymoplibParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.vecmath.Matrix4d;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.*;
-
-/** A MMcifConsumer implementation that build a in-memory representation of the
+/**
+ * A MMcifConsumer implementation that builds an in-memory representation of the
  * content of a mmcif file as a BioJava Structure object.
- *  @author Andreas Prlic
- *  @since 1.7
+ *
+ * @author Andreas Prlic
+ * @since 1.7
  */
 
 public class SimpleMMcifConsumer implements MMcifConsumer {
 
 	private static final Logger logger = LoggerFactory.getLogger(SimpleMMcifConsumer.class);
 
-	
 	private Structure structure;
-	private Chain current_chain;
-	private Group current_group;
+	private Chain currentChain;
+	private Group currentGroup;
 
-
-	private List<Chain>      current_model;
+	/**
+	 * A temporary data structure to hold all parsed chains
+	 */
+	private ArrayList<List<Chain>> allModels; 
+	/**
+	 * The current set of chains per model
+	 */
+	private List<Chain>      currentModel;
 	private List<Entity>     entities;
+	/**
+	 * Needed in header only mode to get mapping between asym ids and author ids
+	 */
+	private List<EntityPoly> entityPolys;
 	private List<StructRef>  strucRefs;
 	private List<Chain>      seqResChains;
 	private List<Chain>      entityChains; // needed to link entities, chains and compounds...
@@ -71,23 +150,25 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 	private List<StructConn> structConn;
 	private List<StructNcsOper> structNcsOper;
 	private List<StructRefSeqDif> sequenceDifs;
+	private List<StructSiteGen> structSiteGens;
+	
+	private Matrix4d parsedScaleMatrix;
+
+
 
 	/**
-	 * A map of asym ids (internal chain ids) to strand ids (author chain ids) 
-	 * extracted from pdbx_poly_seq_scheme/pdbx_non_poly_seq_scheme categories
+	 * A map of asym ids (internal chain ids) to entity ids extracted from
+	 * the _struct_asym category
 	 */
-	private Map<String,String> asymStrandId;
-	
-	/**
-	 * A map of asym ids (internal chain ids) to strand ids (author chain ids) 
-	 * extracted from the information in _atom_sites category. Will be used
-	 * if no mapping is found in pdbx_poly_seq_scheme/pdbx_non_poly_seq_scheme
-	 */
-	private Map<String,String> asymId2StrandIdFromAtomSites;
-	
 	private Map<String,String> asymId2entityId;
 
-	private String current_nmr_model ;
+	/**
+	 * A map of asym ids (internal chain ids) to author ids extracted from 
+	 * the _entity_poly category. Used in header only parsing.
+	 */
+	private Map<String,String> asymId2authorId;
+
+	private String currentNmrModelNumber ;
 
 	private FileParsingParameters params;
 
@@ -101,6 +182,11 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 	public void newEntity(Entity entity) {
 		logger.debug("New entity: {}",entity.toString());
 		entities.add(entity);
+	}
+
+	@Override
+	public void newEntityPoly(EntityPoly entityPoly) {
+		entityPolys.add(entityPoly);
 	}
 
 	@Override
@@ -160,23 +246,21 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 	/** initiate new group, either Hetatom, Nucleotide, or AminoAcid */
 	private Group getNewGroup(String recordName,Character aminoCode1, long seq_id,String groupCode3) {
 
-		if ( params.isLoadChemCompInfo() ){
-			Group g = ChemCompGroupFactory.getGroupFromChemCompDictionary(groupCode3);
-			if ( g != null) {
-				if ( g instanceof AminoAcidImpl) {
-					AminoAcidImpl aa = (AminoAcidImpl) g;
-					aa.setId(seq_id);
-				} else if ( g instanceof NucleotideImpl) {
-					NucleotideImpl nuc =  (NucleotideImpl) g;
-					nuc.setId(seq_id);
-				} else if ( g instanceof HetatomImpl) {
-					HetatomImpl het = (HetatomImpl)g;
-					het.setId(seq_id);
-				}
-				return g;
+		Group g = ChemCompGroupFactory.getGroupFromChemCompDictionary(groupCode3);
+		if ( g != null && !g.getChemComp().isEmpty()) {
+			if ( g instanceof AminoAcidImpl) {
+				AminoAcidImpl aa = (AminoAcidImpl) g;
+				aa.setId(seq_id);
+			} else if ( g instanceof NucleotideImpl) {
+				NucleotideImpl nuc =  (NucleotideImpl) g;
+				nuc.setId(seq_id);
+			} else if ( g instanceof HetatomImpl) {
+				HetatomImpl het = (HetatomImpl)g;
+				het.setId(seq_id);
 			}
-
+			return g;
 		}
+
 
 
 		Group group;
@@ -216,20 +300,20 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 				h.setId(seq_id);
 				group = h;
 			}
-		}		
+		}
 		return  group ;
 	}
-	
-	/** test if the chain is already known (is in current_model
-	 * ArrayList) and if yes, returns the chain
-	 * if no -> returns null
+
+	/**
+	 * Test if the given asymId is already present in the list of chains given. If yes, returns the chain
+	 * otherwise returns null.
 	 */
-	private Chain isKnownChain(String chainID, List<Chain> chains){
+	private static Chain isKnownChain(String asymId, List<Chain> chains){
 
 		for (int i = 0; i< chains.size();i++){
 			Chain testchain =  chains.get(i);
 			//System.out.println("comparing chainID >"+chainID+"< against testchain " + i+" >" +testchain.getName()+"<");
-			if (chainID.equals(testchain.getChainID())) {
+			if (asymId.equals(testchain.getId())) {
 				//System.out.println("chain "+ chainID+" already known ...");
 				return testchain;
 			}
@@ -241,6 +325,8 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 	@Override
 	public void newAtomSite(AtomSite atom) {
 
+		if (params.isHeaderOnly()) return;
+
 		// Warning: getLabel_asym_id is not the "chain id" in the PDB file
 		// it is the internally used chain id.
 		// later on we will fix this...
@@ -251,14 +337,17 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 
 		boolean startOfNewChain = false;
 
-		String chain_id      = atom.getLabel_asym_id();		
-				
+		String asymId = atom.getLabel_asym_id();
+		String authId = atom.getAuth_asym_id();
+
 		String recordName    = atom.getGroup_PDB();
 		String residueNumberS = atom.getAuth_seq_id();
 		Integer residueNrInt = Integer.parseInt(residueNumberS);
 
 		// the 3-letter name of the group:
 		String groupCode3    = atom.getLabel_comp_id();
+
+		boolean isHetAtomInFile = false;
 
 		Character aminoCode1 = null;
 		if ( recordName.equals("ATOM") )
@@ -267,8 +356,10 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 			aminoCode1 = StructureTools.get1LetterCodeAmino(groupCode3);
 
 			// for nucleotides this will be null..
-			if (aminoCode1 != null &&  aminoCode1.equals(StructureTools.UNKNOWN_GROUP_LABEL)) 
+			if (aminoCode1 != null &&  aminoCode1.equals(StructureTools.UNKNOWN_GROUP_LABEL))
 				aminoCode1 = null;
+
+			isHetAtomInFile = true;
 		}
 		String insCodeS = atom.getPdbx_PDB_ins_code();
 		Character insCode = null;
@@ -285,93 +376,82 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 		} catch (NumberFormatException e){
 			// non polymer chains (ligands and small molecules) will have a label_seq_id set to '.', thus it is ok to
 			// silently ignore this
-			//logger.debug("Could not parse number for _atom_site.label_seq_id: "+e.getMessage()); 
+			//logger.debug("Could not parse number for _atom_site.label_seq_id: "+e.getMessage());
 		}
 
-		String nmrModel = atom.getPdbx_PDB_model_num();
+		String nmrModelNumber = atom.getPdbx_PDB_model_num();
 
-		if ( current_nmr_model == null) {
-			current_nmr_model = nmrModel;
+		if ( currentNmrModelNumber == null) {
+			currentNmrModelNumber = nmrModelNumber;
 		}
 
-		if (! current_nmr_model.equals(nmrModel)){
-			current_nmr_model = nmrModel;
+		if (! currentNmrModelNumber.equals(nmrModelNumber)){
+			currentNmrModelNumber = nmrModelNumber;
 
 			// add previous data
-			if ( current_chain != null ) {
-				current_chain.addGroup(current_group);
-				current_group.trimToSize();
+			if ( currentChain != null ) {
+				currentChain.addGroup(currentGroup);
+				currentGroup.trimToSize();
 			}
 
 			// we came to the beginning of a new NMR model
-			structure.addModel(current_model);
-			current_model = new ArrayList<Chain>();
-			current_chain = null;
-			current_group = null;
+			allModels.add(currentModel);
+			currentModel = new ArrayList<Chain>();
+			currentChain = null;
+			currentGroup = null;
 		}
 
 
-		if (current_chain == null) {
-			current_chain = new ChainImpl();
-			current_chain.setChainID(chain_id);
-			current_model.add(current_chain);
+		if (currentChain == null) {
+
+			currentChain = new ChainImpl();
+			currentChain.setName(authId);
+			currentChain.setId(asymId);
+			currentModel.add(currentChain);
 			startOfNewChain = true;
 		}
 
 		//System.out.println("BEFORE: " + chain_id + " " + current_chain.getName());
-		if ( ! chain_id.equals(current_chain.getChainID()) ) {
-
+		if ( ! asymId.equals(currentChain.getId()) ) {
+			//logger.info("unknown chain. creating new chain. authId:" + authId + " asymId: " + asymId);
 			startOfNewChain = true;
 
 			// end up old chain...
-			current_chain.addGroup(current_group);
+			currentChain.addGroup(currentGroup);
 
 			// see if old chain is known ...
-			Chain testchain ;
-			testchain = isKnownChain(current_chain.getChainID(),current_model);
-
-			//System.out.println("trying to re-using known chain " + current_chain.getName() + " " + chain_id);		
-			if ( testchain != null && testchain.getChainID().equals(chain_id)){
-				//System.out.println("re-using known chain " + current_chain.getName() + " " + chain_id);				
-
-			} else {
-
-				testchain = isKnownChain(chain_id,current_model);
-			}
+			Chain testchain = isKnownChain(asymId,currentModel);
 
 			if ( testchain == null) {
-				//System.out.println("unknown chain. creating new chain.");
+				//logger.info("unknown chain. creating new chain. authId:" + authId + " asymId: " + asymId);
 
-				current_chain = new ChainImpl();
-				current_chain.setChainID(chain_id);
+				currentChain = new ChainImpl();
+				currentChain.setName(authId);
+				currentChain.setId(asymId);
 
 			}   else {
-				current_chain = testchain;
+				currentChain = testchain;
 			}
 
-			if ( ! current_model.contains(current_chain))
-				current_model.add(current_chain);
+			if ( ! currentModel.contains(currentChain))
+				currentModel.add(currentChain);
 
-		} 
-
-
-		ResidueNumber residueNumber = new ResidueNumber(chain_id,residueNrInt, insCode);
-
-		if (current_group == null) {
-
-			current_group = getNewGroup(recordName,aminoCode1,seq_id, groupCode3);
-
-			current_group.setResidueNumber(residueNumber);
-			current_group.setPDBName(groupCode3);
 		}
 
-		if ( startOfNewChain){
-			current_group = getNewGroup(recordName,aminoCode1,seq_id, groupCode3);
 
-			current_group.setResidueNumber(residueNumber);
-			current_group.setPDBName(groupCode3);
+		ResidueNumber residueNumber = new ResidueNumber(authId,residueNrInt, insCode);
+
+		if (currentGroup == null) {
+
+
+			currentGroup = getNewGroup(recordName,aminoCode1,seq_id, groupCode3);
+
+			currentGroup.setResidueNumber(residueNumber);
+			currentGroup.setPDBName(groupCode3);
+			currentGroup.setHetAtomInFile(isHetAtomInFile);
 		}
 
+		// SET UP THE ALT LOC GROUP
 		Group altGroup = null;
 		String altLocS = atom.getLabel_alt_id();
 		Character altLoc = ' ';
@@ -381,40 +461,44 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 				altLoc = ' ';
 
 		}
+		// If it's the start of the new chain 
+		if ( startOfNewChain){
+			currentGroup = getNewGroup(recordName,aminoCode1,seq_id, groupCode3);
+			currentGroup.setResidueNumber(residueNumber);
+			currentGroup.setPDBName(groupCode3);
+			currentGroup.setHetAtomInFile(isHetAtomInFile);
+		}
+		// ANTHONY BRADLEY ADDED THIS -> WE ONLY WAN'T TO CHECK FOR ALT LOCS WHEN IT's NOT THE FIRST GROUP IN CHAIN
+		else{
+			// check if residue number is the same ...
+			// insertion code is part of residue number
+			if ( ! residueNumber.equals(currentGroup.getResidueNumber())) {
+				//System.out.println("end of residue: "+current_group.getPDBCode()+" "+residueNrInt);
+				currentChain.addGroup(currentGroup);
+				currentGroup.trimToSize();
+				currentGroup = getNewGroup(recordName,aminoCode1,seq_id,groupCode3);
+				currentGroup.setPDBName(groupCode3);
+				currentGroup.setResidueNumber(residueNumber);
+				currentGroup.setHetAtomInFile(isHetAtomInFile);
 
-		// check if residue number is the same ...
-		// insertion code is part of residue number
-		if ( ! residueNumber.equals(current_group.getResidueNumber())) {
-			//System.out.println("end of residue: "+current_group.getPDBCode()+" "+residueNrInt);
-			current_chain.addGroup(current_group);
-			current_group.trimToSize();
-			current_group = getNewGroup(recordName,aminoCode1,seq_id,groupCode3);
-			current_group.setPDBName(groupCode3);
-			current_group.setResidueNumber(residueNumber);
 
+			} else {
+				// same residueNumber, but altLocs...
+				// test altLoc
 
-			//                        System.out.println("Made new group:  " + groupCode3 + " " + resNum + " " + iCode);
-
-		} else {
-			// same residueNumber, but altLocs...
-
-			// test altLoc
-			if ( ! altLoc.equals(' ') && ( ! altLoc.equals('.'))) {												
-				logger.debug("found altLoc! " + altLoc + " " + current_group + " " + altGroup);
-				altGroup = getCorrectAltLocGroup( altLoc,recordName,aminoCode1,groupCode3, seq_id);
-				if (altGroup.getChain()==null) {
-					altGroup.setChain(current_chain);
+				if ( ! altLoc.equals(' ') && ( ! altLoc.equals('.'))) {
+					logger.debug("found altLoc! " + altLoc + " " + currentGroup + " " + altGroup);
+					altGroup = getCorrectAltLocGroup( altLoc,recordName,aminoCode1,groupCode3, seq_id);
+					if (altGroup.getChain()==null) {
+						altGroup.setChain(currentChain);
+					}
 				}
 			}
 		}
-
-		if ( params.isHeaderOnly())
-			return;
-
 		//atomCount++;
 		//System.out.println("fixing atom name for  >" + atom.getLabel_atom_id() + "< >" + fullname + "<");
 
-		
+
 		if ( params.isParseCAOnly() ){
 			// yes , user wants to get CA only
 			// only parse CA atoms...
@@ -424,9 +508,6 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 				return;
 			}
 		}
-
-		// filling the map in case there's no pdbx_poly_seq_scheme/pdbx_non_poly_seq_scheme in the file
-		asymId2StrandIdFromAtomSites.put(atom.getLabel_asym_id(), atom.getAuth_asym_id());
 
 		//see if chain_id is one of the previous chains ...
 
@@ -438,24 +519,26 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 			altGroup = null;
 		}
 		else {
-			current_group.addAtom(a);
+			currentGroup.addAtom(a);
 		}
 
 
-		// make sure that main group has all atoms
+		String atomName = a.getName();
+		// make sure that main group has all atoms 
 		// GitHub issue: #76
-		if ( ! current_group.hasAtom(a.getName())) {
-			current_group.addAtom(a);
+		if ( ! currentGroup.hasAtom(atomName)) {
+			// Unless it's microheterogenity https://github.com/rcsb/codec-devel/issues/81
+			if (currentGroup.getPDBName().equals(a.getGroup().getPDBName())) {
+				if(!StructureTools.hasNonDeuteratedEquiv(a,currentGroup)){
+					currentGroup.addAtom(a);
+				}
+			}
+
 		}
-		
-		
-		//System.out.println(">" + atom.getLabel_atom_id()+"< " + a.getGroup().getPDBName() + " " + a.getGroup().getChemComp()  );
-
-		//System.out.println(current_group);
-
 	}
 
-	/** convert a MMCif AtomSite object to a BioJava Atom object
+	/** 
+	 * Convert a mmCIF AtomSite object to a BioJava Atom object
 	 *
 	 * @param atom the mmmcif AtomSite record
 	 * @return an Atom
@@ -475,10 +558,10 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 		a.setY(y);
 		a.setZ(z);
 
-		double occupancy = Double.parseDouble(atom.getOccupancy());
+		float occupancy = Float.parseFloat (atom.getOccupancy());
 		a.setOccupancy(occupancy);
 
-		double temp = Double.parseDouble(atom.getB_iso_or_equiv());
+		float temp = Float.parseFloat (atom.getB_iso_or_equiv());
 		a.setTempFactor(temp);
 
 		String alt = atom.getLabel_alt_id();
@@ -491,7 +574,9 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 		Element element = Element.R;
 		try {
 			element = Element.valueOfIgnoreCase(atom.getType_symbol());
-		}  catch (IllegalArgumentException e){}
+		}  catch (IllegalArgumentException e) {
+			logger.info("Element {} was not recognised as a BioJava-known element, the element will be represented as the generic element {}", atom.getType_symbol(), Element.R.name());
+		}
 		a.setElement(element);
 
 		return a;
@@ -500,21 +585,24 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 
 
 	private Group getCorrectAltLocGroup( Character altLoc,
-			String recordName, Character aminoCode1, String groupCode3, long seq_id) {
+			String recordName,
+			Character aminoCode1,
+			String groupCode3,
+			long seq_id) {
 
 		// see if we know this altLoc already;
-		List<Atom> atoms = current_group.getAtoms();
+		List<Atom> atoms = currentGroup.getAtoms();
 		if ( atoms.size() > 0) {
 			Atom a1 = atoms.get(0);
 			// we are just adding atoms to the current group
 			// probably there is a second group following later...
 			if (a1.getAltLoc().equals(altLoc)) {
 
-				return current_group;
+				return currentGroup;
 			}
 		}
 
-		List<Group> altLocs = current_group.getAltLocs();
+		List<Group> altLocs = currentGroup.getAltLocs();
 		for ( Group altLocG : altLocs ){
 			atoms = altLocG.getAtoms();
 			if ( atoms.size() > 0) {
@@ -530,18 +618,19 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 		// no matching altLoc group found.
 		// build it up.
 
-		if ( groupCode3.equals(current_group.getPDBName())) {
-			if ( current_group.getAtoms().size() == 0) {
+		if ( groupCode3.equals(currentGroup.getPDBName())) {
+			if ( currentGroup.getAtoms().size() == 0) {
 				//System.out.println("current group is empty " + current_group + " " + altLoc);
-				return current_group;
+				return currentGroup;
 			}
 			//System.out.println("cloning current group " + current_group + " " + current_group.getAtoms().get(0).getAltLoc() + " altLoc " + altLoc);
-			Group altLocG = (Group) current_group.clone();
+			Group altLocG = (Group) currentGroup.clone();
 			// drop atoms from cloned group...
 			// https://redmine.open-bio.org/issues/3307
 			altLocG.setAtoms(new ArrayList<Atom>());
-			current_group.addAltLoc(altLocG);
-			return altLocG;	
+			altLocG.getAltLocs().clear();
+			currentGroup.addAltLoc(altLocG);
+			return altLocG;
 		}
 
 		//	System.out.println("new  group " + recordName + " " + aminoCode1 + " " +groupCode3);
@@ -549,32 +638,34 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 		Group altLocG = getNewGroup(recordName,aminoCode1,seq_id,groupCode3);
 
 		altLocG.setPDBName(groupCode3);
-		altLocG.setResidueNumber(current_group.getResidueNumber());
-		current_group.addAltLoc(altLocG);
+		altLocG.setResidueNumber(currentGroup.getResidueNumber());
+		currentGroup.addAltLoc(altLocG);
 		return altLocG;
 	}
 
-	/** Start the parsing
-	 *
+	/** 
+	 * Start the parsing
 	 */
 	@Override
 	public void documentStart() {
 		structure = new StructureImpl();
 
-		current_chain 		= null;
-		current_group 		= null;
-		current_nmr_model 	= null;
+		currentChain        = null;
+		currentGroup 		= null;
+		currentNmrModelNumber 	= null;
 		//atomCount     		= 0;
 
-		current_model = new ArrayList<Chain>();
+		allModels     = new ArrayList<List<Chain>>();
+		currentModel  = new ArrayList<Chain>();
 		entities      = new ArrayList<Entity>();
+		entityPolys   = new ArrayList<>();
 		strucRefs     = new ArrayList<StructRef>();
 		seqResChains  = new ArrayList<Chain>();
 		entityChains  = new ArrayList<Chain>();
 		structAsyms   = new ArrayList<StructAsym>();
-		asymStrandId  = new HashMap<String, String>();
-		asymId2StrandIdFromAtomSites = new HashMap<String, String>();
-		asymId2entityId = new HashMap<String,String>();		
+
+		asymId2entityId = new HashMap<String,String>();
+		asymId2authorId = new HashMap<>();
 		structOpers   = new ArrayList<PdbxStructOperList>();
 		strucAssemblies = new ArrayList<PdbxStructAssembly>();
 		strucAssemblyGens = new ArrayList<PdbxStructAssemblyGen>();
@@ -584,202 +675,120 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 		structConn = new ArrayList<StructConn>();
 		structNcsOper = new ArrayList<StructNcsOper>();
 		sequenceDifs = new ArrayList<StructRefSeqDif>();
+		structSiteGens = new ArrayList<StructSiteGen>();
 	}
 
 
 	@Override
 	public void documentEnd() {
 
-		// a problem occurred earlier so current_chain = null ...
-		// most likely the buffered reader did not provide data ...
-		if ( current_chain != null ) {
+		// Expected that there is one current_chain that needs to be added to the model
+		// When in headerOnly mode, no Atoms are read, and there will not be an active
+		// current_chain.
+		if ( currentChain != null ) {
 
-			current_chain.addGroup(current_group);
-			if (isKnownChain(current_chain.getChainID(),current_model) == null) {
-				current_model.add(current_chain);
+			currentChain.addGroup(currentGroup);
+			if (isKnownChain(currentChain.getId(),currentModel) == null) {
+				currentModel.add(currentChain);
 			}
-		} else {
-			logger.warn("current chain is null at end of document.");			
+		} else if (!params.isHeaderOnly()){
+			logger.warn("current chain is null at end of document.");
 		}
 
-		structure.addModel(current_model);
+		allModels.add(currentModel);
 
-		// Goal is to reproduce the PDB files exactly:
-		// What has to be done is to use the auth_mon_id for the assignment. For this
-
-		// map entities to Chains and Compound objects...
-
+		// this populates the asymId2authorId and asymId2entityId maps, needed in header only mode to get the mapping 
+		// between the 2 chain identifiers.
+		initMaps();
 
 		for (StructAsym asym : structAsyms) {
+
 			logger.debug("Entity {} matches asym_id: {}", asym.getEntity_id(), asym.getId() );
 
-			asymId2entityId.put(asym.getId(), asym.getEntity_id());
-			
 			Chain s = getEntityChain(asym.getEntity_id());
 			Chain seqres = (Chain)s.clone();
 			// to solve issue #160 (e.g. 3u7t)
 			seqres = removeSeqResHeterogeneity(seqres);
-			seqres.setChainID(asym.getId());
+			seqres.setId(asym.getId());
+			if (asymId2authorId.get(asym.getId()) !=null ){ 
+				seqres.setName(asymId2authorId.get(asym.getId()));
+			} else {
+				seqres.setName(asym.getId());
+			}
 
-			seqResChains.add(seqres);
+			EntityType type = null;
+			try {
+				Entity ent = getEntity(Integer.parseInt(asym.getEntity_id()));
+				type = EntityType.entityTypeFromString(ent.getType());
+			} catch (NumberFormatException e) {
+				logger.debug("Could not parse integer from entity id field {}", asym.getEntity_id());
+			}
+
+			// we'll only add seqres chains that are polymeric or unknown
+			if (type==null || type==EntityType.POLYMER ) {
+				seqResChains.add(seqres);	
+			}
+
 			logger.debug(" seqres: " + asym.getId() + " " + seqres + "<") ;
+			// adding the entities to structure
+			addEntities(asym);
 
-			// adding the compounds (entities)
-			addCompounds(asym);
-			
 		}
-		
+
 		if (structAsyms.isEmpty()) {
-			logger.warn("No _struct_asym category in file, no SEQRES groups will be added."); 
+			logger.warn("No _struct_asym category in file, no SEQRES groups will be added.");
 		}
 
-		if ( params.isAlignSeqRes() ){		
+		// entities
+		// In addEntities above we created the entities if they were present in the file
+		// Now we need to make sure that they are linked to chains and also that if they are not present in the file we need to add them now
+		linkEntities();
+
+		// now that we know the entities, we can add all chains to structure so that they are stored
+		// properly as polymer/nonpolymer/water chains inside structure
+		for (List<Chain> model:allModels) {
+			structure.addModel(model);
+		}
+
+		// Only align if requested (default) and not when headerOnly mode with no Atoms.
+		// Otherwise, we store the empty SeqRes Groups unchanged in the right chains.
+		if ( params.isAlignSeqRes() && !params.isHeaderOnly() ){
+			logger.debug("Parsing mode align_seqres, will parse SEQRES and align to ATOM sequence");
 			alignSeqRes();
+		} else {
+			logger.debug("Parsing mode unalign_seqres, will parse SEQRES but not align it to ATOM sequence");
+			SeqRes2AtomAligner.storeUnAlignedSeqRes(structure, seqResChains, params.isHeaderOnly());
 		}
 
-		if ( params.shouldCreateAtomBonds()) {
-			addBonds();
-		}
 
-		//TODO: add support for structure.setConnections(connects);
-		
+		// Now make sure all altlocgroups have all the atoms in all the groups
+		StructureTools.cleanUpAltLocs(structure);
 
-		
-		boolean noAsymStrandIdMappingPresent = false;
-		if (asymStrandId.isEmpty()) {
-			logger.warn("No pdbx_poly_seq_scheme/pdbx_non_poly_seq_scheme categories present. Will use chain id mapping from _atom_sites category");
-			
-			asymStrandId = asymId2StrandIdFromAtomSites;
-			noAsymStrandIdMappingPresent = true;
-		}
-		
-		// mismatching Author assigned chain IDS and PDB internal chain ids:
-		// fix the chain IDS in the current model:
 
-		for (int i =0; i< structure.nrModels() ; i++){
-			List<Chain> model = structure.getModel(i);
-
-			List<Chain> pdbChains = new ArrayList<Chain>();
-
-			for (Chain chain : model) {
-				for (String asym : asymStrandId.keySet()) {
-					if ( chain.getChainID().equals(asym)){
-						String newChainId = asymStrandId.get(asym);
-						
-						logger.debug("Renaming chain with asym_id {} ({} atom groups) to author_asym_id/strand_id  {}", 
-								asym, chain.getAtomGroups().size(), newChainId);
-
-						chain.setChainID(newChainId);
-						chain.setInternalChainID(asym);
-						// set chain of all groups
-						for(Group g : chain.getAtomGroups()) {
-							ResidueNumber resNum = g.getResidueNumber();
-							if(resNum != null)
-								resNum.setChainId(newChainId);
-						}
-						for(Group g : chain.getSeqResGroups()) {
-							ResidueNumber resNum = g.getResidueNumber();
-							if(resNum != null)
-								resNum.setChainId(newChainId);
-						}
-						Chain known =  isKnownChain(chain.getChainID(), pdbChains);
-						if ( known == null ){
-							pdbChains.add(chain);
-						} else {
-							// and now we join the 2 chains together again, because in cif files the data can be split up...
-							for ( Group g : chain.getAtomGroups()){
-								known.addGroup(g);
-							}
-						}
-
-						break;
-					}
-				}
+		// NOTE bonds and charges can only be done at this point that the chain id mapping is properly sorted out
+		if (!params.isHeaderOnly()) {
+			if ( params.shouldCreateAtomBonds()) {
+				addBonds();
 			}
 
-			structure.setModel(i,pdbChains);
-			
-			Iterator<Chain> it = pdbChains.iterator();
-			// finally setting chains to compounds and compounds to chains now that we have the final chains
-			while (it.hasNext()) {
-				Chain chain = it.next();
-				String entityId = asymId2entityId.get(chain.getInternalChainID());
-				if (entityId==null) {
-					// this can happen for instance if the cif file didn't have _struct_asym category at all
-					// and thus we have no asymId2entityId mapping at all
-					logger.warn("No entity id could be found for chain {}", chain.getInternalChainID());					
-					continue;
-				}
-				int eId = Integer.parseInt(entityId);
-				// We didn't add above compounds for nonpolymeric entities, thus here if a chain is nonpolymeric 
-				// its compound won't be found. In biojava Structure data model a nonpolymeric chain does not really
-				// make much sense, since all small molecules are associated to a polymeric chain (the same data  
-				// model as PDB files).
-				// In any case it happens in rare cases that a non-polymeric chain is not associated to any polymeric
-				// chain, e.g. 
-				//   - 2uub: asym_id X, chainId Z, entity_id 24: fully non-polymeric but still with its own chainId
-				//   - 3o6j: asym_id K, chainId Z, entity_id 6 : a single water molecule
-				//   - 1dz9: asym_id K, chainId K, entity_id 6 : a potassium ion alone 
-				// We will discard those chains here, because they don't fit into the current data model and thus
-				// can cause problems, e.g. 
-				//  a) they would not be linked to a compound and give null pointers
-				//  b) StructureTools.getAllAtoms() methods that return all atoms except waters would have 
-				//     empty lists for water-only chains
-				Compound compound = structure.getCompoundById(eId);
-				if (compound==null) {
-					logger.warn("Could not find a compound for entity_id {} corresponding to chain id {} (asym id {})."
-							+ " Most likely it is a purely non-polymeric chain ({} groups). Removing it from this structure.",
-							eId,chain.getChainID(),chain.getInternalChainID(),chain.getAtomGroups().size());
-					it.remove();
-				} else {
-					logger.debug("Adding chain with chain id {} (asym id {}) to compound with entity_id {}",
-							chain.getChainID(), chain.getInternalChainID(), eId);
-					compound.addChain(chain);
-					chain.setCompound(compound);
-				}
-
-			}			
-			
-			if (noAsymStrandIdMappingPresent) {
-				// At this point we have to make sure that all chains are polymeric (possibly with some attached non-polymers)
-				// because that's the current biojava model. 
-				// It can happen that all molecules are assigned to their own chains, for instance in mmCIF files 
-				// produced by phenix (in that case there will be noAsymStrandIdMapping present (no pdbx_poly_seq_scheme))
-				// mmCIF files produced by the PDB follow the convention: distinct asym_id for every 
-				// molecule (poly or non-poly) whilst a single author_asym_id for polymer + its ligands
-				it = pdbChains.iterator();
-				while (it.hasNext()) {
-					Chain chain = it.next();
-					if (StructureTools.isChainWaterOnly(chain)) {
-						it.remove();
-						logger.warn("Chain with chain id {} (asym id {}) and {} residues, contains only waters. Will ignore the chain because it doesn't fit into the BioJava structure data model.",
-								chain.getChainID(),chain.getInternalChainID(),chain.getAtomGroups().size());
-					}
-				}
+			if ( params.shouldCreateAtomCharges()) {
+				addCharges();
 			}
 		}
-		
-		
 
-		// to make sure we have Compounds linked to chains, we call getCompounds() which will lazily initialise the
-		// compounds using heuristics (see CompoundFinder) in the case that they were not explicitly present in the file
-		List<Compound> compounds = structure.getCompounds();
-		// final sanity check: it can happen that from the annotated compounds some are not linked to any chains
-		// e.g. 3s26: a sugar entity does not have any chains associated to it (it seems to be happening with many sugar compounds)
-		// we simply log it, this can sign some other problems if the compounds are used down the line
-		for (Compound compound:compounds) {
-			if (compound.getChains().isEmpty()) {
-				logger.info("Compound {} '{}' has no chains associated to it",
-						compound.getId()==null?"with no entity id":compound.getId(), compound.getMolName());
-			}
+		if (!params.isHeaderOnly()) {
+
+			// Do structure.setSites(sites) after any chain renaming to be like PDB.
+			addSites();
 		}
+
 
 
 		// set the oligomeric state info in the header...
 		if (params.isParseBioAssembly()) {
 
 			// the more detailed mapping of chains to rotation operations happens in StructureIO...
-			
+
 			Map<Integer,BioAssemblyInfo> bioAssemblies = new HashMap<Integer, BioAssemblyInfo>();
 
 			for ( PdbxStructAssembly psa : strucAssemblies){
@@ -797,30 +806,35 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 				// these are the transformations that need to be applied to our model
 				List<BiologicalAssemblyTransformation> transformations = builder.getBioUnitTransformationList(psa, psags, structOpers);
 
-				int mmSize = 0;
 				int bioAssemblyId = -1;
 				try {
 					bioAssemblyId = Integer.parseInt(psa.getId());
 				} catch (NumberFormatException e) {
 					logger.info("Could not parse a numerical bio assembly id from '{}'",psa.getId());
 				}
-				try {
-					mmSize = Integer.parseInt(psa.getOligomeric_count());					
-				} catch (NumberFormatException e) {
-					if (bioAssemblyId!=-1)
-						// if we have a numerical id, then it's unusual to have no oligomeric size: we warn about it
-						logger.warn("Could not parse oligomeric count from '{}' for biological assembly id {}",
-							psa.getOligomeric_count(),psa.getId());
-					else 
-						// no numerical id (PAU,XAU in virus entries), it's normal to have no oligomeric size
-						logger.info("Could not parse oligomeric count from '{}' for biological assembly id {}",
-								psa.getOligomeric_count(),psa.getId());
-				}
-				
+
 				// if bioassembly id is not numerical we throw it away
 				// this happens usually for viral capsid entries, like 1ei7
 				// see issue #230 in github
 				if (bioAssemblyId!=-1) {
+					int mmSize = 0;
+					// note that the transforms contain asym ids of both polymers and non-polymers
+					// For the mmsize, we are only interested in the polymers
+					for (BiologicalAssemblyTransformation transf:transformations) {
+						Chain c = structure.getChain(transf.getChainId());
+						if (c==null) {
+							logger.info("Could not find asym id {} specified in struct_assembly_gen", transf.getChainId());
+							continue;
+						}
+						if (c.getEntityType() == EntityType.POLYMER &&
+							// for entries like 4kro, sugars are annotated as polymers but we
+							// don't want them in the macromolecularSize count
+							!c.getEntityInfo().getDescription().contains("SUGAR") ) {
+								
+								mmSize++;
+							}
+					}
+					
 					BioAssemblyInfo bioAssembly = new BioAssemblyInfo();
 					bioAssembly.setId(bioAssemblyId);
 					bioAssembly.setMacromolecularSize(mmSize);
@@ -832,17 +846,9 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 			structure.getPDBHeader().setBioAssemblies(bioAssemblies);
 		}
 
-		ArrayList<Matrix4d> ncsOperators = new ArrayList<Matrix4d>();
-		for (StructNcsOper sNcsOper:structNcsOper) {
-			if (sNcsOper.getCode().equals("generate")) {
-				ncsOperators.add(sNcsOper.getOperator());
-			}
-		}
-		// we only set it if not empty, otherwise remains null
-		if (ncsOperators.size()>0) {
-			structure.getCrystallographicInfo().setNcsOperators(
-					ncsOperators.toArray(new Matrix4d[ncsOperators.size()]));
-		}
+		setStructNcsOps();
+		
+		setCrystallographicInfoMetadata();
 
 
 		Map<String,List<SeqMisMatch>> misMatchMap = new HashMap<String, List<SeqMisMatch>>();
@@ -871,44 +877,159 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 		}
 
 		for (String chainId : misMatchMap.keySet()){
-			try {
-				Chain c = structure.getChainByPDB(chainId);
-				c.setSeqMisMatches(misMatchMap.get(chainId));
-			} catch (Exception e){
-				logger.warn("could not set mismatches for chain " + chainId);
 
+			Chain chain = structure.getPolyChainByPDB(chainId);
+
+			if ( chain == null) {
+				logger.warn("Could not set mismatches for chain with author id" + chainId);
+				continue;
 			}
+
+			chain.setSeqMisMatches(misMatchMap.get(chainId));
+
+
 		}
-		
+
 	}
 
 	/**
-	 * The method will return a new reference to a Chain with any consecutive groups 
+	 * Here we link entities to chains.
+	 * Also if entities are not present in file, this initialises the entities with some heuristics, see {@link org.biojava.nbio.structure.io.EntityFinder}
+	 */
+	private void linkEntities() {
+
+		for (int i =0; i< allModels.size() ; i++){
+			for (Chain chain : allModels.get(i)) {
+				//logger.info("linking entities for " + chain.getId() + " "  + chain.getName());
+				String entityId = asymId2entityId.get(chain.getId());
+
+				if (entityId==null) {
+					// this can happen for instance if the cif file didn't have _struct_asym category at all
+					// and thus we have no asymId2entityId mapping at all
+					logger.info("No entity id could be found for chain {}", chain.getId());
+					continue;
+				}
+				int eId = Integer.parseInt(entityId);
+
+				// Entities are not added for non-polymeric entities, if a chain is non-polymeric its entity won't be found.
+				// TODO: add all entities and unique compounds and add methods to directly get polymer or non-polymer
+				// asyms (chains).  Either create a unique StructureImpl or modify existing for a better representation of the
+				// mmCIF internal data structures but is compatible with Structure interface.
+				// Some examples of PDB entries with this kind of problem:
+				//   - 2uub: asym_id X, chainName Z, entity_id 24: fully non-polymeric but still with its own chainName
+				//   - 3o6j: asym_id K, chainName Z, entity_id 6 : a single water molecule
+				//   - 1dz9: asym_id K, chainName K, entity_id 6 : a potassium ion alone
+
+				EntityInfo entityInfo = structure.getEntityById(eId);
+				if (entityInfo==null) {
+					// Supports the case where the only chain members were from non-polymeric entity that is missing.
+					// Solved by creating a new Compound(entity) to which this chain will belong.
+					logger.info("Could not find an Entity for entity_id {}, for chain id {}, creating a new Entity.",
+							eId, chain.getId());
+					entityInfo = new EntityInfo();
+					entityInfo.setMolId(eId);
+					entityInfo.addChain(chain);
+					if (StructureTools.isChainWaterOnly(chain)) {
+						entityInfo.setType(EntityType.WATER);
+					} else {
+						entityInfo.setType(EntityType.NONPOLYMER);
+					}
+					chain.setEntityInfo(entityInfo);
+					structure.addEntityInfo(entityInfo);
+				} else {
+					logger.debug("Adding chain with chain id {} (auth id {}) to Entity with entity_id {}",
+							chain.getId(), chain.getName(), eId);
+					entityInfo.addChain(chain);
+					chain.setEntityInfo(entityInfo);
+				}
+
+			}
+
+		}
+
+		// if no entity information was present in file we then go and find the entities heuristically with EntityFinder
+		List<EntityInfo> entityInfos = structure.getEntityInfos();
+		if (entityInfos==null || entityInfos.isEmpty()) {
+
+			List<List<Chain>> polyModels = new ArrayList<>();
+			List<List<Chain>> nonPolyModels = new ArrayList<>();
+			List<List<Chain>> waterModels = new ArrayList<>();
+
+			for (List<Chain> model:allModels) {
+
+				List<Chain> polyChains = new ArrayList<>();
+				List<Chain> nonPolyChains = new ArrayList<>();
+				List<Chain> waterChains = new ArrayList<>();
+
+				polyModels.add(polyChains);
+				nonPolyModels.add(nonPolyChains);
+				waterModels.add(waterChains);
+
+				for (Chain c:model) {
+
+					// we only have entities for polymeric chains, all others are ignored for assigning entities
+					if (StructureTools.isChainWaterOnly(c)) {
+						waterChains.add(c);
+
+					} else if (StructureTools.isChainPureNonPolymer(c)) {
+						nonPolyChains.add(c);
+
+					} else {
+						polyChains.add(c);
+					}
+				}
+			}
+
+			entityInfos = EntityFinder.findPolyEntities(polyModels);
+			EntityFinder.createPurelyNonPolyEntities(nonPolyModels, waterModels, entityInfos);
+
+
+			structure.setEntityInfos(entityInfos);
+		}
+
+		// final sanity check: it can happen that from the annotated entities some are not linked to any chains
+		// e.g. 3s26: a sugar entity does not have any chains associated to it (it seems to be happening with many sugar compounds)
+		// we simply log it, this can sign some other problems if the entities are used down the line
+		for (EntityInfo e:entityInfos) {
+			if (e.getChains().isEmpty()) {
+				logger.info("Entity {} '{}' has no chains associated to it",
+						e.getMolId()<0?"with no entity id":e.getMolId(), e.getDescription());
+			}
+		}
+
+	}
+
+	private void addCharges() {
+		ChargeAdder.addCharges(structure);
+	}
+
+	/**
+	 * The method will return a new reference to a Chain with any consecutive groups
 	 * having same residue numbers removed.
 	 * This is necessary to solve the microheterogeneity issue in entries like 3u7t (see github issue #160)
 	 * @param c
 	 * @return
 	 */
-	private Chain removeSeqResHeterogeneity(Chain c) {
-		
+	private static Chain removeSeqResHeterogeneity(Chain c) {
+
 		Chain trimmedChain = new ChainImpl();
-		
+
 		ResidueNumber lastResNum = null;
 
 		for (Group g:c.getAtomGroups()) {
-			
-			// note we have to deep copy this, otherwise they stay linked and would get altered in addGroup(g) 
+
+			// note we have to deep copy this, otherwise they stay linked and would get altered in addGroup(g)
 			ResidueNumber currentResNum = new ResidueNumber(
-					g.getResidueNumber().getChainId(),
+					g.getResidueNumber().getChainName(),
 					g.getResidueNumber().getSeqNum(),
 					g.getResidueNumber().getInsCode());
 
-			if (lastResNum == null || !lastResNum.equals(currentResNum) ) {				
+			if (lastResNum == null || !lastResNum.equals(currentResNum) ) {
 				trimmedChain.addGroup(g);
 			} else {
 				logger.debug("Removing seqres group because it seems to be repeated in entity_poly_seq, most likely has hetero='y': "+g);
 			}
-			
+
 			lastResNum = currentResNum;
 
 		}
@@ -916,30 +1037,31 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 	}
 
 	private void addBonds() {
-		BondMaker maker = new BondMaker(structure);
-		maker.makeBonds();	
+		BondMaker maker = new BondMaker(structure, params);
+		maker.makeBonds();
+		maker.formBondsFromStructConn(structConn);
 	}
 
 	private void alignSeqRes() {
 
 		logger.debug("Parsing mode align_seqres, will align to ATOM to SEQRES sequence");
-		
+
 		// fix SEQRES residue numbering for all models
 
 		for (int model=0;model<structure.nrModels();model++) {
-			
+
 			List<Chain> atomList   = structure.getModel(model);
-			
+
 			for (Chain seqResChain: seqResChains){
 
 				// this extracts the matching atom chain from atomList
-				Chain atomChain = SeqRes2AtomAligner.getMatchingAtomRes(seqResChain, atomList);
+				Chain atomChain = SeqRes2AtomAligner.getMatchingAtomRes(seqResChain, atomList, true);
 
 				if (atomChain == null) {
 					// most likely there's no observed residues at all for the seqres chain: can't map
 					// e.g. 3zyb: chains with asym_id L,M,N,O,P have no observed residues
-					logger.warn("Could not map SEQRES chain with asym_id={} to any ATOM chain. Most likely there's no observed residues in the chain.",
-							seqResChain.getChainID());
+					logger.info("Could not map SEQRES chain with asym_id={} to any ATOM chain. Most likely there's no observed residues in the chain.",
+							seqResChain.getId());
 					continue;
 				}
 
@@ -958,7 +1080,7 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 
 						int internalNr = getInternalNr (atomG);
 
-						if (seqresG.getResidueNumber().getSeqNum() == internalNr ) {															
+						if (seqresG.getResidueNumber().getSeqNum() == internalNr ) {
 							seqResGroups.set(seqResPos, atomG);
 							found = true;
 							break;
@@ -989,131 +1111,233 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 			return new Long(he.getId()).intValue();
 		}
 	}
-	
-	private void addCompounds(StructAsym asym) {
+
+	private void addEntities(StructAsym asym) {
 		int eId = 0;
 		try {
 			eId = Integer.parseInt(asym.getEntity_id());
 		} catch (NumberFormatException e) {
-			logger.warn("Could not parse mol_id from string {}. Will use 0 for creating Compound",asym.getEntity_id());
+			logger.warn("Could not parse mol_id from string {}. Will use 0 for creating Entity",asym.getEntity_id());
 		}
 		Entity e = getEntity(eId);
-		
+
+		// for some mmCIF files like 1yrm all 3 of _entity_src_gen, _entity_src_nat and _pdbx_entity_src_syn are missing
+		// we need to fill the Compounds in some other way:
+
+		EntityInfo entityInfo = structure.getEntityById(eId);
+
+		if (entityInfo==null) {
+			//logger.info("Creating new EntityInfo " + eId + " " + e.getId() + " " + e.getPdbx_description());
+			entityInfo = new EntityInfo();
+			entityInfo.setMolId(eId);
+			// we only add the compound if a polymeric one (to match what the PDB parser does)
+			if (e!=null) {
+				entityInfo.setDescription(e.getPdbx_description());
+
+				EntityType eType = EntityType.entityTypeFromString(e.getType());
+				if (eType!=null) {
+					entityInfo.setType(eType);
+				} else {
+					logger.warn("Type '{}' is not recognised as a valid entity type for entity {}", e.getType(), eId);
+				}
+				addAncilliaryEntityData(asym, eId, e, entityInfo);
+				structure.addEntityInfo(entityInfo);
+				logger.debug("Adding Entity with entity id {} from _entity, with name: {}",eId, entityInfo.getDescription());
+			}
+		}
+	}
+
+
+	/**
+	 * Add any extra information to the entity information.
+	 * @param asym 
+	 * @param entityId 
+	 * @param entity 
+	 * @param entityInfo 
+	 */
+	private void addAncilliaryEntityData(StructAsym asym, int entityId, Entity entity, EntityInfo entityInfo) {
+		// Loop through each of the entity types and add the corresponding data
+		// We're assuming if data is duplicated between sources it is consistent
+		// This is a potentially huge assumption...
+
+
 		for (EntitySrcGen esg : entitySrcGens) {
 
 			if (! esg.getEntity_id().equals(asym.getEntity_id()))
 				continue;
 
-			// found the matching EntitySrcGen
-			// get the corresponding Entity
-			Compound c = structure.getCompoundById(eId);
-			if ( c == null){
-				if (e!=null && e.getType().equals("polymer")) {
-					c = createNewCompoundFromESG(esg, eId);
-					c.setMolName(e.getPdbx_description());
-					structure.addCompound(c);
-					logger.debug("Adding Compound with entity id {} from _entity_src_syn, with name: {}",eId,c.getMolName());
-				}
-			}
+			addInformationFromESG(esg, entityId, entityInfo);
 
 		}
 
 		for (EntitySrcNat esn : entitySrcNats) {
 			if (! esn.getEntity_id().equals(asym.getEntity_id()))
 				continue;
-
-			// found the matching EntitySrcGen
-			// get the corresponding Entity
-			Compound c = structure.getCompoundById(eId);
-			if ( c == null){		
-				if (e!=null && e.getType().equals("polymer")) {
-					c = createNewCompoundFromESN(esn, eId);
-					c.setMolName(e.getPdbx_description());
-					structure.addCompound(c);
-					logger.debug("Adding Compound with entity id {} from _entity_src_syn, with name: {}",eId,c.getMolName());
-				}
-			}
+			addInformationFromESN(esn, entityId, entityInfo);
 
 		}
 
 		for (EntitySrcSyn ess : entitySrcSyns) {
 			if (! ess.getEntity_id().equals(asym.getEntity_id()))
 				continue;
+			addInfoFromESS(ess, entityId, entityInfo);
 
-			// found the matching EntitySrcGen
-			// get the corresponding Entity
-			Compound c = structure.getCompoundById(eId);
-			if ( c == null){	
-				if (e!=null && e.getType().equals("polymer")) {
-					c = createNewCompoundFromESS(ess, eId);
-					c.setMolName(e.getPdbx_description());
-					structure.addCompound(c);
-					logger.debug("Adding Compound with entity id {} from _entity_src_syn, with name: {}",eId,c.getMolName());
-				}
-			}
-		}
-		
-		// for some mmCIF files like 1yrm all 3 of _entity_src_gen, _entity_src_nat and _pdbx_entity_src_syn are missing
-		// we need to fill the Compounds in some other way:
-
-		Compound c = structure.getCompoundById(eId);
-
-		if (c==null) {
-			c = new Compound();
-			c.setMolId(eId);
-
-			// we only add the compound if a polymeric one (to match what the PDB parser does)
-			if (e!=null && e.getType().equals("polymer")) {
-				c.setMolName(e.getPdbx_description());
-				structure.addCompound(c);
-				logger.debug("Adding Compound with entity id {} from _entity, with name: {}",eId, c.getMolName());
-			}
-		}
+		}		
 	}
 
-	private Compound createNewCompoundFromESG(EntitySrcGen esg, int eId) {
-		
-		Compound c = new Compound();
-		c.setMolId(eId);
-		c.setAtcc(esg.getPdbx_gene_src_atcc());
-		c.setCell(esg.getPdbx_gene_src_cell());
-		c.setOrganismCommon(esg.getGene_src_common_name());
-		c.setOrganismScientific(esg.getPdbx_gene_src_scientific_name());
-		c.setOrganismTaxId(esg.getPdbx_gene_src_ncbi_taxonomy_id());
-		c.setExpressionSystemTaxId(esg.getPdbx_host_org_ncbi_taxonomy_id());
-		c.setExpressionSystem(esg.getPdbx_host_org_scientific_name());
-		return c;
-
+	/**
+	 * Add the information from an ESG to a compound.
+	 * @param entitySrcInfo
+	 * @param entityId
+	 * @param c
+	 */
+	private void addInformationFromESG(EntitySrcGen entitySrcInfo, int entityId, EntityInfo c) {
+		c.setAtcc(entitySrcInfo.getPdbx_gene_src_atcc());
+		c.setCell(entitySrcInfo.getPdbx_gene_src_cell());
+		c.setOrganismCommon(entitySrcInfo.getGene_src_common_name());
+		c.setOrganismScientific(entitySrcInfo.getPdbx_gene_src_scientific_name());
+		c.setOrganismTaxId(entitySrcInfo.getPdbx_gene_src_ncbi_taxonomy_id());
+		c.setExpressionSystemTaxId(entitySrcInfo.getPdbx_host_org_ncbi_taxonomy_id());
+		c.setExpressionSystem(entitySrcInfo.getPdbx_host_org_scientific_name());
 	}
 
-	private Compound createNewCompoundFromESN(EntitySrcNat esn, int eId) {
+	/**
+	 * Add the information to entity info from ESN.
+	 * @param esn
+	 * @param eId
+	 * @param c
+	 */
+	private void addInformationFromESN(EntitySrcNat esn, int eId, EntityInfo c) {
 
-		Compound c = new Compound();
-		
-		c.setMolId(eId);
 		c.setAtcc(esn.getPdbx_atcc());
 		c.setCell(esn.getPdbx_cell());
 		c.setOrganismCommon(esn.getCommon_name());
 		c.setOrganismScientific(esn.getPdbx_organism_scientific());
 		c.setOrganismTaxId(esn.getPdbx_ncbi_taxonomy_id());
 
-		return c;
-
 	}
-
-	private Compound createNewCompoundFromESS(EntitySrcSyn ess, int eId) {
-
-		Compound c = new Compound();
-		
-		c.setMolId(eId);
+	/**
+	 * Add the information from ESS to Entity info.
+	 * @param ess
+	 * @param eId
+	 * @param c
+	 */
+	private void addInfoFromESS(EntitySrcSyn ess, int eId, EntityInfo c) {
 		c.setOrganismCommon(ess.getOrganism_common_name());
 		c.setOrganismScientific(ess.getOrganism_scientific());
 		c.setOrganismTaxId(ess.getNcbi_taxonomy_id());
 
-
-		return c;
-
 	}
+
+	private void initMaps() {
+
+
+		if (structAsyms == null || structAsyms.isEmpty()) {
+			logger.info("No _struct_asym category found in file. No asym id to entity_id mapping will be available");
+			return;
+		}
+
+		Map<String, List<String>> entityId2asymId = new HashMap<>();
+
+		for (StructAsym asym : structAsyms) {
+
+			logger.debug("Entity {} matches asym_id: {}", asym.getEntity_id(), asym.getId() );
+
+			asymId2entityId.put(asym.getId(), asym.getEntity_id());
+
+			if (entityId2asymId.containsKey(asym.getEntity_id())) {
+				List<String> asymIds = entityId2asymId.get(asym.getEntity_id());
+				asymIds.add(asym.getId());
+			} else {
+				List<String> asymIds = new ArrayList<>();
+				asymIds.add(asym.getId());
+				entityId2asymId.put(asym.getEntity_id(), asymIds);
+			}
+		}
+
+		if (entityPolys==null || entityPolys.isEmpty()) {
+			logger.info("No _entity_poly category found in file. No asym id to author id mapping will be available for header only parsing");
+			return;
+		}
+
+		for (EntityPoly ep:entityPolys) {
+			if (ep.getPdbx_strand_id()==null) {
+				logger.info("_entity_poly.pdbx_strand_id is null for entity {}. Won't be able to map asym ids to author ids for this entity.", ep.getEntity_id());
+				continue;
+			}
+			String[] chainNames = ep.getPdbx_strand_id().split(",");
+			List<String> asymIds = entityId2asymId.get(ep.getEntity_id());
+			if (chainNames.length!=asymIds.size()) {
+				logger.warn("The list of asym ids (from _struct_asym) and the list of author ids (from _entity_poly) for entity {} have different lengths! Can't provide a mapping from asym ids to author chain ids", ep.getEntity_id());
+				continue;
+			}
+			for (int i=0; i<chainNames.length; i++) {
+				asymId2authorId.put(asymIds.get(i), chainNames[i]);
+			}
+		}
+	}
+	
+	private void setStructNcsOps() {
+		
+		ArrayList<Matrix4d> ncsOperators = new ArrayList<Matrix4d>();
+		
+		for (StructNcsOper sNcsOper:structNcsOper) {
+			
+			if (!sNcsOper.getCode().equals("generate")) continue;
+			
+			try {
+				Matrix4d op = new Matrix4d();
+				op.setElement(3, 0, 0.0);
+				op.setElement(3, 1, 0.0);
+				op.setElement(3, 2, 0.0);
+				op.setElement(3, 3, 1.0);
+
+
+				op.setElement(0, 0, Double.parseDouble(sNcsOper.getMatrix11()));
+				op.setElement(0, 1, Double.parseDouble(sNcsOper.getMatrix12()));
+				op.setElement(0, 2, Double.parseDouble(sNcsOper.getMatrix13()));
+
+				op.setElement(1, 0, Double.parseDouble(sNcsOper.getMatrix21()));
+				op.setElement(1, 1, Double.parseDouble(sNcsOper.getMatrix22()));
+				op.setElement(1, 2, Double.parseDouble(sNcsOper.getMatrix23()));
+
+				op.setElement(2, 0, Double.parseDouble(sNcsOper.getMatrix31()));
+				op.setElement(2, 1, Double.parseDouble(sNcsOper.getMatrix32()));
+				op.setElement(2, 2, Double.parseDouble(sNcsOper.getMatrix33()));
+
+				op.setElement(0, 3, Double.parseDouble(sNcsOper.getVector1()));
+				op.setElement(1, 3, Double.parseDouble(sNcsOper.getVector2()));
+				op.setElement(2, 3, Double.parseDouble(sNcsOper.getVector3()));
+
+				ncsOperators.add(op);
+				
+			} catch (NumberFormatException e) {
+				logger.warn("Error parsing doubles in NCS operator list, skipping operator {}", structNcsOper.indexOf(sNcsOper)+1); 
+			}
+
+		}
+		
+		// we only set it if not empty, otherwise remains null
+		if (ncsOperators.size()>0) {
+			structure.getCrystallographicInfo().setNcsOperators(
+					ncsOperators.toArray(new Matrix4d[ncsOperators.size()]));
+		}
+	}
+	
+	private void setCrystallographicInfoMetadata() {
+		if (parsedScaleMatrix!=null) {
+			
+			PDBCrystallographicInfo crystalInfo = structure.getCrystallographicInfo();
+			
+			boolean nonStd = false;
+			if (crystalInfo.getCrystalCell()!=null && !crystalInfo.getCrystalCell().checkScaleMatrix(parsedScaleMatrix)) {
+				nonStd = true;
+			}
+			
+			crystalInfo.setNonStandardCoordFrameConvention(nonStd); 
+		}
+	}
+
 
 	/** This method will return the parsed protein structure, once the parsing has been finished
 	 *
@@ -1159,19 +1383,22 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 		if (dbrev.getNum().equals("1")){
 
 			try {
-
-				String date = dbrev.getDate_original();
-				//System.out.println(date);
-				Date dep = dateFormat.parse(date);
-				//System.out.println(dep);
+				Date dep = dateFormat.parse(dbrev.getDate_original());
 				header.setDepDate(dep);
-				Date mod = dateFormat.parse(dbrev.getDate());
 
+			} catch (ParseException e){
+				logger.warn("Could not parse date string '{}', deposition date will be unavailable", dbrev.getDate_original());
+			}
+
+			try {
+				Date mod = dateFormat.parse(dbrev.getDate());
 				header.setModDate(mod);
 
 			} catch (ParseException e){
-				e.printStackTrace();
+				logger.warn("Could not parse date string '{}', modification date will be unavailable", dbrev.getDate());
 			}
+
+
 		} else {
 			try {
 
@@ -1179,7 +1406,7 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 				header.setModDate(mod);
 
 			} catch (ParseException e){
-				e.printStackTrace();
+				logger.warn("Could not parse date string '{}', modification date will be unavailable", dbrev.getDate());
 			}
 		}
 
@@ -1222,7 +1449,7 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 
 	@Override
 	public void newRefine(Refine r){
-		
+
 		PDBHeader pdbHeader = structure.getPDBHeader();
 		// RESOLUTION
 		// in very rare cases (for instance hybrid methods x-ray + neutron diffraction, e.g. 3ins, 4n9m)
@@ -1230,8 +1457,8 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 		// we take the last one found so that behaviour is like in PDB file parsing
 		if (pdbHeader.getResolution()!=PDBHeader.DEFAULT_RESOLUTION) {
 			logger.warn("More than 1 resolution value present, will use last one {} and discard previous {} "
-					,r.getLs_d_res_high(), String.format("%4.2f",pdbHeader.getResolution()));			
-		} 
+					,r.getLs_d_res_high(), String.format("%4.2f",pdbHeader.getResolution()));
+		}
 		try {
 			pdbHeader.setResolution(Float.parseFloat(r.getLs_d_res_high()));
 		} catch (NumberFormatException e){
@@ -1243,7 +1470,7 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 		if (pdbHeader.getRfree()!=PDBHeader.DEFAULT_RFREE) {
 			logger.warn("More than 1 Rfree value present, will use last one {} and discard previous {} ",
 					r.getLs_R_factor_R_free(), String.format("%4.2f",pdbHeader.getRfree()));
-		} 
+		}
 		if (r.getLs_R_factor_R_free()==null) {
 			// some entries like 2ifo haven't got this field at all
 			logger.info("_refine.ls_R_factor_R_free not present, not parsing Rfree value");
@@ -1255,7 +1482,25 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 				logger.debug("Could not parse Rfree from string '{}'", r.getLs_R_factor_R_free());
 			}
 		}
-		
+
+		// RWORK
+		if(pdbHeader.getRwork()!=PDBHeader.DEFAULT_RFREE) {
+			logger.warn("More than 1 R work value present, will use last one {} and discard previous {} ",
+					r.getLs_R_factor_R_work(), String.format("%4.2f",pdbHeader.getRwork()));
+		}
+		if(r.getLs_R_factor_R_work()==null){
+			logger.info("_refine.ls_R_factor_R_work not present, not parsing R-work value");
+		}
+		else{
+			try{
+				pdbHeader.setRwork(Float.parseFloat(r.getLs_R_factor_R_work()));
+			}
+			catch (NumberFormatException e){
+				logger.debug("Could not parse R-work from string '{}'", r.getLs_R_factor_R_work());
+			}
+
+		}
+
 	}
 
 
@@ -1304,10 +1549,10 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 		pdbHeader.setExperimentalTechnique(method);
 
 	}
-	
+
 	@Override
 	public void newCell(Cell cell) {
-		
+
 		try {
 			float a = Float.parseFloat(cell.getLength_a());
 			float b = Float.parseFloat(cell.getLength_b());
@@ -1315,39 +1560,43 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 			float alpha = Float.parseFloat(cell.getAngle_alpha());
 			float beta = Float.parseFloat(cell.getAngle_beta());
 			float gamma = Float.parseFloat(cell.getAngle_gamma());
-		
-			CrystalCell xtalCell = new CrystalCell(); 
+
+			CrystalCell xtalCell = new CrystalCell();
 			xtalCell.setA(a);
 			xtalCell.setB(b);
 			xtalCell.setC(c);
 			xtalCell.setAlpha(alpha);
 			xtalCell.setBeta(beta);
 			xtalCell.setGamma(gamma);
-			
+
 			if (!xtalCell.isCellReasonable()) {
 				// If the entry describes a structure determined by a technique other than X-ray crystallography,
-			    // cell is (sometimes!) a = b = c = 1.0, alpha = beta = gamma = 90 degrees
+				// cell is (sometimes!) a = b = c = 1.0, alpha = beta = gamma = 90 degrees
 				// if so we don't add and CrystalCell will be null
 				logger.debug("The crystal cell read from file does not have reasonable dimensions (at least one dimension is below {}), discarding it.",
-						CrystalCell.MIN_VALID_CELL_SIZE);				
+						CrystalCell.MIN_VALID_CELL_SIZE);
 				return;
 			}
-			
+
 			structure.getPDBHeader().getCrystallographicInfo().setCrystalCell(xtalCell);
-			
+
 		} catch (NumberFormatException e){
 			structure.getPDBHeader().getCrystallographicInfo().setCrystalCell(null);
 			logger.info("could not parse some cell parameters ("+e.getMessage()+"), ignoring _cell ");
 		}
 	}
-	
+
 	@Override
 	public void newSymmetry(Symmetry symmetry) {
-        String spaceGroup = symmetry.getSpace_group_name_H_M();
+		String spaceGroup = symmetry.getSpace_group_name_H_M();
 		SpaceGroup sg = SymoplibParser.getSpaceGroup(spaceGroup);
-        if (sg==null) logger.warn("Space group '"+spaceGroup+"' not recognised as a standard space group"); 
-
-		structure.getPDBHeader().getCrystallographicInfo().setSpaceGroup(sg); 
+		if (sg==null) {
+			logger.warn("Space group '"+spaceGroup+"' not recognised as a standard space group");
+			structure.getPDBHeader().getCrystallographicInfo().setNonStandardSg(true);
+		} else {
+			structure.getPDBHeader().getCrystallographicInfo().setSpaceGroup(sg);
+			structure.getPDBHeader().getCrystallographicInfo().setNonStandardSg(false);
+		}
 	}
 
 	@Override
@@ -1355,6 +1604,25 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 		structNcsOper.add(sNcsOper);
 	}
 	
+	public void newAtomSites(AtomSites atomSites) {
+		
+		try {
+			Matrix4d m = new Matrix4d(
+				Double.parseDouble(atomSites.getFract_transf_matrix11()), Double.parseDouble(atomSites.getFract_transf_matrix12()), Double.parseDouble(atomSites.getFract_transf_matrix13()), Double.parseDouble(atomSites.getFract_transf_vector1()),
+				Double.parseDouble(atomSites.getFract_transf_matrix21()), Double.parseDouble(atomSites.getFract_transf_matrix22()), Double.parseDouble(atomSites.getFract_transf_matrix23()), Double.parseDouble(atomSites.getFract_transf_vector2()),
+				Double.parseDouble(atomSites.getFract_transf_matrix31()), Double.parseDouble(atomSites.getFract_transf_matrix32()), Double.parseDouble(atomSites.getFract_transf_matrix33()), Double.parseDouble(atomSites.getFract_transf_vector3()),
+				0,0,0,1);
+
+			parsedScaleMatrix = m;
+		
+		} catch (NumberFormatException e) {
+			logger.warn("Some values in _atom_sites.fract_transf_matrix or _atom_sites.fract_transf_vector could not be parsed as numbers. Can't check whether coordinate frame convention is correct! Error: {}", e.getMessage());
+			structure.getPDBHeader().getCrystallographicInfo().setNonStandardCoordFrameConvention(false);
+			
+			// in this case parsedScaleMatrix stays null and can't be used in documentEnd()
+		}
+	}
+
 	@Override
 	public void newStructRef(StructRef sref) {
 		logger.debug(sref.toString());
@@ -1373,25 +1641,26 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 
 	}
 
-	/** create a DBRef record from the StrucRefSeq record:
-	 *  <pre>
-  PDB record 					DBREF
-  Field Name 					mmCIF Data Item
-  Section   	  				n.a.
-  PDB_ID_Code   	  			_struct_ref_seq.pdbx_PDB_id_code
-  Strand_ID   	 			 	_struct_ref_seq.pdbx_strand_id
-  Begin_Residue_Number   	  	_struct_ref_seq.pdbx_auth_seq_align_beg
-  Begin_Ins_Code   	  			_struct_ref_seq.pdbx_seq_align_beg_ins_code
-  End_Residue_Number   	  		_struct_ref_seq.pdbx_auth_seq_align_end
-  End_Ins_Code   	  			_struct_ref_seq.pdbx_seq_align_end_ins_code
-  Database   	  				_struct_ref.db_name
-  Database_Accession_No   	  	_struct_ref_seq.pdbx_db_accession
-  Database_ID_Code   	  		_struct_ref.db_code
-  Database_Begin_Residue_Number	_struct_ref_seq.db_align_beg
-  Databaes_Begin_Ins_Code   	_struct_ref_seq.pdbx_db_align_beg_ins_code
-  Database_End_Residue_Number  	_struct_ref_seq.db_align_end
-  Databaes_End_Ins_Code   	  	_struct_ref_seq.pdbx_db_align_end_ins_code
-  </pre>
+	/**
+	 * create a DBRef record from the StrucRefSeq record:
+	 * <pre>
+	 * PDB record                    DBREF
+	 * Field Name                    mmCIF Data Item
+	 * Section                       n.a.
+	 * PDB_ID_Code                   _struct_ref_seq.pdbx_PDB_id_code
+	 * Strand_ID                     _struct_ref_seq.pdbx_strand_id
+	 * Begin_Residue_Number          _struct_ref_seq.pdbx_auth_seq_align_beg
+	 * Begin_Ins_Code                _struct_ref_seq.pdbx_seq_align_beg_ins_code
+	 * End_Residue_Number            _struct_ref_seq.pdbx_auth_seq_align_end
+	 * End_Ins_Code                  _struct_ref_seq.pdbx_seq_align_end_ins_code
+	 * Database                      _struct_ref.db_name
+	 * Database_Accession_No         _struct_ref_seq.pdbx_db_accession
+	 * Database_ID_Code              _struct_ref.db_code
+	 * Database_Begin_Residue_Number _struct_ref_seq.db_align_beg
+	 * Databaes_Begin_Ins_Code       _struct_ref_seq.pdbx_db_align_beg_ins_code
+	 * Database_End_Residue_Number   _struct_ref_seq.db_align_end
+	 * Databaes_End_Ins_Code         _struct_ref_seq.pdbx_db_align_end_ins_code
+	 * </pre>
 	 *
 	 *
 	 */
@@ -1411,15 +1680,23 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 		r.setChainId(sref.getPdbx_strand_id());
 		StructRef structRef = getStructRef(sref.getRef_id());
 		if (structRef == null){
-			logger.warn("could not find StructRef " + sref.getRef_id() + " for StructRefSeq " + sref);
+			logger.info("could not find StructRef " + sref.getRef_id() + " for StructRefSeq " + sref);
 		} else {
 			r.setDatabase(structRef.getDb_name());
 			r.setDbIdCode(structRef.getDb_code());
 		}
 
-
-		int seqbegin = Integer.parseInt(sref.getPdbx_auth_seq_align_beg());
-		int seqend   = Integer.parseInt(sref.getPdbx_auth_seq_align_end());
+		int seqbegin;
+		int seqend;
+		try{
+			seqbegin = Integer.parseInt(sref.getPdbx_auth_seq_align_beg());
+			seqend   = Integer.parseInt(sref.getPdbx_auth_seq_align_end());
+		}
+		catch(NumberFormatException e){
+			logger.info("Couldn't parse sequence alignment positions.");
+			logger.debug(e.toString());
+			return;
+		}
 		Character begin_ins_code = new Character(sref.getPdbx_seq_align_beg_ins_code().charAt(0));
 		Character end_ins_code   = new Character(sref.getPdbx_seq_align_end_ins_code().charAt(0));
 
@@ -1469,9 +1746,10 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 		sequenceDifs.add(sref);
 	}
 
-	private static Chain getChainFromList(List<Chain> chains, String name){
-		for (Chain chain : chains) {
-			if ( chain.getChainID().equals(name)){
+	private Chain getEntityChain(String entity_id){
+
+		for (Chain chain : entityChains) {
+			if ( chain.getId().equals(entity_id)){
 
 				return chain;
 			}
@@ -1479,15 +1757,11 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 		// does not exist yet, so create...
 
 		Chain	chain = new ChainImpl();
-		chain.setChainID(name);
-		chains.add(chain);
+		chain.setId(entity_id);
+		entityChains.add(chain);
 
 		return chain;
-	}
 
-	private Chain getEntityChain(String entity_id){
-
-		return getChainFromList(entityChains,entity_id);
 	}
 
 	//private Chain getSeqResChain(String chainID){
@@ -1495,15 +1769,15 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 	//}
 
 
-	/** Data items in the ENTITY_SRC_GEN category record details of
-               the source from which the entity was obtained in cases
-               where the source was genetically manipulated.  The
-               following are treated separately:  items pertaining to the tissue
-               from which the gene was obtained, items pertaining to the host
-               organism for gene expression and items pertaining to the actual
-               producing organism (plasmid).
+	/**
+	 * Data items in the ENTITY_SRC_GEN category record details of
+	 * the source from which the entity was obtained in cases
+	 * where the source was genetically manipulated.  The
+	 * following are treated separately:  items pertaining to the tissue
+	 * from which the gene was obtained, items pertaining to the host
+	 * organism for gene expression and items pertaining to the actual
+	 * producing organism (plasmid).
 	 */
-
 	@Override
 	public void newEntitySrcGen(EntitySrcGen entitySrcGen){
 
@@ -1525,8 +1799,9 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 		entitySrcSyns.add(entitySrcSyn);
 	}
 
-	/** The EntityPolySeq object provide the amino acid sequence objects for the Entities.
-	 * Later on the entities are mapped to the BioJava Chain and Compound objects.
+	/**
+	 * The EntityPolySeq object provide the amino acid sequence objects for the Entities.
+	 * Later on the entities are mapped to the BioJava {@link Chain} and {@link EntityInfo} objects.
 	 * @param epolseq the EntityPolySeq record for one amino acid
 	 */
 	@Override
@@ -1549,132 +1824,51 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 
 		Chain entityChain = getEntityChain(epolseq.getEntity_id());
 
+		// first we check through the chemcomp provider, if it fails we do some heuristics to guess the type of group
+		// TODO some of this code is analogous to getNewGroup() and we should try to unify them - JD 2016-03-08
 
-		// create group from epolseq;
-		// by default this are the SEQRES records...
+		Group g = ChemCompGroupFactory.getGroupFromChemCompDictionary(epolseq.getMon_id());
+		//int seqId = Integer.parseInt(epolseq.getNum());
+		if ( g != null && !g.getChemComp().isEmpty()) {
+			if ( g instanceof AminoAcidImpl) {
+				AminoAcidImpl aa = (AminoAcidImpl) g;
+				aa.setRecordType(AminoAcid.SEQRESRECORD);
+				//aa.setId(seqId);
+			}
+		} else {
 
+			if (epolseq.getMon_id().length()==3 && StructureTools.get1LetterCodeAmino(epolseq.getMon_id())!=null){
+				AminoAcidImpl a = new AminoAcidImpl();
+				a.setRecordType(AminoAcid.SEQRESRECORD);
+				Character code1 = StructureTools.get1LetterCodeAmino(epolseq.getMon_id());
+				a.setAminoType(code1);
+				g = a;
 
-		if (epolseq.getMon_id().length()==3 && StructureTools.get1LetterCodeAmino(epolseq.getMon_id())!=null){
-			AminoAcid g = new AminoAcidImpl();
+			} else if ( StructureTools.isNucleotide(epolseq.getMon_id())) {
+				// the group is actually a nucleotide group...
+				NucleotideImpl n = new NucleotideImpl();
+				g = n;
 
-			g.setRecordType(AminoAcid.SEQRESRECORD);
+			} else {
+				logger.debug("Residue {} {} is not a standard aminoacid or nucleotide, will create a het group for it", epolseq.getNum(),epolseq.getMon_id());
+				HetatomImpl h = new HetatomImpl();
+				g = h;
 
-			g.setPDBName(epolseq.getMon_id());
+			}
 
-			Character code1 = StructureTools.get1LetterCodeAmino(epolseq.getMon_id());
-			g.setAminoType(code1);
-
-			g.setResidueNumber(ResidueNumber.fromString(epolseq.getNum()));
-			// ARGH at this stage we don't know about insertion codes
-			// this has to be obtained from _pdbx_poly_seq_scheme
-			entityChain.addGroup(g);
-
-		} else if ( StructureTools.isNucleotide(epolseq.getMon_id())) {
-			// the group is actually a nucleotide group...
-			NucleotideImpl n = new NucleotideImpl();
-			
-			n.setResidueNumber(ResidueNumber.fromString(epolseq.getNum()));
-			n.setPDBName(epolseq.getMon_id());
-			entityChain.addGroup(n);				
-		} else {				
-			logger.debug("Residue {} {} is not a standard aminoacid or nucleotide, will create a het group for it", epolseq.getNum(),epolseq.getMon_id());
-			HetatomImpl h = new HetatomImpl();				
-			h.setPDBName(epolseq.getMon_id());
-			h.setResidueNumber(ResidueNumber.fromString(epolseq.getNum()));
-			entityChain.addGroup(h);
 
 		}
+		// at this stage we don't know about author residue numbers (insertion codes)
+		// we abuse now the ResidueNumber field setting the internal residue numbers (label_seq_id, strictly sequential and follow the seqres sequence 1 to n)
+		// later the actual ResidueNumbers (author residue numbers) have to be corrected in alignSeqRes()
+		g.setResidueNumber(ResidueNumber.fromString(epolseq.getNum()));
+
+		g.setPDBName(epolseq.getMon_id());
+
+		entityChain.addGroup(g);
 
 	}
 
-
-	/**
-	 * Returns the chains from all models that have the provided chainId
-	 *
-	 */
-	private List<Chain> getChainsFromAllModels(String chainId){
-		List<Chain> chains = new ArrayList<Chain>();
-
-
-		for (int i=0 ; i < structure.nrModels();i++){
-			List<Chain> model = structure.getModel(i);
-			for (Chain c: model){
-				if (c.getChainID().equals(chainId)) {
-					chains.add(c);
-				}
-			}
-		}
-
-		return chains;
-	}
-
-	/** 
-	 * Finds the residue in the internal representation and fixes the residue number and insertion code
-	 *
-	 * @param ppss
-	 */
-	private void replaceGroupSeqPos(PdbxPolySeqScheme ppss){
-
-		if (ppss.getAuth_seq_num().equals("?"))
-			return;
-
-		//logger.info("replacegroupSeqPos " + ppss);
-		// at this stage we are still using the internal asym ids...
-		List<Chain> matchinChains = getChainsFromAllModels(ppss.getAsym_id());
-
-		long sid = Long.parseLong(ppss.getSeq_id());
-		for (Chain c: matchinChains){
-			Group target = null;
-			for (Group g: c.getAtomGroups()){
-
-				if ( g instanceof AminoAcidImpl){
-					AminoAcidImpl aa = (AminoAcidImpl)g;
-					if (aa.getId() == sid ) {
-						// found it:
-						target = g;
-						break;
-					}
-				}
-				else if ( g instanceof NucleotideImpl) {
-					NucleotideImpl n = (NucleotideImpl)g;
-					if ( n.getId() == sid) {
-						target = g;
-						break;
-					}
-				} else if ( g instanceof HetatomImpl){
-					HetatomImpl h = (HetatomImpl)g;
-					if ( h.getId() == sid){
-						target =h;
-						break;
-					}
-				}
-			}
-			if (target == null){
-				logger.info("could not find group at seq. position " + 
-						ppss.getSeq_id() + " in internal chain " + c.getChainID() + ". " + ppss);
-				continue;
-			}
-
-			if (! target.getPDBName().trim().equals(ppss.getMon_id())){
-				logger.info("could not match PdbxPolySeqScheme to chain:" + target.getPDBName() + " " + ppss);
-				continue;
-			}
-
-			// fix the residue number to the one used in the PDB files...
-			Integer pdbResNum = Integer.parseInt(ppss.getAuth_seq_num());
-			// check the insertion code...
-			String insCodeS = ppss.getPdb_ins_code();
-			Character insCode = null;
-			if ( ( insCodeS != null) && (! insCodeS.equals(".")) && insCodeS.length()>0){
-				//pdbResNum += insCode
-				insCode = insCodeS.charAt(0);
-			}
-
-			ResidueNumber residueNumber = new ResidueNumber(null, pdbResNum,insCode);
-			//logger.info("setting residue number for " + target +" to: " + residueNumber);
-			target.setResidueNumber(residueNumber);
-		}
-	}
 	@Override
 	public void newPdbxPolySeqScheme(PdbxPolySeqScheme ppss) {
 
@@ -1682,22 +1876,8 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 		//	return;
 
 		// replace the group asym ids with the real PDB ids!
-		replaceGroupSeqPos(ppss);
+		// replaceGroupSeqPos(ppss);  // This might be incorrect in some pdb, to use auth_seq_id of the pdbx_poly_seq_scheme.
 
-		// merge the EntityPolySeq info and the AtomSite chains into one...
-		//already known ignore:
-		if (asymStrandId.containsKey(ppss.getAsym_id()))
-			return;
-
-		// this is one of the interal mmcif rules it seems...
-		if ( ppss.getPdb_strand_id() == null) {
-			asymStrandId.put(ppss.getAsym_id(), ppss.getAuth_mon_id());
-			return;
-		}
-
-		//System.out.println(ppss.getAsym_id() + " = " + ppss.getPdb_strand_id());
-
-		asymStrandId.put(ppss.getAsym_id(), ppss.getPdb_strand_id());
 
 	}
 
@@ -1710,16 +1890,6 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 
 		// merge the EntityPolySeq info and the AtomSite chains into one...
 		//already known ignore:
-		if (asymStrandId.containsKey(ppss.getAsym_id()))
-			return;
-
-		// this is one of the interal mmcif rules it seems...
-		if ( ppss.getPdb_strand_id() == null) {
-			asymStrandId.put(ppss.getAsym_id(), ppss.getAsym_id());
-			return;
-		}
-
-		asymStrandId.put(ppss.getAsym_id(), ppss.getPdb_strand_id());
 
 	}
 
@@ -1727,7 +1897,8 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 	public void newPdbxEntityNonPoly(PdbxEntityNonPoly pen){
 		// TODO: do something with them...
 		// not implemented yet...
-		//System.out.println(pen.getEntity_id() + " " + pen.getName() + " " + pen.getComp_id());
+		logger.debug(pen.getEntity_id() + " " + pen.getName() + " " + pen.getComp_id());
+
 	}
 
 	@Override
@@ -1740,7 +1911,7 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 	public void newGenericData(String category, List<String> loopFields,
 			List<String> lineData) {
 
-		//logger.debug("unhandled category so far: " + category);		
+		//logger.debug("unhandled category so far: " + category);
 	}
 
 	@Override
@@ -1768,8 +1939,6 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 	public List<PdbxStructOperList> getStructOpers() {
 		return structOpers;
 	}
-
-
 
 	@Override
 	public void newPdbxStrucAssembly(PdbxStructAssembly strucAssembly) {
@@ -1816,6 +1985,108 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 		this.structConn.add(structConn);
 	}
 
+	@Override
+	public void newStructSiteGen(StructSiteGen siteGen) { this.structSiteGens.add(siteGen);	}
+
+	@Override
+	public void newStructSite(StructSite structSite) {
+
+		if (params.isHeaderOnly()) {
+			return;
+		}
+
+		// Simply implement the method.
+		List<Site> sites = structure.getSites();
+		if (sites == null) sites = new ArrayList<Site>();
+
+		Site site = null;
+		for (Site asite : sites) {
+			if (asite.getSiteID().equals(structSite.getId())) {
+				site = asite; 		// Prevent duplicate siteIds
+			}
+		}
+		boolean addSite = false;
+		if (site == null) { site = new Site(); addSite = true; }
+		site.setSiteID(structSite.getId());
+		site.setDescription(structSite.getDetails());
+		// site.setPdbxEvidenceCode(structSite.getPdbxEvidenceCode()); // TODO - add addition fields in Sites
+		if (addSite) sites.add(site);
+
+		structure.setSites(sites);
+	}
+
+	/**
+	 * Build sites in a BioJava Structure using the original author chain id & residue numbers.
+	 * Sites are built from struct_site_gen records that have been parsed.
+	 */
+	private void addSites() {
+		List<Site> sites = structure.getSites();
+		if (sites == null) sites = new ArrayList<Site>();
+
+		for (StructSiteGen siteGen : structSiteGens) {
+			// For each StructSiteGen, find the residues involved, if they exist then
+			String site_id = siteGen.getSite_id(); // multiple could be in same site.
+			if (site_id == null) site_id = "";
+			String comp_id = siteGen.getLabel_comp_id();  // PDBName
+
+			// Assumption: the author chain ID and residue number for the site is consistent with the original
+			// author chain id and residue numbers.
+
+			String asymId = siteGen.getLabel_asym_id(); // chain name
+			String authId = siteGen.getAuth_asym_id(); // chain Id
+			String auth_seq_id = siteGen.getAuth_seq_id(); // Res num
+
+			String insCode = siteGen.getPdbx_auth_ins_code();
+			if ( insCode != null && insCode.equals("?"))
+				insCode = null;
+
+			// Look for asymID = chainID and seqID = seq_ID.  Check that comp_id matches the resname.
+			Group g = null;
+			try {
+				Chain chain = structure.getChain(asymId);
+
+				if (null != chain) {
+					try {
+						Character insChar = null;
+						if (null != insCode && insCode.length() > 0) insChar = insCode.charAt(0);
+						g = chain.getGroupByPDB(new ResidueNumber(null, Integer.parseInt(auth_seq_id), insChar));
+					} catch (NumberFormatException e) {
+						logger.warn("Could not lookup residue : " + authId + auth_seq_id);
+					}
+				}
+			} catch (StructureException e) {
+				logger.warn("Problem finding residue in site entry " + siteGen.getSite_id() + " - " + e.getMessage(), e.getMessage());
+			}
+
+			if (g != null) {
+				// 2. find the site_id, if not existing, create anew.
+				Site site = null;
+				for (Site asite: sites) {
+					if (site_id.equals(asite.getSiteID())) site = asite;
+				}
+
+				boolean addSite = false;
+
+				// 3. add this residue to the site.
+				if (site == null) {
+					addSite = true;
+					site = new Site();
+					site.setSiteID(site_id);
+				}
+
+				List<Group> groups = site.getGroups();
+				if (groups == null) groups = new ArrayList<Group>();
+
+				// Check the self-consistency of the residue reference from auth_seq_id and chain_id
+				if (!comp_id.equals(g.getPDBName())) {
+					logger.warn("comp_id doesn't match the residue at " + authId + " " + auth_seq_id + " - skipping");
+				} else {
+					groups.add(g);
+					site.setGroups(groups);
+				}
+				if (addSite) sites.add(site);
+			}
+		}
+		structure.setSites(sites);
+	}
 }
-
-

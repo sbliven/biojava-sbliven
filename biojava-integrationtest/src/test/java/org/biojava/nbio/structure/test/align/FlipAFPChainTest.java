@@ -18,13 +18,14 @@
  *      http://www.biojava.org/
  *
  * Created on Sep 9, 2009
- * Author: Andreas Prlic 
+ * Author: Andreas Prlic
  *
  */
 
 package org.biojava.nbio.structure.test.align;
 
 import junit.framework.TestCase;
+
 import org.biojava.nbio.structure.*;
 import org.biojava.nbio.structure.align.StructureAlignment;
 import org.biojava.nbio.structure.align.StructureAlignmentFactory;
@@ -89,7 +90,7 @@ public class FlipAFPChainTest extends TestCase {
 
 		String xml = AFPChainXMLConverter.toXML(afpChain, ca1, ca2);
 
-		AFPChain newC    = AFPChainXMLParser.fromXML(xml, ca1, ca2);			
+		AFPChain newC    = AFPChainXMLParser.fromXML(xml, ca1, ca2);
 		AFPChain flipped = AFPChainFlipper.flipChain(newC);
 
 		assertEquals(afpChain.getName1(), flipped.getName2());
@@ -99,7 +100,7 @@ public class FlipAFPChainTest extends TestCase {
 		assertEquals(afpChain.getAlgorithmName(),flipped.getAlgorithmName());
 		assertEquals(afpChain.getVersion(), flipped.getVersion());
 
-		
+
 		String xmlNew = AFPChainXMLConverter.toXML(flipped, ca2, ca1);
 
 		AFPChain backChain = AFPChainXMLParser.fromXML(xmlNew, ca2, ca1);
@@ -107,7 +108,7 @@ public class FlipAFPChainTest extends TestCase {
 		AFPChain origFlip  = AFPChainFlipper.flipChain(backChain);
 		//AFPChainXMLParser.rebuildAFPChain(origFlip, ca1, ca2);
 		origFlip.setCalculationTime(0);
-		
+
 		String xmlBack = AFPChainXMLConverter.toXML(origFlip);
 		if ( ! xmlBack.equals(xml)){
 			printFirstMismatch(xmlBack, xml);
@@ -129,13 +130,13 @@ public class FlipAFPChainTest extends TestCase {
 
 
 	/** get the RMSD between the aligned positions
-	 * 
+	 *
 	 * @param afpChain
 	 * @param ca1
 	 * @param ca2
 	 * @return
 	 */
-	private double getRMSD(AFPChain afpChain, Atom[] ca1, Atom[] ca2) 
+	private double getRMSD(AFPChain afpChain, Atom[] ca1, Atom[] ca2)
 	throws StructureException {
 
 		Atom[] ca2clone = StructureTools.cloneAtomArray(ca2);
@@ -150,7 +151,7 @@ public class FlipAFPChainTest extends TestCase {
 
 		assertTrue(catmp1.length == afpChain.getNrEQR());
 
-		return SVDSuperimposer.getRMS(catmp1,catmp2);
+		return Calc.rmsd(catmp1,catmp2);
 	}
 
 	public static void rotateAtoms2(AFPChain afpChain,Atom[] ca2){

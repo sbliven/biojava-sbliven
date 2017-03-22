@@ -22,19 +22,23 @@
  */
 package org.biojava.nbio.structure.io.mmcif;
 
-import org.biojava.nbio.structure.*;
+import org.biojava.nbio.core.util.SoftHashMap;
+import org.biojava.nbio.structure.AminoAcid;
+import org.biojava.nbio.structure.AminoAcidImpl;
+import org.biojava.nbio.structure.Group;
+import org.biojava.nbio.structure.HetatomImpl;
+import org.biojava.nbio.structure.NucleotideImpl;
 import org.biojava.nbio.structure.io.mmcif.chem.PolymerType;
 import org.biojava.nbio.structure.io.mmcif.model.ChemComp;
-import org.biojava.nbio.core.util.SoftHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
 public class ChemCompGroupFactory {
-	
+
 	private static final Logger logger = LoggerFactory.getLogger(ChemCompGroupFactory.class);
 
-	private static ChemCompProvider chemCompProvider = new ReducedChemCompProvider();
+	private static ChemCompProvider chemCompProvider = new DownloadChemCompProvider();
 
 	private static SoftHashMap<String, ChemComp> cache = new SoftHashMap<String, ChemComp>(0);
 
@@ -52,28 +56,29 @@ public class ChemCompGroupFactory {
 		// not cached, get the chem comp from the provider
 		logger.debug("Chem comp "+recordName+" read from provider "+chemCompProvider.getClass().getCanonicalName());
 		cc = chemCompProvider.getChemComp(recordName);
-		
-		if (!cc.getOne_letter_code().equals("?")){
-			cache.put(recordName, cc);
-		}
+
+		// Note that this also caches null or empty responses
+		cache.put(recordName, cc);
 		return cc;
 	}
 
 	/**
-	 * The new ChemCompProvider will be set in the static variable, 
-	 * so this provider will be used from now on until it is changed 
+	 * The new ChemCompProvider will be set in the static variable,
+	 * so this provider will be used from now on until it is changed
 	 * again. Note that this change can have unexpected behavior of
 	 * code executed afterwards.
 	 * <p>
 	 * Changing the provider does not reset the cache, so Chemical
 	 * Component definitions already downloaded from previous providers
 	 * will be used. To reset the cache see {@link #getCache()).
-	 * 
+	 *
 	 * @param provider
 	 */
 	public static void setChemCompProvider(ChemCompProvider provider) {
 		logger.debug("Setting new chem comp provider to "+provider.getClass().getCanonicalName());
 		chemCompProvider = provider;
+		// clear cache
+		cache.clear();
 	}
 
 	public static ChemCompProvider getChemCompProvider(){
@@ -82,7 +87,7 @@ public class ChemCompGroupFactory {
 
 	public static Group getGroupFromChemCompDictionary(String recordName) {
 
-		// make sure we work with upper case records		
+		// make sure we work with upper case records
 		recordName = recordName.toUpperCase().trim();
 
 		Group g = null;
@@ -148,10 +153,5 @@ public class ChemCompGroupFactory {
 		}
 		return oneLetter;
 	}
-
-	public static SoftHashMap<String, ChemComp> getCache() {
-		return cache;
-	}
-
 
 }

@@ -26,6 +26,7 @@ import java.util.List;
 import javax.vecmath.Matrix4d;
 
 import org.biojava.nbio.core.util.PrettyXMLWriter;
+import org.biojava.nbio.structure.StructureIdentifier;
 import org.biojava.nbio.structure.align.multiple.Block;
 import org.biojava.nbio.structure.align.multiple.BlockSet;
 import org.biojava.nbio.structure.align.multiple.MultipleAlignment;
@@ -37,35 +38,35 @@ import org.biojava.nbio.structure.align.multiple.util.MultipleAlignmentWriter;
  * Helper methods to convert all the hierarchy levels of a MultipleAlignment
  * into an XML format.
  * <p>
- * To convert a MultipleAlignment to an XML String use the 
+ * To convert a MultipleAlignment to an XML String use the
  * {@link MultipleAlignmentWriter#toXML(MultipleAlignmentEnsemble)} method.
- * 
+ *
  * @author Aleix Lafita
  * @since 4.1.1
  *
  */
 public class MultipleAlignmentXMLConverter {
-	
+
 	public synchronized static void printXMLensemble(PrettyXMLWriter xml,
 			MultipleAlignmentEnsemble ensemble)	throws IOException {
 
 		xml.openTag("MultipleAlignmentEnsemble");
-		
+
 		printXMLheader(xml,ensemble);
 
 		for (MultipleAlignment msa:ensemble.getMultipleAlignments()){
 			printXMLalignment(xml,msa);
 		}
 		printXMLscoresCache(xml,ensemble);
-		
+
 		xml.closeTag("MultipleAlignmentEnsemble");
 	}
 
-	public synchronized static void printXMLalignment(PrettyXMLWriter xml, 
+	public synchronized static void printXMLalignment(PrettyXMLWriter xml,
 			MultipleAlignment msa) throws IOException {
 
 		xml.openTag("MultipleAlignment");
-		
+
 		for(BlockSet bs:msa.getBlockSets()) {
 			printXMLblockSet(xml, bs);
 		}
@@ -78,11 +79,11 @@ public class MultipleAlignmentXMLConverter {
 			BlockSet bs) throws IOException {
 
 		xml.openTag("BlockSet");
-		
+
 		for(Block b:bs.getBlocks()) {
 			printXMLblock(xml, b);
 		}
-		
+
 		if (bs.getTransformations() != null){
 			for(Matrix4d t:bs.getTransformations()){
 				printXMLmatrix4d(xml, t);
@@ -98,7 +99,7 @@ public class MultipleAlignmentXMLConverter {
 
 		xml.openTag("Block");
 		List<List<Integer>> alignment = b.getAlignRes();
-		
+
 		for (int pos=0;pos<alignment.get(0).size(); pos++){
 
 			xml.openTag("eqr"+pos);
@@ -108,7 +109,7 @@ public class MultipleAlignmentXMLConverter {
 			xml.closeTag("eqr"+pos);
 		}
 		printXMLscoresCache(xml,b);
-		
+
 		xml.closeTag("Block");
 	}
 
@@ -127,7 +128,7 @@ public class MultipleAlignmentXMLConverter {
 		}
 		xml.closeTag("Matrix4d");
 	}
-	
+
 	public synchronized static void printXMLscoresCache(PrettyXMLWriter xml,
 			ScoresCache cache) throws IOException {
 
@@ -156,8 +157,8 @@ public class MultipleAlignmentXMLConverter {
 		//Structure Identifiers
 		xml.openTag("Structures");
 		for (int i=0; i<ensemble.size(); i++){
-			String name = ensemble.getStructureNames().get(i);
-			xml.attribute("name"+(i+1), name);
+			StructureIdentifier name = ensemble.getStructureIdentifiers().get(i);
+			xml.attribute("name"+(i+1), name.getIdentifier());
 		}
 		xml.closeTag("Structures");
 	}

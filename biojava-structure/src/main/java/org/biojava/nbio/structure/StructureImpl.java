@@ -23,15 +23,14 @@
  */
 package org.biojava.nbio.structure;
 
-import org.biojava.nbio.structure.io.CompoundFinder;
-import org.biojava.nbio.structure.io.FileConvert;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.ListIterator;
+
+import org.biojava.nbio.structure.io.FileConvert;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Implementation of a PDB Structure. This class
@@ -46,27 +45,25 @@ import java.util.Map;
  */
 public class StructureImpl implements Structure, Serializable {
 
-	private static final long serialVersionUID = -8344837138032851347L;
+	private static final long serialVersionUID = -8344837138032851348L;
 
 	private static final Logger logger = LoggerFactory.getLogger(StructureImpl.class);
 
 	private String pdb_id ;
-	/* models is an ArrayList of ArrayLists */
-	private List<List<Chain>> models;
 
-	private List<Map <String,Integer>> connections ;
-	private List<Compound> compounds;
+	private List<Model> models;
+
+	private List<EntityInfo> entityInfos;
 	private List<DBRef> dbrefs;
-	private List<SSBond> ssbonds;
+	private List<Bond> ssbonds;
 	private List<Site> sites;
-	private List<Group> hetAtoms;
 	private String name ;
+	private StructureIdentifier structureIdentifier;
 
 	private PDBHeader pdbHeader;
 
 	private Long id;
 	private boolean biologicalAssembly;
-
 
 	/**
 	 *  Constructs a StructureImpl object.
@@ -74,16 +71,15 @@ public class StructureImpl implements Structure, Serializable {
 	public StructureImpl() {
 		super();
 
-		models         = new ArrayList<List<Chain>>();
+		models         = new ArrayList<>();
 		name           = "";
-		connections    = new ArrayList<Map<String,Integer>>();
-		compounds      = new ArrayList<Compound>();
-		dbrefs         = new ArrayList<DBRef>();
+		entityInfos      = new ArrayList<>();
+		dbrefs         = new ArrayList<>();
 		pdbHeader      = new PDBHeader();
-		ssbonds        = new ArrayList<SSBond>();
-		sites          = new ArrayList<Site>();
-		hetAtoms       = new ArrayList<Group>();
+		ssbonds        = new ArrayList<>();
+		sites          = new ArrayList<>();
 	}
+
 
 	/** get the ID used by Hibernate
 	 *
@@ -96,7 +92,7 @@ public class StructureImpl implements Structure, Serializable {
 
 	/** set the ID used by Hibernate
 	 *
-	 * @param id
+	 * @param id the hibernate ID
 	 */
 	@Override
 	public void setId(Long id) {
@@ -104,9 +100,10 @@ public class StructureImpl implements Structure, Serializable {
 	}
 
 
-	/** construct a Structure object that only contains a single group
+
+	/** Construct a Structure object that only contains a single group
 	 *
-	 * @param g
+	 * @param g group object
 	 */
 	public StructureImpl(Group g){
 		this();
@@ -119,7 +116,7 @@ public class StructureImpl implements Structure, Serializable {
 
 	/** construct a Structure object that contains a particular chain
 	 *
-	 * @param c
+	 * @param c chain
 	 */
 	public StructureImpl(Chain c){
 		this();
@@ -131,6 +128,8 @@ public class StructureImpl implements Structure, Serializable {
 	 */
 	@Override
 	public Structure clone() {
+		// Note: structures are also cloned in SubstructureIdentifier.reduce().
+		// Changes might need to be made there as well
 
 		Structure n = new StructureImpl();
 		// go through whole substructure and clone ...
@@ -142,9 +141,8 @@ public class StructureImpl implements Structure, Serializable {
 		//TODO the header data is not being deep-copied, that's a minor issue since it is just some static metadata, but we should recheck this if needed - JD 2014-12-11
 		n.setPDBHeader(pdbHeader);
 		n.setDBRefs(this.getDBRefs());
-		n.setConnections(getConnections());
 		n.setSites(getSites());
-				
+
 
 		// go through each chain and clone chain
 		for (int i=0;i<nrModels();i++){
@@ -152,51 +150,48 @@ public class StructureImpl implements Structure, Serializable {
 
 			for (int j=0;j<size(i);j++){
 
-				Chain cloned_chain  = (Chain) getChain(i,j).clone();
+				Chain cloned_chain  = (Chain) getChainByIndex(i,j).clone();
 
 				// setting the parent: can only be done from the parent
 				cloned_chain.setStructure(n);
 
 				cloned_model.add(cloned_chain);
-				
+
 			}
 			n.addModel(cloned_model);
 
 		}
 
-		// deep-copying of Compounds is tricky: there's cross references also in the Chains
-		// beware: if we copy the compounds we would also need to reset the references to compounds in the individual chains
-		List<Compound> newCompoundList = new ArrayList<Compound>();
-		for (Compound compound:this.compounds) {
-			Compound newCompound = new Compound(compound); // this sets everything but the chains
-			for (String chainId:compound.getChainIds()) {
-				
-					for (int modelNr=0;modelNr<n.nrModels();modelNr++) {
-						try {
-							Chain newChain = n.getChainByPDB(chainId,modelNr);
-							newChain.setCompound(newCompound);
-							newCompound.addChain(newChain);
-						} catch (StructureException e) {
-							// this actually happens for structure 1msh, which has no chain B for model 29 (clearly a deposition error)
-							logger.warn("Could not find chain id "+chainId+" of model "+modelNr+" while cloning compound "+compound.getMolId()+". Something is wrong!");
-						}
+		// deep-copying of entityInfofos is tricky: there's cross references also in the Chains
+		// beware: if we copy the entityInfos we would also need to reset the references to entityInfos in the individual chains
+		List<EntityInfo> newEntityInfoList = new ArrayList<EntityInfo>();
+		for (EntityInfo entityInfo : this.entityInfos) {
+			EntityInfo newEntityInfo = new EntityInfo(entityInfo); // this sets everything but the chains
+			for (String asymId:entityInfo.getChainIds()) {
+
+				for (int modelNr=0;modelNr<n.nrModels();modelNr++) {
+					Chain newChain = n.getChain(asymId,modelNr);
+					if (newChain==null) {
+						// this actually happens for structure 1msh, which has no chain B for model 29 (clearly a deposition error)
+						logger.warn("Could not find chain asymId "+asymId+" of model "+modelNr+" while cloning entityInfo "+entityInfo.getMolId()+". Something is wrong!");
+						continue;
 					}
+					newChain.setEntityInfo(newEntityInfo);
+					newEntityInfo.addChain(newChain);
+				}
 			}
-			newCompoundList.add(newCompound);
+			newEntityInfoList.add(newEntityInfo);
 		}
-		n.setCompounds(newCompoundList); 
-
-
-		for (SSBond ssbond: ssbonds){
-			n.addSSBond(ssbond.clone());
-		}
+		n.setEntityInfos(newEntityInfoList);
+		// TODO ssbonds are complicated to clone: there are deep references inside Atom objects, how would we do it? - JD 2016-03-03
 
 		return n ;
 	}
 
 
+	/** {@inheritDoc} */
 	@Override
-	public Group findGroup(String chainId, String pdbResnum, int modelnr)
+	public Group findGroup(String chainName, String pdbResnum, int modelnr)
 			throws StructureException {
 
 
@@ -206,28 +201,45 @@ public class StructureImpl implements Structure, Serializable {
 					" in this structure. (contains "+models.size()+")");
 
 
-		Chain c = findChain(chainId,modelnr);
+		// first we need to gather all groups with the author id chainName: polymers, non-polymers and waters
+		Chain polyChain = getPolyChainByPDB(chainName, modelnr);
+		if(polyChain != null) {
+			List<Group> groups = new ArrayList<>();
 
-		List<Group> groups = c.getAtomGroups();
+			groups.addAll(polyChain.getAtomGroups());
 
-		// now iterate over all groups in this chain.
-		// in order to find the amino acid that has this pdbRenum.
 
-		for (Group g : groups) {
-			String rnum = g.getResidueNumber().toString();
-			//System.out.println(g + " >" + rnum + "< >" + pdbResnum + "<");
-			// we only mutate amino acids
-			// and ignore hetatoms and nucleotides in this case
-			if (rnum.equals(pdbResnum)) {
-				return g;
+			// there can be more than one non-poly chain for a given author id
+			for (Chain chain: getNonPolyChainsByPDB(chainName, modelnr)) {
+				groups.addAll(chain.getAtomGroups());
+			}
+
+			Chain water = getWaterChainByPDB(chainName, modelnr);
+
+			if (water!=null)
+				groups.addAll(water.getAtomGroups());
+
+
+
+			// now iterate over all groups 
+			// in order to find the amino acid that has this pdbRenum.
+
+			for (Group g : groups) {
+				String rnum = g.getResidueNumber().toString();
+				//System.out.println(g + " >" + rnum + "< >" + pdbResnum + "<");
+				// we only mutate amino acids
+				// and ignore hetatoms and nucleotides in this case
+				if (rnum.equals(pdbResnum)) {
+					return g;
+				}
 			}
 		}
-
 		throw new StructureException("could not find group " + pdbResnum +
-				" in chain " + chainId);
+				" in chain " + chainName);
 	}
 
 
+	/** {@inheritDoc} */
 	@Override
 	public Group findGroup(String chainName, String pdbResnum) throws StructureException
 	{
@@ -238,21 +250,16 @@ public class StructureImpl implements Structure, Serializable {
 
 
 
+	/** {@inheritDoc} */
 	@Override
-	public Chain findChain(String chainId, int modelnr) throws StructureException {
+	public Chain findChain(String chainName, int modelnr) throws StructureException {
 
-		List<Chain> chains = getChains(modelnr);
-
-		// iterate over all chains.
-		for (Chain c : chains) {
-			if (c.getChainID().equals(chainId)) {
-				return c;
-			}
-		}
-		throw new StructureException("Could not find chain \"" + chainId + "\" for PDB id " + pdb_id);
+		return getChainByPDB(chainName, modelnr);
+		
 	}
 
 
+	/** {@inheritDoc} */
 	@Override
 	public Chain findChain(String chainId) throws StructureException {
 
@@ -260,11 +267,13 @@ public class StructureImpl implements Structure, Serializable {
 	}
 
 
+	/** {@inheritDoc} */
 	@Override
 	public void setPDBCode (String pdb_id_) {
 		pdb_id = pdb_id_ ;
 	}
 
+	/** {@inheritDoc} */
 	@Override
 	public String  getPDBCode () {
 		return pdb_id ;
@@ -272,45 +281,54 @@ public class StructureImpl implements Structure, Serializable {
 
 
 
+	/** {@inheritDoc} */
 	@Override
 	public void   setName(String nam) { name = nam; }
 
+	/** {@inheritDoc} */
 	@Override
 	public String getName()           { return name;  }
 
 
 
-	@Override
-	public void      setConnections(List<Map<String,Integer>> conns) { connections = conns ; }
-
 	/**
-	 * Return the connections value.
-	 *
-	 * @return a List object representing the connections value
-	 * @see Structure interface
-	 * @see #setConnections
+	 * @return The StructureIdentifier used to create this structure
 	 */
 	@Override
-	public List<Map<String,Integer>> getConnections()                { return connections ;}
+	public StructureIdentifier getStructureIdentifier() {
+		return structureIdentifier;
+	}
 
+	/**
+	 * @param structureIdentifier the structureIdentifier corresponding to this structure
+	 */
+	@Override
+	public void setStructureIdentifier(StructureIdentifier structureIdentifier) {
+		this.structureIdentifier = structureIdentifier;
+	}
+
+	/** {@inheritDoc} */
 	@Override
 	public void addChain(Chain chain) {
 		int modelnr = 0 ;
 		addChain(chain,modelnr);
 	}
 
+	/** {@inheritDoc} */
 	@Override
 	public void addChain(Chain chain, int modelnr) {
 		// if model has not been initialized, init it!
 		chain.setStructure(this);
 		if (models.isEmpty()) {
-			List<Chain> model = new ArrayList<Chain>() ;
-			model.add(chain);
+			Model model = new Model();
+			List<Chain> modelChains = new ArrayList<>() ;
+			modelChains.add(chain);
+			model.setChains(modelChains);
 			models.add(model);
 
 		} else {
-			List<Chain> model = models.get(modelnr);
-			model.add(chain);
+			Model model = models.get(modelnr);
+			model.addChain(chain);
 		}
 
 
@@ -319,34 +337,40 @@ public class StructureImpl implements Structure, Serializable {
 
 
 
+	/** {@inheritDoc} */
 	@Override
-	public Chain getChain(int number) {
+	public Chain getChainByIndex(int number) {
 
 		int modelnr = 0 ;
 
-		return getChain(modelnr,number);
+		return getChainByIndex(modelnr,number);
 	}
 
 
+	/** {@inheritDoc} */
 	@Override
-	public Chain getChain(int modelnr,int number) {
+	public Chain getChainByIndex(int modelnr,int number) {
 
-		List<Chain> model  =  models.get(modelnr);
+		Model model = models.get(modelnr);
 
-		return model.get (number );
+		return model.getChains().get(number);
 	}
 
 
 
+	/** {@inheritDoc} */
 	@Override
-	public void addModel(List<Chain> model){
-		for (Chain c: model){
+	public void addModel(List<Chain> modelChains){
+		for (Chain c: modelChains){
 			c.setStructure(this);
 		}
+		Model model = new Model();
+		model.setChains(modelChains);
 		models.add(model);
 	}
 
 
+	/** {@inheritDoc} */
 	@Override
 	public void setChains(List<Chain> chains){
 
@@ -355,15 +379,20 @@ public class StructureImpl implements Structure, Serializable {
 
 
 
+	/** {@inheritDoc} */
 	@Override
-	public void setModel(int position, List<Chain> model){
-		if (model == null)
+	public void setModel(int position, List<Chain> modelChains){
+		if (modelChains == null)
 			throw new IllegalArgumentException("trying to set model to null!");
 
-		for (Chain c: model)
+		for (Chain c: modelChains)
 			c.setStructure(this);
 
 		//System.out.println("model size:" + models.size());
+
+
+		Model model = new Model();
+		model.setChains(modelChains);
 
 		if (models.isEmpty()){
 			models.add(model);
@@ -372,7 +401,7 @@ public class StructureImpl implements Structure, Serializable {
 		}
 	}
 
-	/** string representation.
+	/** String representation.
 	 *
 	 */
 	@Override
@@ -406,18 +435,31 @@ public class StructureImpl implements Structure, Serializable {
 
 			for (int j=0;j<size(i);j++){
 
-				Chain cha = getChain(i,j);
+				Chain cha = getChainByIndex(i,j);
 				List<Group> agr = cha.getAtomGroups(GroupType.AMINOACID);
 				List<Group> hgr = cha.getAtomGroups(GroupType.HETATM);
 				List<Group> ngr = cha.getAtomGroups(GroupType.NUCLEOTIDE);
 
-				str.append("chain ").append(j).append(": >").append(cha.getChainID()).append("< ");
-				if ( cha.getCompound() != null){
-					Compound comp = cha.getCompound();
-					String molName = comp.getMolName();
+
+
+
+				str.append("chain ")
+						.append(j).append(": asymId:")
+						.append(cha.getId())
+						.append(" authId:")
+						.append(cha.getName()).append(" ");
+
+
+				if ( cha.getEntityInfo() != null){
+					EntityInfo comp = cha.getEntityInfo();
+					String molName = comp.getDescription();
 					if ( molName != null){
 						str.append(molName);
 					}
+					String type =  comp.getType().toString();
+					str.append(" (")
+							.append(type)
+							.append(")");
 				}
 
 
@@ -435,7 +477,7 @@ public class StructureImpl implements Structure, Serializable {
 			str.append(dbref.toPDB()).append(newline);
 		}
 		str.append("Molecules: ").append(newline);
-		for (Compound mol : compounds) {
+		for (EntityInfo mol : entityInfos) {
 			str.append(mol).append(newline);
 		}
 
@@ -443,15 +485,12 @@ public class StructureImpl implements Structure, Serializable {
 		return str.toString() ;
 	}
 
-	/** return number of chains , if NMR return number of chains of first model .
-	 *
-	 */
 	@Override
 	public int size() {
 		int modelnr = 0 ;
 
 		if (!models.isEmpty()) {
-			return models.get(modelnr).size();
+			return models.get(modelnr).getPolyChains().size();
 		}
 		else {
 			return 0 ;
@@ -463,7 +502,7 @@ public class StructureImpl implements Structure, Serializable {
 	 *
 	 */
 	@Override
-	public int size(int modelnr) { return getChains(modelnr).size();   }
+	public int size(int modelnr) { return models.get(modelnr).size(); }
 
 	// some NMR stuff :
 
@@ -476,8 +515,8 @@ public class StructureImpl implements Structure, Serializable {
 	/**
 	 * Whether this Structure is a crystallographic structure or not.
 	 * It will first check the experimental technique and if not present it will try
-	 * to guess from the presence of a space group and sensible cell parameters  
-	 * 
+	 * to guess from the presence of a space group and sensible cell parameters
+	 *
 	 * @return true if crystallographic, false otherwise
 	 */
 	@Override
@@ -487,11 +526,9 @@ public class StructureImpl implements Structure, Serializable {
 		} else {
 			// no experimental technique known, we try to guess...
 			if (pdbHeader.getCrystallographicInfo().getSpaceGroup()!=null) {
-				if (pdbHeader.getCrystallographicInfo().getCrystalCell()==null) {
-					return false; // space group defined but no crystal cell: incomplete info, return false
-				} else {
-					return pdbHeader.getCrystallographicInfo().getCrystalCell().isCellReasonable();
-				}
+				// space group defined but no crystal cell: incomplete info, return false
+				return  pdbHeader.getCrystallographicInfo().getCrystalCell() != null &&
+						pdbHeader.getCrystallographicInfo().getCrystalCell().isCellReasonable();
 			}
 		}
 		return false;
@@ -516,54 +553,94 @@ public class StructureImpl implements Structure, Serializable {
 			if (nrModels()>1) {
 				if (pdbHeader.getCrystallographicInfo().getSpaceGroup()!=null) {
 					// multimodel, sg defined, but missing cell: must be NMR
-					if (pdbHeader.getCrystallographicInfo().getCrystalCell()==null) 
-						return true;					
+					if (pdbHeader.getCrystallographicInfo().getCrystalCell()==null)
+						return true;
 					// multi-model, sg defined and cell unreasonable: must be NMR
 					if (!pdbHeader.getCrystallographicInfo().getCrystalCell().isCellReasonable())
 						return true;
-				} else { 
+				} else {
 					// multi-model and missing space group: must be NMR
-					return true; 
+					return true;
 				}
 			}
 		}
 		return false;
 	}
 
+	/** {@inheritDoc} */
 	@Override
-	@Deprecated
-	public void setNmr(boolean nmr) {	
-		// old implementation was:
-		// this.nmrflag = nmr;
+	public List<Chain> getChains(int modelIdx){
+		return getModel(modelIdx);
 	}
 
-
-	/** retrieve all chains of a model.
-	 *
-	 * @param modelnr  an int
-	 * @return a List object
-	 */
-	@Override
-	public List<Chain> getChains(int modelnr){
-		return getModel(modelnr);
-	}
-
+	/** {@inheritDoc} */
 	@Override
 	public List<Chain> getChains(){
-		return getModel(0);
+		if (models.size()==0) {
+			return new ArrayList<>(0);
+		}
+		return getChains(0);
+
 	}
 
+	@Override
+	public List<Chain> getPolyChains() { 
+		if (models.size()==0) {
+			return new ArrayList<>(0);
+		}
+		return getPolyChains(0);
+	}
+
+	@Override
+	public List<Chain> getPolyChains(int modelIdx) {
+		return models.get(modelIdx).getPolyChains();
+	}
+
+	@Override
+	public List<Chain> getNonPolyChains() { 
+		if (models.size()==0) {
+			return new ArrayList<>(0);
+		}
+		return  getNonPolyChains(0);
+	}
+
+	@Override
+	public List<Chain> getNonPolyChains(int modelIdx) {
+		return models.get(modelIdx).getNonPolyChains();
+	}
+	
+	@Override
+	public List<Chain> getWaterChains() {
+		if (models.size()==0) {
+			return new ArrayList<>(0);
+		}
+		return getWaterChains(0);
+	}
+
+	@Override
+	public List<Chain> getWaterChains(int modelIdx) {
+		return models.get(modelIdx).getWaterChains();
+	}
+
+
+
+	/** {@inheritDoc} */
 	@Override
 	public void setChains(int modelnr, List<Chain> chains){
 		for (Chain c: chains){
 			c.setStructure(this);
 		}
-		models.remove(modelnr);
-		models.add(modelnr, chains);
+		if (models.size()>modelnr) {
+			models.remove(modelnr);
+		}
+
+		Model model = new Model();
+		model.setChains(chains);
+		models.add(modelnr, model);
 
 	}
 
-	/** retrieve all Chains belonging to a model .
+	/** Retrieve all Chains belonging to a model .
 	 *
 	 * @param modelnr  an int
 	 * @return a List object
@@ -571,93 +648,273 @@ public class StructureImpl implements Structure, Serializable {
 	@Override
 	public List<Chain> getModel(int modelnr) {
 
-		return models.get(modelnr);
+		return models.get(modelnr).getChains();
 	}
 
-
-
-
+	/** {@inheritDoc} */
 	@Override
-	public Chain getChainByPDB(String chainId, int modelnr)
+	public Chain getChainByPDB(String authId, int modelnr)
 			throws StructureException{
+
+		Chain c = getPolyChainByPDB(authId, modelnr);
+		
+		if (c==null ) {
+			throw new StructureException("Could not find chain with authId \"" + authId + "\"" + " for PDB id " + pdb_id + ", model "+modelnr);			
+		}
+		
+		return c;
+	}
+
+	/** {@inheritDoc} */
+	@Override
+	public Chain getChain(String asymId, int modelnr) {
 
 		List<Chain> chains = getChains(modelnr);
 		for (Chain c : chains) {
-			if (c.getChainID().equals(chainId)) {
+			if (c.getId().equals(asymId)) {
 				return c;
 			}
 		}
-		throw new StructureException("did not find chain with chainId \"" + chainId + "\"" + " for PDB id " + pdb_id);
+		return null;
 
+	}
+
+	/** {@inheritDoc} */
+	@Override
+	public Chain getChain(String asymId) {
+
+		return getChain(asymId,0);
+
+	}
+
+	/** {@inheritDoc} */
+	@Override
+	public Chain getChainByPDB(String chainId)
+			throws StructureException{
+		if(nrModels() < 1 ) {
+			throw new StructureException("No chains are present.");
+		}
+		return getChainByPDB(chainId,0);
+	}
+
+	@Override
+	public Chain getPolyChain(String asymId) {
+		return getPolyChain(asymId, 0);
+
+	}
+	
+	@Override
+	public Chain getPolyChain(String asymId, int modelIdx) {
+		Model model = models.get(modelIdx);
+		if (model==null) {
+			return null;
+		}
+		List<Chain> polyChains = model.getPolyChains();
+		for (Chain c : polyChains){
+			if (c.getId().equals(asymId))
+				return c;
+		}
+		return null;
 	}
 
 
 	@Override
-	public Chain getChainByPDB(String chainId)
-			throws StructureException{
-		return getChainByPDB(chainId,0);
+	public Chain getNonPolyChain(String asymId) {
+		return getNonPolyChain(asymId, 0);
+	}
+	
+	@Override
+	public Chain getNonPolyChain(String asymId, int modelIdx) {
+		Model model = models.get(modelIdx);
+		if (model==null) {
+			return null;
+		}
+		
+		List<Chain> nonpolyChains = model.getNonPolyChains();
+		for (Chain c : nonpolyChains){
+			if (c.getId().equals(asymId))
+				return c;
+		}
+
+		return null;
+	}
+
+	@Override
+	public Chain getPolyChainByPDB(String authId) {
+		return getPolyChainByPDB(authId, 0);
+	}
+
+	@Override
+	public Chain getPolyChainByPDB(String authId, int modelIdx) {
+		Model model = models.get(modelIdx);
+		if (model==null) {
+			return null;
+		}
+
+		List<Chain> polyChains = model.getPolyChains();
+		for (Chain c : polyChains){
+			if (c.getName().equals(authId))
+				return c;
+		}
+
+		return null;
+	}
+
+	@Override
+	public List<Chain> getNonPolyChainsByPDB(String authId) {
+		return getNonPolyChainsByPDB(authId, 0);
+	}
+	
+	@Override
+	public List<Chain> getNonPolyChainsByPDB(String authId, int modelIdx) {
+		List<Chain> chains = new ArrayList<>();
+		Model model = models.get(modelIdx);
+		if (model==null) {
+			return chains;
+		}
+
+
+		List<Chain> nonpolyChains = model.getNonPolyChains();
+		for (Chain c : nonpolyChains){
+			if (c.getName().equals(authId))
+				chains.add(c);
+		}
+
+		return chains;
+	}
+
+	@Override
+	public Chain getWaterChain(String asymId) {
+		return getWaterChain(asymId, 0);
 	}
 
 
+	@Override
+	public Chain getWaterChain(String asymId, int modelIdx) {
+		Model model = models.get(modelIdx);
+		if (model==null) {
+			return null;
+		}
+		List<Chain> waterChains = model.getWaterChains();
+		for (Chain c : waterChains){
+			if (c.getId().equals(asymId))
+				return c;
+		}
+		return null;
+	}
+
+
+	@Override
+	public Chain getWaterChainByPDB(String authId) {
+		return getWaterChainByPDB(authId, 0);
+	}
+
+
+	@Override
+	public Chain getWaterChainByPDB(String authId, int modelIdx) {
+		Model model = models.get(modelIdx);
+		if (model==null) {
+			return null;
+		}
+		List<Chain> waterChains = model.getWaterChains();
+		for (Chain c : waterChains){
+			if (c.getName().equals(authId))
+				return c;
+		}
+
+		return null;
+	}
+
+
+
+	/** {@inheritDoc} */
 	@Override
 	public String toPDB() {
 		FileConvert f = new FileConvert(this) ;
 		return f.toPDB();
 	}
 
+	/** {@inheritDoc} */
 	@Override
 	public String toMMCIF() {
 		FileConvert f = new FileConvert(this);
 		return f.toMMCIF();
 	}
 
+	/** {@inheritDoc} */
 	@Override
-	public boolean hasChain(String chainId) {
+	public boolean hasChain(String authId) {
 		int modelnr = 0;
 
 		List<Chain> chains = getChains(modelnr);
 		for (Chain c : chains) {
 			// we check here with equals because we might want to distinguish between upper and lower case chains!
-			if (c.getChainID().equals(chainId)) {
+			if (c.getId().equals(authId)) {
 				return true;
 			}
 		}
 		return false;
 	}
 
+	/** {@inheritDoc} */
 	@Override
-	public void setCompounds(List<Compound> molList){
-		this.compounds = molList;
-	}
+	public boolean hasNonPolyChain(String asymId){
+		int modelnr = 0;
 
-	@Override
-	public void addCompound(Compound compound) {
-		this.compounds.add(compound);
-	}
-
-	@Override
-	public List<Compound> getCompounds() {
-		// compounds are parsed from the PDB/mmCIF file normally
-		// but if the file is incomplete, it won't have the Compounds information and we try 
-		// to guess it from the existing seqres/atom sequences
-		if (compounds==null || compounds.isEmpty()) {
-			CompoundFinder cf = new CompoundFinder(this);
-			this.compounds = cf.findCompounds();
-
-			// now we need to set references in chains:
-			for (Compound compound:compounds) {
-				for (Chain c:compound.getChains()) {
-					c.setCompound(compound);
-				}
+		List<Chain> chains = models.get(modelnr).getNonPolyChains();
+		for (Chain c : chains) {
+			// we check here with equals because we might want to distinguish between upper and lower case chains!
+			if (c.getId().equals(asymId)) {
+				return true;
 			}
 		}
-		return compounds;
+		return false;
 	}
 
+	/** {@inheritDoc} */
 	@Override
-	public Compound getCompoundById(int molId) {
-		for (Compound mol : this.compounds){
-			if (mol.getMolId()==molId){
+	public boolean hasPdbChain(String authId) {
+		int modelnr = 0;
+
+		List<Chain> chains = getChains(modelnr);
+		for (Chain c : chains) {
+			// we check here with equals because we might want to distinguish between upper and lower case chains!
+			if (c.getName().equals(authId)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** {@inheritDoc} */
+	@Override
+	public void setEntityInfos(List<EntityInfo> molList){
+		this.entityInfos = molList;
+	}
+
+	/** {@inheritDoc} */
+	@Override
+	public void addEntityInfo(EntityInfo entityInfo) {
+		this.entityInfos.add(entityInfo);
+	}
+
+	/** {@inheritDoc} */
+	@Override
+	public List<EntityInfo> getEntityInfos() {
+		return entityInfos;
+	}
+
+	/** {@inheritDoc} */
+	@Override
+	public EntityInfo getCompoundById(int molId) {
+		return getEntityById(molId);
+	}
+
+	/** {@inheritDoc} */
+	@Override
+	public EntityInfo getEntityById(int entityId) {
+		for (EntityInfo mol : this.entityInfos){
+			if (mol.getMolId()==entityId){
 				return mol;
 			}
 		}
@@ -665,12 +922,14 @@ public class StructureImpl implements Structure, Serializable {
 	}
 
 
+	/** {@inheritDoc} */
 	@Override
 	public List<DBRef> getDBRefs() {
 		return dbrefs;
 	}
 
 
+	/** {@inheritDoc} */
 	@Override
 	public void setDBRefs(List<DBRef> dbrefs) {
 		if ( dbrefs == null)
@@ -683,42 +942,39 @@ public class StructureImpl implements Structure, Serializable {
 	}
 
 
+	/** {@inheritDoc} */
 	@Override
 	public PDBHeader getPDBHeader() {
 		return pdbHeader;
 	}
 
+	/** {@inheritDoc} */
 	@Override
 	public void setPDBHeader(PDBHeader pdbHeader){
 		this.pdbHeader = pdbHeader;
 	}
 
-	/** get the list of SSBonds as they have been defined in the PDB files
-	 *
-	 * @return a list of SSBonds
-	 */
+	/** {@inheritDoc} */
 	@Override
-	public List<SSBond> getSSBonds(){
+	public List<Bond> getSSBonds(){
 		return ssbonds;
 
 	}
-	/** set the list of SSBonds for this structure
-	 *
-	 * @param ssbonds
-	 */
+
+	/** {@inheritDoc} */
 	@Override
-	public void setSSBonds(List<SSBond> ssbonds){
+	public void setSSBonds(List<Bond> ssbonds){
 		this.ssbonds = ssbonds;
 	}
 
-	/** add a single SSBond to this structure
+	/**
+	 * Adds a single disulfide Bond to this structure
 	 *
 	 * @param ssbond the SSBond.
 	 */
 	@Override
-	public void addSSBond(SSBond ssbond){
+	public void addSSBond(Bond ssbond){
 		ssbonds.add(ssbond);
-		ssbond.setSerNum(ssbonds.size());
 	}
 
 	/**
@@ -776,11 +1032,6 @@ public class StructureImpl implements Structure, Serializable {
 	 * include any waters.
 	 */
 
-	@Override
-	public List<Group> getHetGroups() {
-		return hetAtoms;
-	}
-
 	/**
 	 * Sets a flag to indicate if this structure is a biological assembly
 	 * @param biologicalAssembly true if biological assembly, otherwise false
@@ -822,33 +1073,90 @@ public class StructureImpl implements Structure, Serializable {
 		return pdbHeader.getCrystallographicInfo();
 	}
 
+	/** {@inheritDoc} */
 	@Override
 	public String getIdentifier() {
-		return pdb_id;
+		//1. StructureIdentifier
+		if(getStructureIdentifier() != null) {
+			return getStructureIdentifier().getIdentifier();
+		}
+		//2. Name
+		if(getName() != null) {
+			return getName();
+		}
+		//3. PDBCode + ranges
+		return toCanonical().getIdentifier();
 	}
 
+	/** {@inheritDoc} */
+	@Deprecated
 	@Override
 	public String getPdbId() {
 		return pdb_id;
 	}
 
+	/** {@inheritDoc} */
+	@Override
+	public void resetModels() {
+		models = new ArrayList<>();
+	}
+	/** {@inheritDoc} */
+	@Deprecated
 	@Override
 	public List<ResidueRange> getResidueRanges() {
-		List<ResidueRange> range = new ArrayList<ResidueRange>();
-		for (Chain chain : getChains()) {
-			range.add(ResidueRange.parse(pdb_id + "." + chain.getChainID()));
-		}
-		return range;
+		return toCanonical().getResidueRanges();
 	}
-
+	/** {@inheritDoc} */
+	@Deprecated
 	@Override
 	public List<String> getRanges() {
 		return ResidueRange.toStrings(getResidueRanges());
 	}
 
-	@Override
-	public void resetModels() {
-		models = new ArrayList<List<Chain>>();
+	/**
+	 * Creates a SubstructureIdentifier based on the residues in this Structure.
+	 *
+	 * Only the first and last residues of each chain are considered, so chains
+	 * with gaps
+	 * @return A {@link SubstructureIdentifier} with residue ranges constructed from each chain
+	 */
+	private SubstructureIdentifier toCanonical() {
+		StructureIdentifier real = getStructureIdentifier();
+		if(real != null) {
+			try {
+				return real.toCanonical();
+			} catch (StructureException e) {
+				// generate fake one if needed
+			}
+		}
+
+		// No identifier set, so generate based on residues present in the structure
+		List<ResidueRange> range = new ArrayList<>();
+		for (Chain chain : getChains()) {
+			List<Group> groups = chain.getAtomGroups();
+			ListIterator<Group> groupsIt = groups.listIterator();
+			if(!groupsIt.hasNext()) {
+				continue; // no groups in chain
+			}
+			Group g = groupsIt.next();
+			ResidueNumber first = g.getResidueNumber();
+
+			//TODO Detect missing intermediate residues -sbliven, 2015-01-28
+			//Already better than previous whole-chain representation
+
+			// get last residue
+			while(groupsIt.hasNext()) {
+				g = groupsIt.next();
+			}
+			ResidueNumber last = g.getResidueNumber();
+
+			range.add(new ResidueRange(chain.getName(),first,last));
+		}
+		return new SubstructureIdentifier(getPDBCode(),range);
 	}
+
+
+
+
 
 }

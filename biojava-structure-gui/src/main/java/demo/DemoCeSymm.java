@@ -25,13 +25,13 @@ import org.biojava.nbio.structure.Atom;
 import org.biojava.nbio.structure.Structure;
 import org.biojava.nbio.structure.StructureException;
 import org.biojava.nbio.structure.StructureTools;
-import org.biojava.nbio.structure.align.multiple.MultipleAlignment;
 import org.biojava.nbio.structure.align.util.AtomCache;
 import org.biojava.nbio.structure.symmetry.gui.SymmetryDisplay;
 import org.biojava.nbio.structure.symmetry.internal.CESymmParameters;
 import org.biojava.nbio.structure.symmetry.internal.CESymmParameters.RefineMethod;
 import org.biojava.nbio.structure.symmetry.internal.CESymmParameters.SymmetryType;
 import org.biojava.nbio.structure.symmetry.internal.CeSymm;
+import org.biojava.nbio.structure.symmetry.internal.CeSymmResult;
 
 /**
  * Quick demo of how to call CE-Symm programmatically.
@@ -43,30 +43,30 @@ import org.biojava.nbio.structure.symmetry.internal.CeSymm;
  */
 public class DemoCeSymm {
 
-	public static void main(String[] args) 
+	public static void main(String[] args)
 			throws IOException, StructureException {
 
-		/* 
+		/*
 		 * Some examples:
-		 * 
+		 *
 		 * CLOSED
-		 * 2-fold: 1hiv.A, 
+		 * 2-fold: 1hiv.A,
 		 * 3-fold: 4i4q, 4dou
 		 * 5-fold: 2jaj.A
 		 * 6-fold: 1u6d
 		 * 7-fold: 1jof.A
 		 * 8-fold: 1vzw, d1i4na_
-		 * 
+		 *
 		 * OPEN
 		 * ankyrin: 1n0r.A, 3ehq.A
 		 * leucine repeats: 2bnh.A, 3o6n
 		 * helical: 1d0b.A
-		 * 
+		 *
 		 * MULTIPLE AXES
 		 * dihedral: 4hhb, 1vym, 1mmi, 1hiv
 		 * hierarchical: 4gcr, 1ppr.O, 1hiv
 		 * monoclonal Ab: 4NZU
-		 * 
+		 *
 		 * - For more examples see the symmetry benchmark
 		 */
 
@@ -78,21 +78,19 @@ public class DemoCeSymm {
 		Structure s = cache.getStructure(name);
 		Atom[] atoms = StructureTools.getRepresentativeAtomArray(s);
 
-		CeSymm ceSymm = new CeSymm();
-
 		//Choose some parameters
-		CESymmParameters params = ceSymm.getParameters();
-		params.setRefineMethod(RefineMethod.SINGLE);
+		CESymmParameters params = new CESymmParameters();
+		params.setRefineMethod(RefineMethod.SEQUENCE_FUNCTION);
 		params.setSymmType(SymmetryType.AUTO);
 		params.setOptimization(true);
 		params.setSymmLevels(0);
 		params.setSSEThreshold(2);
 
 		//Run the alignment
-		MultipleAlignment symmetry = ceSymm.analyze(atoms, params);
+		CeSymmResult result = CeSymm.analyze(atoms, params);
 
 		//Display the results in jmol
-		SymmetryDisplay.display(symmetry, ceSymm.getSymmetryAxes());
+		SymmetryDisplay.display(result);
 	}
-	
+
 }

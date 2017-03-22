@@ -44,29 +44,32 @@ import java.util.*;
 public class PDBHeader implements PDBRecord, Serializable{
 
 	private static final long serialVersionUID = -5834326174085429508L;
-	
+
 	private static final Logger logger = LoggerFactory.getLogger(PDBHeader.class);
-	
+
 	private String title;
 	private String description;
 	private String idCode;
 	private String classification;
-	
+
 	private Date depDate;
 	private Date modDate;
-	
+
 	private Set<ExperimentalTechnique> techniques;
 	private PDBCrystallographicInfo crystallographicInfo;
-	
+
 	private float resolution;
-	
+
 	private float rFree;
 	
+	private float rWork;
+
 	private JournalArticle journalArticle;
 	private String authors;
-	
+
 	public static final float DEFAULT_RESOLUTION = 99;
 	public static final float DEFAULT_RFREE = 1; // worst possible rfree is the default
+
 
 	private Long id;
 	public static final String newline = System.getProperty("line.separator");
@@ -84,6 +87,7 @@ public class PDBHeader implements PDBRecord, Serializable{
 		dateFormat = new SimpleDateFormat("dd-MMM-yy",Locale.US);
 		resolution = DEFAULT_RESOLUTION;
 		rFree = DEFAULT_RFREE;
+		rWork = DEFAULT_RFREE;
 		bioAssemblies = new HashMap<Integer, BioAssemblyInfo>();
 		crystallographicInfo = new PDBCrystallographicInfo();
 
@@ -98,7 +102,7 @@ public class PDBHeader implements PDBRecord, Serializable{
 
 		try {
 
-			
+
 			Class<?> c = Class.forName(PDBHeader.class.getName());
 			Method[] methods  = c.getMethods();
 
@@ -182,8 +186,8 @@ public class PDBHeader implements PDBRecord, Serializable{
 		Set<ExperimentalTechnique> exp = getExperimentalTechniques();
 		if ( exp == null )
 			return;
-		
-		
+
+
 		buf.append("EXPDTA    ");
 
 		int length = 0;
@@ -193,12 +197,12 @@ public class PDBHeader implements PDBRecord, Serializable{
 				buf.append("; ");
 				length+=2;
 			}
-			buf.append(et.getName());			
+			buf.append(et.getName());
 			length+=et.getName().length();
 			i++;
 		}
-		
-		// fill up the white space to the right column		
+
+		// fill up the white space to the right column
 		int l =  length + 10;
 		fillLine(buf,l);
 
@@ -237,7 +241,7 @@ public class PDBHeader implements PDBRecord, Serializable{
 			boolean charFound = false;
 			for ( int i =57;i>-1;i--){
 				char c = data.charAt(i);
-				if (c == breakChar){                
+				if (c == breakChar){
 					// found the whitespace
 
 					thisLine = data.substring(0,i+1);
@@ -253,7 +257,7 @@ public class PDBHeader implements PDBRecord, Serializable{
 			// for emergencies...  prevents an endless loop
 			if ( ! charFound){
 				thisLine = data.substring(0,58);
-				data = data.substring(57);             
+				data = data.substring(57);
 			}
 			if ( ( breakChar == ',' ) && ( data.charAt(0)== ',')) {
 				data =   data.substring(1);
@@ -395,7 +399,7 @@ public class PDBHeader implements PDBRecord, Serializable{
 	 */
 	public boolean equals(PDBHeader other){
 		try {
-			
+
 			Class<?> c = Class.forName(PDBHeader.class.getName());
 			Method[] methods  = c.getMethods();
 
@@ -483,38 +487,38 @@ public class PDBHeader implements PDBRecord, Serializable{
 	public Set<ExperimentalTechnique> getExperimentalTechniques() {
 		return techniques;
 	}
-	
+
 	/**
 	 * Adds the experimental technique to the set of experimental techniques of this header.
 	 * Note that if input is not a recognised technique string then no errors will be produced but
 	 * false will be returned
 	 * @param techniqueStr
-	 * @return true if the input corresponds to a recognised technique string (see {@link ExperimentalTechnique}) 
+	 * @return true if the input corresponds to a recognised technique string (see {@link ExperimentalTechnique})
 	 * and it was not already present in the current set of ExperimentalTechniques
 	 */
 	public boolean setExperimentalTechnique(String techniqueStr) {
-		
+
 		ExperimentalTechnique et = ExperimentalTechnique.getByName(techniqueStr);
 
 		if (et==null) return false;
-		
+
 		if (techniques==null) {
 			techniques = EnumSet.of(et);
 			return true;
 		} else {
 			return techniques.add(et);
 		}
-		
+
 	}
-	
+
 	public PDBCrystallographicInfo getCrystallographicInfo() {
 		return crystallographicInfo;
 	}
-	
+
 	public void setCrystallographicInfo(PDBCrystallographicInfo crystallographicInfo) {
 		this.crystallographicInfo = crystallographicInfo;
 	}
-	
+
 	public float getResolution() {
 		return resolution;
 	}
@@ -526,11 +530,11 @@ public class PDBHeader implements PDBRecord, Serializable{
 	public float getRfree() {
 		return rFree;
 	}
-	
+
 	public void setRfree(float rFree) {
 		this.rFree = rFree;
 	}
-	
+
 	public Date getModDate() {
 		return modDate;
 	}
@@ -552,7 +556,7 @@ public class PDBHeader implements PDBRecord, Serializable{
 		this.description = description;
 	}
 
-	/** 
+	/**
 	 * Return the names of the authors as listed in the AUTHORS section of a PDB file.
 	 * Not necessarily the same authors as listed in the AUTH section of the primary citation!
 	 *
@@ -578,27 +582,28 @@ public class PDBHeader implements PDBRecord, Serializable{
 		return this.journalArticle != null;
 	}
 
-    /**
-     * Get the associated publication as defined by the JRNL records in a PDB
-     * file.
-     * @return a JournalArticle
-     */
-    public JournalArticle getJournalArticle() {
-        return this.journalArticle;
-    }
-
-    /**
-     * Set the associated publication as defined by the JRNL records in a PDB
-     * file.
-     * @param journalArticle the article
-     */
-    public void setJournalArticle(JournalArticle journalArticle) {
-        this.journalArticle = journalArticle;
-    }
-	
 	/**
-	 * Return the map of biological assemblies. The keys are the 
-	 * biological assembly identifiers, usually numerical from "1" to "n", but can also be "PAU" and "XAU"
+	 * Get the associated publication as defined by the JRNL records in a PDB
+	 * file.
+	 * @return a JournalArticle
+	 */
+	public JournalArticle getJournalArticle() {
+		return this.journalArticle;
+	}
+
+	/**
+	 * Set the associated publication as defined by the JRNL records in a PDB
+	 * file.
+	 * @param journalArticle the article
+	 */
+	public void setJournalArticle(JournalArticle journalArticle) {
+		this.journalArticle = journalArticle;
+	}
+
+	/**
+	 * Return the map of biological assemblies. The keys are the
+	 * biological assembly identifiers (starting at 1). Non-numerical identifiers
+	 * such as PAU or XAU are not supported.
 	 * @return
 	 */
 	public Map<Integer,BioAssemblyInfo> getBioAssemblies() {
@@ -623,5 +628,19 @@ public class PDBHeader implements PDBRecord, Serializable{
 
 	public void setRevisionRecords(List<DatabasePdbrevRecord> revisionRecords) {
 		this.revisionRecords = revisionRecords;
+	}
+
+	/**
+	 * @return the R-work for this structure.
+	 */
+	public float getRwork() {
+		return rWork;
+	}
+
+	/**
+	 * @param rWork  the R-work for this structure.
+	 */
+	public void setRwork(float rWork) {
+		this.rWork = rWork;
 	}
 }

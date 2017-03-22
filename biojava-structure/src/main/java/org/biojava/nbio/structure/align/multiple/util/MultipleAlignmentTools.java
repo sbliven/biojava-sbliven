@@ -20,26 +20,46 @@
  */
 package org.biojava.nbio.structure.align.multiple.util;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
 import javax.vecmath.Matrix4d;
 
+import org.biojava.nbio.core.alignment.matrices.SubstitutionMatrixHelper;
+import org.biojava.nbio.core.exceptions.CompoundNotFoundException;
+import org.biojava.nbio.core.sequence.AccessionID;
 import org.biojava.nbio.core.sequence.MultipleSequenceAlignment;
 import org.biojava.nbio.core.sequence.ProteinSequence;
 import org.biojava.nbio.core.sequence.compound.AminoAcidCompound;
+import org.biojava.nbio.phylo.DistanceMatrixCalculator;
+import org.biojava.nbio.phylo.TreeConstructor;
+import org.biojava.nbio.phylo.TreeConstructorType;
+import org.biojava.nbio.structure.AminoAcid;
 import org.biojava.nbio.structure.Atom;
 import org.biojava.nbio.structure.Calc;
+import org.biojava.nbio.structure.Chain;
+import org.biojava.nbio.structure.Group;
+import org.biojava.nbio.structure.PDBHeader;
+import org.biojava.nbio.structure.Structure;
+import org.biojava.nbio.structure.StructureException;
+import org.biojava.nbio.structure.StructureIdentifier;
+import org.biojava.nbio.structure.StructureImpl;
 import org.biojava.nbio.structure.StructureTools;
 import org.biojava.nbio.structure.align.multiple.Block;
 import org.biojava.nbio.structure.align.multiple.BlockSet;
 import org.biojava.nbio.structure.align.multiple.MultipleAlignment;
+import org.biojava.nbio.structure.align.util.AlignmentTools;
 import org.biojava.nbio.structure.jama.Matrix;
+import org.forester.evoinference.matrix.distance.BasicSymmetricalDistanceMatrix;
+import org.forester.phylogeny.Phylogeny;
 
 /**
  * Utility functions for working with {@link MultipleAlignment}.
@@ -55,7 +75,7 @@ import org.biojava.nbio.structure.jama.Matrix;
  * <li>Sort Blocks in a MultipleAlignment by a specified row
  * <li>Convert a MultipleAlignment to a MultipleSequenceAlignment
  * </ul>
- * 
+ *
  * @author Spencer Bliven
  * @author Aleix Lafita
  * @since 4.1.0
@@ -74,7 +94,7 @@ public class MultipleAlignmentTools {
 	 * sequential. Gaps are represented by '-'. Separation between different
 	 * Blocks is indicated by a gap in all positions, meaning that there is a
 	 * possible discontinuity.
-	 * 
+	 *
 	 * @param alignment
 	 *            input MultipleAlignment
 	 * @param mapSeqToStruct
@@ -199,9 +219,8 @@ public class MultipleAlignmentTools {
 										.set(str,
 												alnSequences
 														.get(str)
-														.concat(""
-																+ Character
-																		.toLowerCase(aa)));
+														.concat(String.valueOf(Character
+																		.toLowerCase(aa))) );
 								previousPos[str]++;
 							} else {
 								// Insert a gap otherwise
@@ -216,7 +235,7 @@ public class MultipleAlignmentTools {
 							alnSequences.set(
 									str,
 									alnSequences.get(str).concat(
-											"" + provisionalChar[str]));
+											String.valueOf(provisionalChar[str])));
 
 							if (provisionalChar[str] != '-') {
 								if (alignment.getBlocks().get(b).getAlignRes()
@@ -268,7 +287,7 @@ public class MultipleAlignmentTools {
 						alnSequences.set(
 								str,
 								alnSequences.get(str).concat(
-										"" + provisionalChar[str]));
+										String.valueOf(provisionalChar[str])) );
 					}
 					mapSeqToStruct.add(-1); // unaligned position
 				}
@@ -288,7 +307,7 @@ public class MultipleAlignmentTools {
 	 * sequential. Gaps are represented by '-'. Separation between different
 	 * Blocks is indicated by a gap in all positions, meaning that there is a
 	 * possible discontinuity.
-	 * 
+	 *
 	 * @param alignment
 	 *            input MultipleAlignment
 	 * @return String for each row in the alignment, giving the 1-letter code
@@ -400,7 +419,7 @@ public class MultipleAlignmentTools {
 										alnSequences.set(
 												s2,
 												alnSequences.get(s2).concat(
-														"" + aa));
+														String.valueOf(aa)) );
 									} else {
 										alnSequences.set(s2,
 												alnSequences.get(s2)
@@ -416,7 +435,7 @@ public class MultipleAlignmentTools {
 							alnSequences.set(
 									str,
 									alnSequences.get(str).concat(
-											"" + provisionalChar[str]));
+											String.valueOf(provisionalChar[str])) );
 							if (provisionalChar[str] != '-') {
 								previousPos[str] = alignment.getBlocks().get(b)
 										.getAlignRes().get(str).get(pos);
@@ -445,7 +464,7 @@ public class MultipleAlignmentTools {
 	 * represented by '-'. Separation between different Blocks is indicated by a
 	 * gap in all positions, meaning that there is something unaligned
 	 * inbetween.
-	 * 
+	 *
 	 * @param alignment
 	 *            input MultipleAlignment
 	 * @return String for each row in the alignment, giving the 1-letter code
@@ -458,7 +477,7 @@ public class MultipleAlignmentTools {
 	/**
 	 * Returns the Atom of the specified structure that is aligned in the
 	 * sequence alignment position specified.
-	 * 
+	 *
 	 * @param multAln
 	 *            the MultipleAlignment object from where the sequence alignment
 	 *            has been generated
@@ -507,7 +526,7 @@ public class MultipleAlignmentTools {
 	/**
 	 * Returns the block number of a specified position in the sequence
 	 * alignment, given the mapping from structure to function.
-	 * 
+	 *
 	 * @param multAln
 	 *            the MultipleAlignment object from where the sequence alignment
 	 *            has been generated.
@@ -547,7 +566,7 @@ public class MultipleAlignmentTools {
 	 * <p>
 	 * Complexity: T(n,l) = O(l*n^2), if n=number of structures and l=alignment
 	 * length.
-	 * 
+	 *
 	 * @param alignment
 	 *            MultipleAlignment
 	 * @return Matrix containing all average residue distances
@@ -563,7 +582,7 @@ public class MultipleAlignmentTools {
 	 * <p>
 	 * Complexity: T(n,l) = O(l*n^2), if n=number of structures and l=alignment
 	 * length.
-	 * 
+	 *
 	 * @param transformed
 	 *            List of Atom arrays containing only the aligned atoms of each
 	 *            structure, or null if there is a gap.
@@ -630,7 +649,7 @@ public class MultipleAlignmentTools {
 	 * order as in their parent structure. If the alignment blocks contain null
 	 * residues (gaps), then the returned array will also contain null Atoms in
 	 * the same positions.
-	 * 
+	 *
 	 * @param alignment
 	 *            MultipleAlignment
 	 * @return List of Atom arrays of only the aligned atoms of every structure
@@ -658,11 +677,12 @@ public class MultipleAlignmentTools {
 			for (BlockSet bs : alignment.getBlockSets()) {
 
 				Atom[] blocksetAtoms = new Atom[bs.length()];
+				int blockPos = 0;
 
 				for (Block blk : bs.getBlocks()) {
 					if (blk.size() != atomArrays.size()) {
 						throw new IllegalStateException(String.format(
-								"Mismatched block length. Expected %d "
+								"Mismatched block size. Expected %d "
 										+ "structures, found %d.",
 								atomArrays.size(), blk.size()));
 					}
@@ -670,8 +690,10 @@ public class MultipleAlignmentTools {
 					for (int j = 0; j < blk.length(); j++) {
 						Integer alignedPos = blk.getAlignRes().get(i).get(j);
 						if (alignedPos != null) {
-							blocksetAtoms[j] = (Atom) curr[alignedPos].clone();
+							blocksetAtoms[blockPos] = (Atom) curr[alignedPos]
+									.clone();
 						}
+						blockPos++;
 					}
 				}
 
@@ -700,7 +722,7 @@ public class MultipleAlignmentTools {
 	/**
 	 * Calculate a List of alignment indicies that correspond to the core of a
 	 * Block, which means that all structures have a residue in that positon.
-	 * 
+	 *
 	 * @param block
 	 *            alignment Block
 	 * @return List of positions in the core of the alignment
@@ -726,7 +748,7 @@ public class MultipleAlignmentTools {
 	/**
 	 * Sort blocks so that the specified row is in sequential order. The sort
 	 * happens in place.
-	 * 
+	 *
 	 * @param blocks
 	 *            List of blocks
 	 * @param sortedIndex
@@ -760,25 +782,186 @@ public class MultipleAlignmentTools {
 
 	/**
 	 * Convert a MultipleAlignment into a MultipleSequenceAlignment of AminoAcid
-	 * residues. This method is only valid for protein alignments.
-	 * 
-	 * @param msta Multiple Structure Alignment
-	 * @return MultipleSequenceAlignment
+	 * residues. This method is only valid for protein structure alignments.
+	 *
+	 * @param msta
+	 *            Multiple Structure Alignment
+	 * @return MultipleSequenceAlignment of protein sequences
+	 * @throws CompoundNotFoundException
 	 */
-	@SuppressWarnings("unused")
 	public static MultipleSequenceAlignment<ProteinSequence, AminoAcidCompound> toProteinMSA(
-			MultipleAlignment msta) {
-		
-		MultipleSequenceAlignment<ProteinSequence, AminoAcidCompound> msa = new MultipleSequenceAlignment<ProteinSequence, AminoAcidCompound>();
-		
-		// Extract the sequences and add them to the MSA
-		List<String> sequences = getSequenceAlignment(msta);
-		for (String seq : sequences) {
-			// TODO convert String to ProteinSequence and add it to the MSA
-			// Additionally set the identifier
+			MultipleAlignment msta) throws CompoundNotFoundException {
+
+		// Check that the alignment is of protein structures
+		Group g = msta.getAtomArrays().get(0)[0].getGroup();
+		if (!(g instanceof AminoAcid)) {
+			throw new IllegalArgumentException(
+					"Cannot convert to multiple sequence alignment: "
+							+ "the structures aligned are not proteins");
 		}
-		throw new NullPointerException("Method not implemented yet!");
-		
-		//return msa;
+
+		MultipleSequenceAlignment<ProteinSequence, AminoAcidCompound> msa = new MultipleSequenceAlignment<ProteinSequence, AminoAcidCompound>();
+
+		Map<String, Integer> uniqueID = new HashMap<String, Integer>();
+		List<String> seqs = getSequenceAlignment(msta);
+		for (int i = 0; i < msta.size(); i++) {
+			// Make sure the identifiers are unique (required by AccessionID)
+			String id = msta.getStructureIdentifier(i).toString();
+			if (uniqueID.containsKey(id)) {
+				uniqueID.put(id, uniqueID.get(id) + 1);
+				id += "_" + uniqueID.get(id);
+			} else
+				uniqueID.put(id, 1);
+
+			AccessionID acc = new AccessionID(id);
+			ProteinSequence pseq = new ProteinSequence(seqs.get(i));
+			pseq.setAccession(acc);
+			msa.addAlignedSequence(pseq);
+		}
+		return msa;
 	}
+	
+	public static Structure toMultimodelStructure(MultipleAlignment multAln, List<Atom[]> transformedAtoms) throws StructureException {
+		PDBHeader header = new PDBHeader();
+		String title = multAln.getEnsemble().getAlgorithmName() + " V."
+				+ multAln.getEnsemble().getVersion() + " : ";
+
+		for (StructureIdentifier name : multAln.getEnsemble()
+				.getStructureIdentifiers()) {
+			title += name.getIdentifier() + " ";
+		}
+		Structure artificial = getAlignedStructure(transformedAtoms);
+
+		artificial.setPDBHeader(header);
+		header.setTitle(title);
+		return artificial;
+	}
+
+	/**
+	 * Get an artificial Structure containing a different model for every
+	 * input structure, so that the alignment result can be viewed in Jmol.
+	 * The Atoms have to be rotated beforehand.
+	 *
+	 * @param atomArrays an array of Atoms for every aligned structure
+	 * @return a structure object containing a set of models,
+	 * 			one for each input array of Atoms.
+	 * @throws StructureException
+	 */
+	public static final Structure getAlignedStructure(List<Atom[]> atomArrays)
+			throws StructureException {
+
+		Structure s = new StructureImpl();
+		for (int i=0; i<atomArrays.size(); i++){
+			List<Chain> model = AlignmentTools.getAlignedModel(atomArrays.get(i));
+			s.addModel(model);
+		}
+		return s;
+	}
+	
+	/**
+	 * Calculate the RMSD matrix of a MultipleAlignment, that is, entry (i,j) of
+	 * the matrix contains the RMSD between structures i and j.
+	 *
+	 * @param msa
+	 *            Multiple Structure Alignment
+	 * @return Matrix of RMSD with size the number of structures squared
+	 */
+	public static Matrix getRMSDMatrix(MultipleAlignment msa) {
+
+		Matrix rmsdMat = new Matrix(msa.size(), msa.size());
+		List<Atom[]> superposed = transformAtoms(msa);
+
+		for (int i = 0; i < msa.size(); i++) {
+			for (int j = i; j < msa.size(); j++) {
+				if (i == j)
+					rmsdMat.set(i, j, 0.0);
+				List<Atom[]> compared = new ArrayList<Atom[]>();
+				compared.add(superposed.get(i));
+				compared.add(superposed.get(j));
+				double rmsd = MultipleAlignmentScorer.getRMSD(compared);
+				rmsdMat.set(i, j, rmsd);
+				rmsdMat.set(j, i, rmsd);
+			}
+		}
+		return rmsdMat;
+	}
+
+	/**
+	 * Calculate a phylogenetic tree of the MultipleAlignment using Kimura
+	 * distances and the Neighbor Joining algorithm from forester.
+	 *
+	 * @param msta
+	 *            MultipleAlignment of protein structures
+	 * @return Phylogeny phylogenetic tree
+	 * @throws CompoundNotFoundException
+	 * @throws IOException
+	 */
+	public static Phylogeny getKimuraTree(MultipleAlignment msta)
+			throws CompoundNotFoundException, IOException {
+		MultipleSequenceAlignment<ProteinSequence, AminoAcidCompound> msa = MultipleAlignmentTools
+				.toProteinMSA(msta);
+		BasicSymmetricalDistanceMatrix distmat = (BasicSymmetricalDistanceMatrix) DistanceMatrixCalculator
+				.kimuraDistance(msa);
+		Phylogeny tree = TreeConstructor.distanceTree(distmat,
+				TreeConstructorType.NJ);
+		tree.setName("Kimura Tree");
+		return tree;
+	}
+
+	/**
+	 * Calculate a phylogenetic tree of the MultipleAlignment using
+	 * dissimilarity scores (DS), based in SDM Substitution Matrix (ideal for
+	 * distantly related proteins, structure-derived) and the Neighbor Joining
+	 * algorithm from forester.
+	 *
+	 * @param msta
+	 *            MultipleAlignment of protein structures
+	 * @return Phylogeny phylogenetic tree
+	 * @throws CompoundNotFoundException
+	 * @throws IOException
+	 */
+	public static Phylogeny getHSDMTree(MultipleAlignment msta)
+			throws CompoundNotFoundException, IOException {
+		MultipleSequenceAlignment<ProteinSequence, AminoAcidCompound> msa = MultipleAlignmentTools
+				.toProteinMSA(msta);
+		BasicSymmetricalDistanceMatrix distmat = (BasicSymmetricalDistanceMatrix) DistanceMatrixCalculator
+				.dissimilarityScore(msa, SubstitutionMatrixHelper.getAminoAcidSubstitutionMatrix("PRLA000102"));
+		Phylogeny tree = TreeConstructor.distanceTree(distmat,
+				TreeConstructorType.NJ);
+		tree.setName("HSDM Tree");
+		return tree;
+	}
+
+	/**
+	 * Calculate a phylogenetic tree of the MultipleAlignment using RMSD
+	 * distances and the Neighbor Joining algorithm from forester.
+	 *
+	 * @param msta
+	 *            MultipleAlignment of protein structures
+	 * @return Phylogeny phylogenetic tree
+	 * @throws CompoundNotFoundException
+	 */
+	public static Phylogeny getStructuralTree(MultipleAlignment msta) {
+		double[][] rmsdMat = MultipleAlignmentTools.getRMSDMatrix(msta)
+				.getArray();
+		BasicSymmetricalDistanceMatrix rmsdDist = (BasicSymmetricalDistanceMatrix) DistanceMatrixCalculator
+				.structuralDistance(rmsdMat, 1, 5, 0.4);
+		// Set the identifiers of the matrix
+		Map<String, Integer> alreadySeen = new HashMap<String, Integer>();
+		for (int i = 0; i < msta.size(); i++) {
+			// Make sure the identifiers are unique
+			String id = msta.getStructureIdentifier(i).toString();
+			if (alreadySeen.containsKey(id)) {
+				alreadySeen.put(id, alreadySeen.get(id) + 1);
+				id += "_" + alreadySeen.get(id);
+			} else
+				alreadySeen.put(id, 1);
+			rmsdDist.setIdentifier(i, id);
+		}
+		Phylogeny tree = TreeConstructor.distanceTree(rmsdDist,
+				TreeConstructorType.NJ);
+		tree.setName("Structural Tree");
+		return tree;
+	}
+
 }

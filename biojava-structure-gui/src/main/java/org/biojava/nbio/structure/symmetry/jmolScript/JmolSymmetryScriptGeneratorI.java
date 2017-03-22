@@ -19,11 +19,11 @@
  *
  */
 /**
- * 
+ *
  */
 package org.biojava.nbio.structure.symmetry.jmolScript;
 
-import org.biojava.nbio.structure.symmetry.core.RotationAxisAligner;
+import org.biojava.nbio.structure.symmetry.axis.RotationAxisAligner;
 import org.biojava.nbio.structure.symmetry.geometry.Icosahedron;
 
 
@@ -40,18 +40,19 @@ public class JmolSymmetryScriptGeneratorI extends JmolSymmetryScriptGeneratorPoi
 		i.setMidRadius(radius);
 		setPolyhedron(i);
 	}
-	
+
+	@Override
 	public int getZoom() {
 		// find maximum extension of structure
 		double maxExtension = getMaxExtension();
 		// find maximum extension of polyhedron
 		double polyhedronExtension = getPolyhedron().getCirumscribedRadius();
-		
+
 		int zoom = Math.round((float)(maxExtension/polyhedronExtension * 110));
 		if (zoom > 100) {
 			zoom = 100;
 		}
 		return zoom;
 	}
-	
+
 }

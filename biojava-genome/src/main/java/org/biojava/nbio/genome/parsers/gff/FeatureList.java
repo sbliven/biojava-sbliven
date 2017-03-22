@@ -22,6 +22,7 @@ package org.biojava.nbio.genome.parsers.gff;
 
 import org.biojava.nbio.core.sequence.DNASequence;
 
+import java.io.Serializable;
 import java.util.*;
 import java.util.Map.Entry;
 
@@ -155,7 +156,7 @@ public class FeatureList extends ArrayList<FeatureI> {
 	 *
 	 */
 	public String splice(DNASequence sequence) {
-		StringBuilder subData = new StringBuilder();		
+		StringBuilder subData = new StringBuilder();
 		Location last = null;
 
 		for (FeatureI f : this) {
@@ -220,7 +221,7 @@ public class FeatureList extends ArrayList<FeatureI> {
 
 	/**
 	 * Create a list of all features that have the specified group id, as defined by
-	 * the group() method of the features. 
+	 * the group() method of the features.
 	 *
 	 * @param groupid The group to match.
 	 * @return A list of features having the specified group id.
@@ -238,7 +239,7 @@ public class FeatureList extends ArrayList<FeatureI> {
 
 	/**
 	 * Create a list of all features that are of the specified type, as defined by
-	 * the type() method of the features. 
+	 * the type() method of the features.
 	 * This might be, for example, "exon" or "CDS".
 	 *
 	 * @param type The type to match.
@@ -262,7 +263,7 @@ public class FeatureList extends ArrayList<FeatureI> {
 	 *
 	 * @param key The key to consider.
 	 * @param value The value to consider.
-	 * @return A list of features that include the key/value pair. 
+	 * @return A list of features that include the key/value pair.
 	 */
 	public FeatureList selectByAttribute(String key, String value) {
 		if (featindex.containsKey(key)){
@@ -286,7 +287,7 @@ public class FeatureList extends ArrayList<FeatureI> {
 	 * Create a list of all features that include the specified attribute key.
 	 *
 	 * @param key The key to consider.
-	 * @return A list of features that include the key. 
+	 * @return A list of features that include the key.
 	 */
 	public FeatureList selectByAttribute(String key) {
 		FeatureList list = new FeatureList();
@@ -299,7 +300,7 @@ public class FeatureList extends ArrayList<FeatureI> {
 				return list;
 			}
 		}
-		
+
 		for (FeatureI f : this) {
 			if (f.hasAttribute(key)) {
 				list.add(f);
@@ -313,7 +314,7 @@ public class FeatureList extends ArrayList<FeatureI> {
 	 *
 	 * @param key The key to consider.
 	 * @param value The value to consider.
-	 * @return A list of features that include the key/value pair. 
+	 * @return A list of features that include the key/value pair.
 	 */
 	public FeatureList selectByUserData(String key, Object value) {
 		FeatureList list = new FeatureList();
@@ -329,7 +330,7 @@ public class FeatureList extends ArrayList<FeatureI> {
 	 * Create a list of all features that include the specified key in their userMap().
 	 *
 	 * @param key The key to consider.
-	 * @return A list of features that include the key. 
+	 * @return A list of features that include the key.
 	 */
 	public FeatureList selectByUserData(String key) {
 		FeatureList list = new FeatureList();
@@ -348,7 +349,7 @@ public class FeatureList extends ArrayList<FeatureI> {
 	 * @param seqname The sequence name. Only features with this sequence name will be checked for overlap.
 	 * @param location The location to check.
 	 * @param useBothStrands If true, locations are mapped to their positive strand image
-	 * before being checked for overlap. If false, only features whose locations are 
+	 * before being checked for overlap. If false, only features whose locations are
 	 * on the same strand as the specified location will be considered for inclusion.
 	 * @return The new list of features that overlap the location.
 	 */
@@ -467,7 +468,8 @@ public class FeatureList extends ArrayList<FeatureI> {
 	/**
 	 * used by sort routine
 	 */
-	private class FeatureComparator implements Comparator<FeatureI> {
+	private class FeatureComparator implements Comparator<FeatureI>, Serializable {
+        private static final long serialVersionUID = 1;
 
 		@Override
 		public int compare(FeatureI a, FeatureI b) {
@@ -488,7 +490,7 @@ public class FeatureList extends ArrayList<FeatureI> {
 	 * whose seqnames differ.
 	 */
 	public FeatureList sortByStart() {
-		FeatureI array[] = (FeatureI[]) toArray(new FeatureI[1]);
+		FeatureI[] array = toArray(new FeatureI[1]);
 
 		Arrays.sort(array, new FeatureComparator());
 
@@ -501,12 +503,12 @@ public class FeatureList extends ArrayList<FeatureI> {
 	 */
 	// FIXME features may have a null location() !!
 	@Deprecated
-	static public void main(String args[]) {
+	static public void main(String[] args) {
 	}
 
-	
+
 	/**
-	 * Add a list of attributes that will be used as indexes for queries 
+	 * Add a list of attributes that will be used as indexes for queries
 	 * @param indexes  the List containing the attribute_id
 	 */
 	public void addIndexes(List<String> indexes) {
@@ -516,7 +518,7 @@ public class FeatureList extends ArrayList<FeatureI> {
 
 	}
 	/**
-	 * Add an attribute that will be used as index for queries 
+	 * Add an attribute that will be used as index for queries
 	 * @param index an attribute_id
 	 */
 	public void addIndex(String index) {

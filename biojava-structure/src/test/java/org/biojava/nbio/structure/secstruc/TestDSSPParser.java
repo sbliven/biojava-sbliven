@@ -34,7 +34,7 @@ import static org.junit.Assert.*;
 /**
  * Test all the options for writting and fetching DSSP file formats. Also
  * compare that files match the prediction (assumed to be correct).
- * 
+ *
  * @author Aleix Lafita
  *
  */
@@ -59,8 +59,8 @@ public class TestDSSPParser {
 			List<SecStrucState> pdb = DSSPParser.fetch(name, s, false);
 
 			// Test predicting, writting and parsing back
-			SecStrucPred sec = new SecStrucPred();
-			List<SecStrucState> pred = sec.predict(s, false);
+			SecStrucCalc sec = new SecStrucCalc();
+			List<SecStrucState> pred = sec.calculate(s, false);
 
 			List<SecStrucState> parseBack = DSSPParser.parseString(
 					sec.toString(), s, false);

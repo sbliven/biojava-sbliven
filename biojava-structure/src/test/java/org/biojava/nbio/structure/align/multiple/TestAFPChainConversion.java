@@ -31,9 +31,9 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 /**
- * Test that all relevant information (except scores and cache) is correctly 
+ * Test that all relevant information (except scores and cache) is correctly
  * copied from the AFPChain to the generated MultipleAlignment object.
- * 
+ *
  * @author Aleix Lafita
  *
  */
@@ -43,10 +43,9 @@ public class TestAFPChainConversion {
 	public void testAFPconversion() throws Exception{
 
 		//Fill an AFPChain with the general information
-		AFPChain afp = new AFPChain();
+		AFPChain afp = new AFPChain("algorithm");
 		afp.setName1("name1");
 		afp.setName2("name2");
-		afp.setAlgorithmName("algorithm");
 		afp.setVersion("1.0");
 		afp.setCalculationTime(System.currentTimeMillis());
 		//Generate a optimal alignment with 3 blocks and 5 residues per block
@@ -74,13 +73,13 @@ public class TestAFPChainConversion {
 		afp.setBlockShiftVector(blockShift);
 
 		//Convert the AFPChain into a MultipleAlignment (without Atoms)
-		MultipleAlignmentEnsemble ensemble = 
+		MultipleAlignmentEnsemble ensemble =
 				new MultipleAlignmentEnsembleImpl(afp,null,null,true);
 		MultipleAlignment msa = ensemble.getMultipleAlignment(0);
 
 		//Test for all the information
-		assertEquals(afp.getName1(),ensemble.getStructureNames().get(0));
-		assertEquals(afp.getName2(), ensemble.getStructureNames().get(1));
+		assertEquals(afp.getName1(),ensemble.getStructureIdentifiers().get(0).getIdentifier());
+		assertEquals(afp.getName2(), ensemble.getStructureIdentifiers().get(1).getIdentifier());
 		assertEquals(afp.getAlgorithmName(), ensemble.getAlgorithmName());
 		assertEquals(afp.getVersion(),ensemble.getVersion());
 		assertTrue(ensemble.getCalculationTime().equals(

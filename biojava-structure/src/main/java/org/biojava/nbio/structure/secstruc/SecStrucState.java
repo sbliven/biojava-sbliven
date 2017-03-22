@@ -23,16 +23,21 @@ package org.biojava.nbio.structure.secstruc;
 import org.biojava.nbio.structure.Atom;
 import org.biojava.nbio.structure.Group;
 import org.biojava.nbio.structure.StructureTools;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class extends the basic container for secondary structure annotation,
  * including all the information used in the DSSP algorithm.
- * 
+ *
  * @author Andreas Prlic
  * @author Aleix Lafita
  *
  */
 public class SecStrucState extends SecStrucInfo {
+
+	private static final Logger logger = LoggerFactory
+			.getLogger(SecStrucState.class);
 
 	private double phi;
 	private double psi;
@@ -71,8 +76,8 @@ public class SecStrucState extends SecStrucInfo {
 		turn[0] = ' ';
 		turn[1] = ' ';
 		turn[2] = ' ';
-		bend = false;
 
+		bend = false;
 		kappa = 360;
 	}
 
@@ -101,7 +106,7 @@ public class SecStrucState extends SecStrucInfo {
 	 * > or ending < was set and the opposite is being set, the value will be
 	 * converted to X. If a number was set, it will be overwritten by the new
 	 * character.
-	 * 
+	 *
 	 * @param c
 	 *            character in the column
 	 * @param t
@@ -179,22 +184,42 @@ public class SecStrucState extends SecStrucInfo {
 		return bridge1;
 	}
 
-	public void setBridge(BetaBridge bridge) {
-		if (bridge1 == null)
-			bridge1 = bridge;
-		else if (bridge1.equals(bridge))
-			return;
-		else if (bridge2 == null)
-			bridge2 = bridge;
-		else if (bridge2.equals(bridge))
-			return;
-		else
-			throw new IllegalStateException(
-					"Cannot store more than 2 beta Bridge in one residue");
-	}
-
 	public BetaBridge getBridge2() {
 		return bridge2;
+	}
+
+	/**
+	 * Adds a Bridge to the residue. Each residue can only store two bridges. If
+	 * the residue contains already two Bridges, the Bridge will not be added
+	 * and the method returns false.
+	 *
+	 * @param bridge
+	 * @return false if the Bridge was not added, true otherwise
+	 */
+	public boolean addBridge(BetaBridge bridge) {
+		if (bridge1 == null) {
+			bridge1 = bridge;
+			return true;
+		} else if (bridge1.equals(bridge)) {
+			return true;
+		} else if (bridge2 == null) {
+			bridge2 = bridge;
+			return true;
+		} else if (bridge2.equals(bridge)) {
+			return true;
+		} else { //no space left, cannot add the bridge
+			logger.info("Residue forms more than 2 beta Bridges, "
+					+ "DSSP output might differ in Bridges column.");
+			return false;
+		}
+	}
+
+	public void setBridge1(BetaBridge bridge1) {
+		this.bridge1 = bridge1;
+	}
+
+	public void setBridge2(BetaBridge bridge2) {
+		this.bridge2 = bridge2;
 	}
 
 	public String printDSSPline(int index) {
@@ -232,7 +257,7 @@ public class SecStrucState extends SecStrucInfo {
 
 		// AA
 		char aaLetter = StructureTools.get1LetterCode(parent.getPDBName());
-		buf.append(aaLetter + "  ");
+		buf.append(aaLetter).append("  ");
 
 		// STRUCTURE
 		buf.append(type).append(" ");
@@ -259,11 +284,11 @@ public class SecStrucState extends SecStrucInfo {
 		}
 		// TODO a clever way to do this?
 		if (bp1 < 10)
-			buf.append("   " + bp1);
+			buf.append("   ").append(bp1);
 		else if (bp1 < 100)
-			buf.append("  " + bp1);
+			buf.append("  ").append(bp1);
 		else if (bp1 < 1000)
-			buf.append(" " + bp1);
+			buf.append(" ").append(bp1);
 		else
 			buf.append(bp1);
 
@@ -275,11 +300,11 @@ public class SecStrucState extends SecStrucInfo {
 				bp2 = bridge2.partner2 + 1;
 		}
 		if (bp2 < 10)
-			buf.append("   " + bp2);
+			buf.append("   ").append(bp2);
 		else if (bp2 < 100)
-			buf.append("  " + bp2);
+			buf.append("  ").append(bp2);
 		else if (bp2 < 1000)
-			buf.append(" " + bp2);
+			buf.append(" ").append(bp2);
 		else
 			buf.append(bp2);
 

@@ -23,6 +23,7 @@
 
 package org.biojava.nbio.structure;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -39,9 +40,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * A map from {@link ResidueNumber ResidueNumbers} to ATOM record positions in a PDB file.
- * 
+ *
  * <p>To use:
- * 
+ *
  * <pre>
  * Atom[] atoms = new AtomCache().getAtoms("1w0p");
  * AtomPositionMap map = new AtomPositionMap(atoms);
@@ -50,16 +51,16 @@ import org.slf4j.LoggerFactory;
  * int pos = map.getPosition(start);
  * int length = map.calcLength(start, end);
  * </pre>
- * 
+ *
  * <p>Note: The getLength() methods were introduced in BioJava 4.0.0 to replace
  * the calcLength methods. The new method returns the number of residues between
  * two residues, inclusive, whereas the previous method returned 1 less than that.
- * @author dmyerstu
+ * @author Douglas Myers-Turnbull
  */
 public class AtomPositionMap {
 
 	private static final Logger logger = LoggerFactory.getLogger(AtomPositionMap.class);
-	
+
 	private HashMap<ResidueNumber, Integer> hashMap;
 	private TreeMap<ResidueNumber, Integer> treeMap;
 
@@ -111,15 +112,16 @@ public class AtomPositionMap {
 
 	/**
 	 * A map that is sorted by its values. Used for the treemap
-	 * 
+	 *
 	 * @author dmyerstu
-	 * 
+	 *
 	 * @param <T>
 	 *            The key type
 	 * @param <V>
 	 *            The value type
 	 */
-	private static class ValueComparator<T, V extends Comparable<V>> implements Comparator<T> {
+	private static class ValueComparator<T, V extends Comparable<V>> implements Comparator<T>, Serializable {
+        private static final long serialVersionUID = 1;
 
 		private Map<T, V> map;
 
@@ -136,7 +138,7 @@ public class AtomPositionMap {
 
 	/**
 	 * Creates a new AtomPositionMap containing peptide alpha-carbon atoms
-	 * 
+	 *
 	 * @param atoms
 	 */
 	public AtomPositionMap(Atom[] atoms) {
@@ -145,7 +147,7 @@ public class AtomPositionMap {
 
 	/**
 	 * Creates a new AtomPositionMap containing only atoms matched by {@code matcher}.
-	 * 
+	 *
 	 * If multiple atoms are present from a group, the first atom encountered will
 	 * be used.
 	 * @param atoms
@@ -167,6 +169,15 @@ public class AtomPositionMap {
 	}
 
 	/**
+	 * Creates a new AtomPositionMap containing representative atoms
+	 * from a structure.
+	 * @param s
+	 */
+	public AtomPositionMap(Structure s) {
+		this(StructureTools.getRepresentativeAtomArray(s));
+	}
+
+	/**
 	 * Calculates the number of residues of the specified chain in a given range, inclusive.
 	 * @param positionA index of the first atom to count
 	 * @param positionB index of the last atom to count
@@ -174,7 +185,7 @@ public class AtomPositionMap {
 	 * @return The number of atoms between A and B inclusive belonging to the given chain
 	 */
 	public int getLength(int positionA, int positionB, String startingChain) {
-		
+
 		int positionStart, positionEnd;
 		if (positionA <= positionB) {
 			positionStart = positionA;
@@ -187,7 +198,7 @@ public class AtomPositionMap {
 		int count = 0;
 		// Inefficient search
 		for (Map.Entry<ResidueNumber, Integer> entry : treeMap.entrySet()) {
-			if (entry.getKey().getChainId().equals(startingChain)
+			if (entry.getKey().getChainName().equals(startingChain)
 					&& positionStart <= entry.getValue()
 					&& entry.getValue() <= positionEnd)
 			{
@@ -225,7 +236,7 @@ public class AtomPositionMap {
 	 *  or if either of the residues doesn't exist
 	 */
 	public int getLength(ResidueNumber start, ResidueNumber end) {
-		if( ! start.getChainId().equals(end.getChainId())) {
+		if( ! start.getChainName().equals(end.getChainName())) {
 			throw new IllegalArgumentException(String.format(
 					"Chains differ between %s and %s. Unable to calculate length.",
 					start,end));
@@ -238,7 +249,7 @@ public class AtomPositionMap {
 		if(endPos == null) {
 			throw new IllegalArgumentException("Residue "+start+" was not found.");
 		}
-		return getLength(startPos, endPos, start.getChainId());
+		return getLength(startPos, endPos, start.getChainName());
 	}
 
 	/**
@@ -252,7 +263,7 @@ public class AtomPositionMap {
 	 *  or if either of the residues doesn't exist
 	 */
 	public int getLengthDirectional(ResidueNumber start, ResidueNumber end) {
-		if( ! start.getChainId().equals(end.getChainId())) {
+		if( ! start.getChainName().equals(end.getChainName())) {
 			throw new IllegalArgumentException(String.format(
 					"Chains differ between %s and %s. Unable to calculate length.",
 					start,end));
@@ -265,7 +276,7 @@ public class AtomPositionMap {
 		if(endPos == null) {
 			throw new IllegalArgumentException("Residue "+start+" was not found.");
 		}
-		return getLengthDirectional(startPos, endPos, start.getChainId());
+		return getLengthDirectional(startPos, endPos, start.getChainName());
 	}
 
 
@@ -290,7 +301,7 @@ public class AtomPositionMap {
 	public ResidueNumber getFirst(String chainId) {
 		Map.Entry<ResidueNumber,Integer> entry = treeMap.firstEntry();
 		while (true) {
-			if (entry.getKey().getChainId().equals(chainId)) return entry.getKey();
+			if (entry.getKey().getChainName().equals(chainId)) return entry.getKey();
 			entry = treeMap.higherEntry(entry.getKey());
 			if (entry == null) return null;
 		}
@@ -303,7 +314,7 @@ public class AtomPositionMap {
 	public ResidueNumber getLast(String chainId) {
 		Map.Entry<ResidueNumber,Integer> entry = treeMap.lastEntry();
 		while (true) {
-			if (entry.getKey().getChainId().equals(chainId)) return entry.getKey();
+			if (entry.getKey().getChainName().equals(chainId)) return entry.getKey();
 			entry = treeMap.lowerEntry(entry.getKey());
 			if (entry == null) return null;
 		}
@@ -332,7 +343,7 @@ public class AtomPositionMap {
 		ResidueNumber prev = null;
 		List<ResidueRangeAndLength> ranges = new ArrayList<ResidueRangeAndLength>();
 		for (ResidueNumber rn : treeMap.keySet()) {
-			if (!rn.getChainId().equals(currentChain)) {
+			if (!rn.getChainName().equals(currentChain)) {
 				if (first != null) {
 					ResidueRangeAndLength newRange = new ResidueRangeAndLength(currentChain, first, prev, this.getLength(first, prev));
 					ranges.add(newRange);
@@ -340,7 +351,7 @@ public class AtomPositionMap {
 				first = rn;
 			}
 			prev = rn;
-			currentChain = rn.getChainId();
+			currentChain = rn.getChainName();
 		}
 		ResidueRangeAndLength newRange = new ResidueRangeAndLength(currentChain, first, prev, this.getLength(first, prev));
 		ranges.add(newRange);
@@ -349,19 +360,18 @@ public class AtomPositionMap {
 
 	/**
 	 * Trims a residue range so that both endpoints are contained in this map.
-	 * @param rr
-	 * @param map
-	 * @return
+	 * @param rr residue range
+	 * @return residue range and length
 	 */
 	public ResidueRangeAndLength trimToValidResidues(ResidueRange rr) {
 		ResidueNumber start = rr.getStart();
 		ResidueNumber end = rr.getEnd();
-		String chain = rr.getChainId();
-		// Add chainId
-		if(start.getChainId() == null) {
+		String chain = rr.getChainName();
+		// Add chainName
+		if(start.getChainName() == null) {
 			start = new ResidueNumber(chain,start.getSeqNum(),start.getInsCode());
 		}
-		if(end.getChainId() == null) {
+		if(end.getChainName() == null) {
 			end = new ResidueNumber(chain,end.getSeqNum(),end.getInsCode());
 		}
 		// Check that start and end are present in the map.
@@ -372,7 +382,7 @@ public class AtomPositionMap {
 			// Assume that the residue numbers are sequential
 			// Find startIndex such that the SeqNum is bigger than start's seqNum
 			for(ResidueNumber key :  treeMap.keySet()) {
-				if( !key.getChainId().equals(chain) )
+				if( !key.getChainName().equals(chain) )
 					continue;
 				if( start.getSeqNum() <= key.getSeqNum() ) {
 					start = key;
@@ -392,7 +402,7 @@ public class AtomPositionMap {
 			// Assume that the residue numbers are sequential
 			// Find startIndex such that the SeqNum is bigger than start's seqNum
 			for(ResidueNumber key :  treeMap.descendingKeySet()) {
-				if( !key.getChainId().equals(chain) )
+				if( !key.getChainName().equals(chain) )
 					continue;
 				Integer value = getPosition(key);
 				if( value < startIndex ) {
@@ -412,7 +422,7 @@ public class AtomPositionMap {
 				logger.warn("Unable to find Residue {}, so substituting {}.",rr.getEnd(),end);
 			}
 		}
-		
+
 		// now use those to calculate the length
 		// if start or end is null, will throw NPE
 		int length = getLength(startIndex, endIndex,chain);

@@ -18,7 +18,7 @@
  *      http://www.biojava.org/
  *
  * Created on Jun 17, 2010
- * Author: ap3 
+ * Author: ap3
  *
  */
 
@@ -28,7 +28,7 @@ import java.io.Serializable;
 import java.io.StringWriter;
 
 /** Everything that is needed to uniquely describe a residue position
- * 
+ *
  * @author Andreas Prlic
  *
  */
@@ -36,32 +36,32 @@ public class ResidueNumber implements Serializable, Comparable<ResidueNumber>
 {
 
 	private static final long serialVersionUID = 1773011704758536083L;
-	private String chainId;
+	private String chainName;
 	private Character insCode;
 	private Integer seqNum;
 
 	public ResidueNumber() {
 	}
-	
+
 	public ResidueNumber(ResidueNumber o) {
-		this.chainId = o.chainId;
+		this.chainName = o.chainName;
 		this.insCode = o.insCode;
 		this.seqNum = o.seqNum;
 	}
 
-	public ResidueNumber(String chainId, Integer residueNumber, Character insCode) {
-		this.chainId = chainId;
+	public ResidueNumber(String chainName, Integer residueNumber, Character insCode) {
+		this.chainName = chainName;
 		this.seqNum = residueNumber;
 		this.insCode = insCode;
 	}
 
-	public String getChainId()
+	public String getChainName()
 	{
-		return chainId;
+		return chainName;
 	}
-	public void setChainId(String chainId)
+	public void setChainName(String chainName)
 	{
-		this.chainId = chainId;
+		this.chainName = chainName;
 	}
 	public Character getInsCode()
 	{
@@ -80,9 +80,9 @@ public class ResidueNumber implements Serializable, Comparable<ResidueNumber>
 		this.seqNum = seqNum;
 	}
 
-	
 
-	
+
+
 
 	@Override
 	public boolean equals(Object obj) {
@@ -93,10 +93,10 @@ public class ResidueNumber implements Serializable, Comparable<ResidueNumber>
 		if (getClass() != obj.getClass())
 			return false;
 		ResidueNumber other = (ResidueNumber) obj;
-		if (chainId == null) {
-			if (other.chainId != null)
+		if (chainName == null) {
+			if (other.chainName != null)
 				return false;
-		} else if (!chainId.equals(other.chainId))
+		} else if (!chainName.equals(other.chainName))
 			return false;
 		if (insCode == null) {
 			if (other.insCode != null)
@@ -108,15 +108,44 @@ public class ResidueNumber implements Serializable, Comparable<ResidueNumber>
 				return false;
 		} else if (!seqNum.equals(other.seqNum))
 			return false;
-		
+
 		return true;
 	}
 	
+	/**
+	 * Check if the seqNum and insertion code are equivalent,
+	 * ignoring the chain
+	 * @param obj
+	 * @return
+	 */
+	public boolean equalsPositional(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		ResidueNumber other = (ResidueNumber) obj;
+		if (insCode == null) {
+			if (other.insCode != null)
+				return false;
+		} else if (!insCode.equals(other.insCode))
+			return false;
+		if (seqNum == null) {
+			if (other.seqNum != null)
+				return false;
+		} else if (!seqNum.equals(other.seqNum))
+			return false;
+
+		return true;
+
+	}
+
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + ((chainId == null) ? 0 : chainId.hashCode());
+		result = prime * result + ((chainName == null) ? 0 : chainName.hashCode());
 		result = prime * result + ((insCode == null) ? 0 : insCode.hashCode());
 		result = prime * result + ((seqNum == null) ? 0 : seqNum.hashCode());
 		return result;
@@ -130,11 +159,11 @@ public class ResidueNumber implements Serializable, Comparable<ResidueNumber>
 	public String toString() {
 
 		StringWriter writer = new StringWriter();
-		//	   if ( chainId != null){
-			//		   writer.append(chainId);
-			//		   writer.append(":");
-			//	   }
-        writer.append(String.valueOf(seqNum));
+		//	   if ( chainName != null){
+		//		   writer.append(chainName);
+		//		   writer.append(":");
+		//	   }
+		writer.append(String.valueOf(seqNum));
 		if (  insCode != null && ( insCode != ' '))
 			writer.append(insCode);
 
@@ -149,26 +178,29 @@ public class ResidueNumber implements Serializable, Comparable<ResidueNumber>
 		if ( insCode != null)
 			insCodeS = insCode+"";
 		else insCodeS = " ";
-		return String.format("%s%4d%-2s", chainId, seqNum, insCodeS);
+		return String.format("%s%4d%-2s", chainName, seqNum, insCodeS);
 	}
 
-	
+
 	/** Convert a string representation of a residue number to a residue number object.
 	 * The string representation can be a integer followed by a character.
-	 * 
+	 *
 	 * @param pdb_code
-	 * @return a ResidueNumber object
+	 * @return a ResidueNumber object, or null if the input was null
 	 */
 	public static ResidueNumber fromString(String pdb_code) {
+		if(pdb_code == null)
+			return null;
+
 		ResidueNumber residueNumber = new ResidueNumber();
 		Integer resNum = null;
-		String icode = null;		
-		
+		String icode = null;
+
 		try {
 			resNum = Integer.parseInt(pdb_code);
 		} catch ( NumberFormatException e){
 			// there is an insertion code..
-		
+
 			// Split at any position that's either:
 			// preceded by a digit and followed by a non-digit, or
 			// preceded by a non-digit and followed by a digit.
@@ -177,9 +209,9 @@ public class ResidueNumber implements Serializable, Comparable<ResidueNumber>
 				resNum = Integer.parseInt(spl[0]);
 				icode = spl[1];
 			}
-			
+
 		}
-				
+
 		residueNumber.setSeqNum(resNum);
 		if ( icode == null)
 			residueNumber.setInsCode(null);
@@ -189,19 +221,32 @@ public class ResidueNumber implements Serializable, Comparable<ResidueNumber>
 	}
 
 
+	/**
+	 * Compare residue numbers by chain, sequence number, and insertion code
+	 */
 	@Override
 	public int compareTo(ResidueNumber other) {
-		
+
 		// chain id
-		if (chainId != null && other.chainId != null) {
-			if (!chainId.equals(other.chainId)) return chainId.compareTo(other.chainId);
+		if (chainName != null && other.chainName != null) {
+			if (!chainName.equals(other.chainName)) return chainName.compareTo(other.chainName);
 		}
-		if (chainId != null && other.chainId == null) {
+		if (chainName != null && other.chainName == null) {
 			return 1;
-		} else if (chainId == null && other.chainId != null) {
+		} else if (chainName == null && other.chainName != null) {
 			return -1;
 		}
-		
+
+		return compareToPositional(other);
+	}
+
+	/**
+	 * Compare residue numbers by sequence number and insertion code,
+	 * ignoring the chain
+	 * @param other
+	 * @return
+	 */
+	public int compareToPositional(ResidueNumber other) {
 		// sequence number
 		if (seqNum != null && other.seqNum != null) {
 			if (!seqNum.equals(other.seqNum)) return seqNum.compareTo(other.seqNum);
@@ -211,7 +256,7 @@ public class ResidueNumber implements Serializable, Comparable<ResidueNumber>
 		} else if (seqNum == null && other.seqNum != null) {
 			return -1;
 		}
-		
+
 		// insertion code
 		if (insCode != null && other.insCode != null) {
 			if (!insCode.equals(other.insCode)) return insCode.compareTo(other.insCode);
@@ -221,13 +266,13 @@ public class ResidueNumber implements Serializable, Comparable<ResidueNumber>
 		} else if (insCode == null && other.insCode != null) {
 			return -1;
 		}
-		
+
 		return 0;
 	}
 
 	public String printFull() {
-		final String chain = chainId==null? "" : chainId;
+		final String chain = chainName==null? "" : chainName;
 		return chain + "_" + toString();
 	}
-	
+
 }

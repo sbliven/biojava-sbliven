@@ -41,17 +41,17 @@ import org.slf4j.LoggerFactory;
 /**
  * This class models a search Hsp.
  * You will retrieve a list of this using iterator of a Hit
- * 
+ *
  * Designed by Paolo Pavan.
- * You may want to find my contacts on Github and LinkedIn for code info 
+ * You may want to find my contacts on Github and LinkedIn for code info
  * or discuss major changes.
  * https://github.com/paolopavan
- * 
+ *
  * @author Paolo Pavan
  */
 
 public abstract class Hsp <S extends Sequence<C>, C extends Compound> {
-    private static final Logger logger = LoggerFactory.getLogger(Hsp.class);
+	private static final Logger logger = LoggerFactory.getLogger(Hsp.class);
     private final Integer hspNum;
     private final Double hspBitScore;
     private final Integer hspScore;
@@ -74,208 +74,208 @@ public abstract class Hsp <S extends Sequence<C>, C extends Compound> {
     /**
      * Singleton, lazy computed
     **/
-    private SimpleSequencePair<S, C> returnAln;
+	private SimpleSequencePair<S, C> returnAln;
 
-    @Override
-    public int hashCode() {
-        int hash = 5;
-        hash = 67 * hash + (this.hspQseq != null ? this.hspQseq.hashCode() : 0);
-        hash = 67 * hash + (this.hspHseq != null ? this.hspHseq.hashCode() : 0);
-        hash = 67 * hash + (this.hspIdentityString != null ? this.hspIdentityString.hashCode() : 0);
-        return hash;
-    }
-    /**
+	@Override
+	public int hashCode() {
+		int hash = 5;
+		hash = 67 * hash + (this.hspQseq != null ? this.hspQseq.hashCode() : 0);
+		hash = 67 * hash + (this.hspHseq != null ? this.hspHseq.hashCode() : 0);
+		hash = 67 * hash + (this.hspIdentityString != null ? this.hspIdentityString.hashCode() : 0);
+		return hash;
+	}
+	/**
      * 
      * implements comparison of HSP alignments.
-     * Fields unrelated to search are deliberately not considered.
-     * 
-     * In HSP case, alignment representation strings are considered.
-     * @return true if HSP alignments are the same, 
-     * false otherwise or if alignment strings are undetermined
-     */
-    @Override
-    public boolean equals(Object obj) {
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
-            return false;
-        }
-        final Hsp<?, ?> other = (Hsp<?, ?>) obj;
-        if ((this.hspQseq == null) ? (other.hspQseq != null) : !this.hspQseq.equals(other.hspQseq)) {
-            return false;
-        }
-        if ((this.hspHseq == null) ? (other.hspHseq != null) : !this.hspHseq.equals(other.hspHseq)) {
-            return false;
-        }
-        if ((this.hspIdentityString == null) ? (other.hspIdentityString != null) : !this.hspIdentityString.equals(other.hspIdentityString)) {
-            return false;
-        }
-        return true;
-    }
-    
-    public SequencePair<S,C> getAlignment(){
-        if (returnAln != null) return returnAln;
-        
-        SimpleAlignedSequence<S,C> alignedQuery, alignedHit;
-        // queryFrom e hitTo?
-        int numBefore, numAfter;
-        
-        alignedQuery = new SimpleAlignedSequence(getSequence(hspQseq), getAlignmentsSteps(hspQseq));
-        alignedHit = new SimpleAlignedSequence(getSequence(hspHseq), getAlignmentsSteps(hspHseq));
-        
-        returnAln = new SimpleSequencePair<S, C>(alignedQuery, alignedHit);
-        
-        return returnAln;
-    }
-    
+	 * Fields unrelated to search are deliberately not considered.
+	 *
+	 * In HSP case, alignment representation strings are considered.
+	 * @return true if HSP alignments are the same,
+	 * false otherwise or if alignment strings are undetermined
+	 */
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == null) {
+			return false;
+		}
+		if (getClass() != obj.getClass()) {
+			return false;
+		}
+		final Hsp<?, ?> other = (Hsp<?, ?>) obj;
+		if ((this.hspQseq == null) ? (other.hspQseq != null) : !this.hspQseq.equals(other.hspQseq)) {
+			return false;
+		}
+		if ((this.hspHseq == null) ? (other.hspHseq != null) : !this.hspHseq.equals(other.hspHseq)) {
+			return false;
+		}
+		if ((this.hspIdentityString == null) ? (other.hspIdentityString != null) : !this.hspIdentityString.equals(other.hspIdentityString)) {
+			return false;
+		}
+		return true;
+	}
+
+	public SequencePair<S,C> getAlignment(){
+		if (returnAln != null) return returnAln;
+
+		SimpleAlignedSequence<S,C> alignedQuery, alignedHit;
+		// queryFrom e hitTo?
+		int numBefore, numAfter;
+
+		alignedQuery = new SimpleAlignedSequence(getSequence(hspQseq), getAlignmentsSteps(hspQseq));
+		alignedHit = new SimpleAlignedSequence(getSequence(hspHseq), getAlignmentsSteps(hspHseq));
+
+		returnAln = new SimpleSequencePair<S, C>(alignedQuery, alignedHit);
+
+		return returnAln;
+	}
+
     @SuppressWarnings("unchecked")
     private Sequence<C> getSequence(String gappedSequenceString){
-        if (gappedSequenceString == null) return null;
-        
+		if (gappedSequenceString == null) return null;
+
         //Sequence<C> returnSeq = null;
         S returnSeq = null;
-        String sequenceString = gappedSequenceString.replace("-", "");
-        
-        try {
+		String sequenceString = gappedSequenceString.replace("-", "");
+
+		try {
             // these casting are unavoidable risky operations due to the guess made on sequence string.
             // try to guess:
-            if (sequenceString.matches("^[ACTG]+$")) 
+			if (sequenceString.matches("^[ACTG]+$"))
                 returnSeq = (S) new DNASequence(sequenceString, DNACompoundSet.getDNACompoundSet());
-            else if (sequenceString.matches("^[ACUG]+$"))
+			else if (sequenceString.matches("^[ACUG]+$"))
                 returnSeq = (S) new RNASequence(sequenceString, RNACompoundSet.getRNACompoundSet());
-            else
+			else
                 returnSeq = (S) new ProteinSequence(sequenceString, AminoAcidCompoundSet.getAminoAcidCompoundSet());
             
-        } catch (CompoundNotFoundException ex) {
-            logger.error("Unexpected error, could not find compound when creating Sequence object from Hsp", ex);
-        }
-        return returnSeq;
-    }
-    
-    private List<Step> getAlignmentsSteps(String gappedSequenceString){
-        List<Step> returnList = new ArrayList<Step>();
-        
-        for (char c: gappedSequenceString.toCharArray()){
-            if (c=='-') returnList.add(Step.GAP); else returnList.add(Step.COMPOUND);
-        }
-        return returnList;
-    }
+		} catch (CompoundNotFoundException ex) {
+			logger.error("Unexpected error, could not find compound when creating Sequence object from Hsp", ex);
+		}
+		return returnSeq;
+	}
 
-    public int getHspNum() {
-        return hspNum;
-    }
+	private List<Step> getAlignmentsSteps(String gappedSequenceString){
+		List<Step> returnList = new ArrayList<Step>();
 
-    public double getHspBitScore() {
-        return hspBitScore;
-    }
+		for (char c: gappedSequenceString.toCharArray()){
+			if (c=='-') returnList.add(Step.GAP); else returnList.add(Step.COMPOUND);
+		}
+		return returnList;
+	}
 
-    public int getHspScore() {
-        return hspScore;
-    }
+	public int getHspNum() {
+		return hspNum;
+	}
 
-    public double getHspEvalue() {
-        return hspEvalue;
-    }
+	public double getHspBitScore() {
+		return hspBitScore;
+	}
 
-    public int getHspQueryFrom() {
-        return hspQueryFrom;
-    }
+	public int getHspScore() {
+		return hspScore;
+	}
 
-    public int getHspQueryTo() {
-        return hspQueryTo;
-    }
+	public double getHspEvalue() {
+		return hspEvalue;
+	}
 
-    public int getHspHitFrom() {
-        return hspHitFrom;
-    }
+	public int getHspQueryFrom() {
+		return hspQueryFrom;
+	}
 
-    public int getHspHitTo() {
-        return hspHitTo;
-    }
+	public int getHspQueryTo() {
+		return hspQueryTo;
+	}
 
-    public int getHspQueryFrame() {
-        return hspQueryFrame;
-    }
+	public int getHspHitFrom() {
+		return hspHitFrom;
+	}
 
-    public int getHspHitFrame() {
-        return hspHitFrame;
-    }
+	public int getHspHitTo() {
+		return hspHitTo;
+	}
 
-    public int getHspIdentity() {
-        return hspIdentity;
-    }
+	public int getHspQueryFrame() {
+		return hspQueryFrame;
+	}
 
-    public int getHspPositive() {
-        return hspPositive;
-    }
+	public int getHspHitFrame() {
+		return hspHitFrame;
+	}
 
-    public int getHspGaps() {
-        return hspGaps;
-    }
+	public int getHspIdentity() {
+		return hspIdentity;
+	}
 
-    public int getHspAlignLen() {
-        return hspAlignLen;
-    }
-    /**
-     * HSP aligned query sequence string
-     * @return 
-     */
-    public String getHspQseq() {
-        return hspQseq;
-    }
-    /**
-     * HSP aligned hit sequence string
-     * @return 
-     */
-    public String getHspHseq() {
-        return hspHseq;
-    }
-    /**
-     * Identity string representing correspondence between aligned residues
-     * @return 
-     */
-    public String getHspIdentityString() {
-        return hspIdentityString;
-    }
+	public int getHspPositive() {
+		return hspPositive;
+	}
 
-    public Double getPercentageIdentity() {
-        if (percentageIdentity != null) return percentageIdentity;
-        if (hspIdentity!= null && hspAlignLen != null) return (double)hspIdentity/hspAlignLen;
-        return null;
-    }
+	public int getHspGaps() {
+		return hspGaps;
+	}
 
-    public Integer getMismatchCount() {
-        if (mismatchCount != null) return mismatchCount;
-        if (hspIdentity!= null && hspAlignLen != null) return hspIdentity-hspAlignLen;
-        return null;
-    }
+	public int getHspAlignLen() {
+		return hspAlignLen;
+	}
+	/**
+	 * HSP aligned query sequence string
+	 * @return
+	 */
+	public String getHspQseq() {
+		return hspQseq;
+	}
+	/**
+	 * HSP aligned hit sequence string
+	 * @return
+	 */
+	public String getHspHseq() {
+		return hspHseq;
+	}
+	/**
+	 * Identity string representing correspondence between aligned residues
+	 * @return
+	 */
+	public String getHspIdentityString() {
+		return hspIdentityString;
+	}
 
-    public Hsp(int hspNum, double hspBitScore, int hspScore, double hspEvalue, int hspQueryFrom, int hspQueryTo, int hspHitFrom, int hspHitTo, int hspQueryFrame, int hspHitFrame, int hspIdentity, int hspPositive, int hspGaps, int hspAlignLen, String hspQseq, String hspHseq, String hspIdentityString, Double percentageIdentity, Integer mismatchCount) {
-        this.hspNum = hspNum;
-        this.hspBitScore = hspBitScore;
-        this.hspScore = hspScore;
-        this.hspEvalue = hspEvalue;
-        this.hspQueryFrom = hspQueryFrom;
-        this.hspQueryTo = hspQueryTo;
-        this.hspHitFrom = hspHitFrom;
-        this.hspHitTo = hspHitTo;
-        this.hspQueryFrame = hspQueryFrame;
-        this.hspHitFrame = hspHitFrame;
-        this.hspIdentity = hspIdentity;
-        this.hspPositive = hspPositive;
-        this.hspGaps = hspGaps;
+	public Double getPercentageIdentity() {
+		if (percentageIdentity != null) return percentageIdentity;
+		if (hspIdentity!= null && hspAlignLen != null) return (double)hspIdentity/hspAlignLen;
+		return null;
+	}
+
+	public Integer getMismatchCount() {
+		if (mismatchCount != null) return mismatchCount;
+		if (hspIdentity!= null && hspAlignLen != null) return hspIdentity-hspAlignLen;
+		return null;
+	}
+
+	public Hsp(int hspNum, double hspBitScore, int hspScore, double hspEvalue, int hspQueryFrom, int hspQueryTo, int hspHitFrom, int hspHitTo, int hspQueryFrame, int hspHitFrame, int hspIdentity, int hspPositive, int hspGaps, int hspAlignLen, String hspQseq, String hspHseq, String hspIdentityString, Double percentageIdentity, Integer mismatchCount) {
+		this.hspNum = hspNum;
+		this.hspBitScore = hspBitScore;
+		this.hspScore = hspScore;
+		this.hspEvalue = hspEvalue;
+		this.hspQueryFrom = hspQueryFrom;
+		this.hspQueryTo = hspQueryTo;
+		this.hspHitFrom = hspHitFrom;
+		this.hspHitTo = hspHitTo;
+		this.hspQueryFrame = hspQueryFrame;
+		this.hspHitFrame = hspHitFrame;
+		this.hspIdentity = hspIdentity;
+		this.hspPositive = hspPositive;
+		this.hspGaps = hspGaps;
         this.hspAlignLen = hspAlignLen;
-        this.hspQseq = hspQseq;
-        this.hspHseq = hspHseq;
-        this.hspIdentityString = hspIdentityString;
-        this.percentageIdentity = percentageIdentity; 
-        this.mismatchCount = mismatchCount;
-        
-        // sanity check
-        if (percentageIdentity != null && (percentageIdentity < 0 || percentageIdentity >1))
-            throw new IllegalArgumentException("Percentage identity must be between 0 and 1");
-        
-    }
-      
+		this.hspQseq = hspQseq;
+		this.hspHseq = hspHseq;
+		this.hspIdentityString = hspIdentityString;
+		this.percentageIdentity = percentageIdentity;
+		this.mismatchCount = mismatchCount;
+
+		// sanity check
+		if (percentageIdentity != null && (percentageIdentity < 0 || percentageIdentity >1))
+			throw new IllegalArgumentException("Percentage identity must be between 0 and 1");
+
+	}
+
 }

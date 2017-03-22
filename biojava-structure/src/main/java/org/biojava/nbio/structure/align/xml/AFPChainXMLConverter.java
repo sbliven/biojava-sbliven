@@ -37,18 +37,18 @@ public class AFPChainXMLConverter {
 
 
 	/** Convert an afpChain to a simple XML representation
-	 * 
+	 *
 	 * @param afpChain
 	 * @return XML representation of the AFPCHain
 	 */
 	public synchronized static String toXML(AFPChain afpChain, Atom[] ca1, Atom[]ca2) throws IOException{
-		StringWriter result = new StringWriter();	
+		StringWriter result = new StringWriter();
 		toXML(afpChain,result,ca1,ca2);
 		return result.toString();
 	}
 
 	/** Write the XML representation to a StringWriter
-	 * 
+	 *
 	 * @param afpChain
 	 * @param swriter
 	 * @throws IOException
@@ -86,7 +86,7 @@ public class AFPChainXMLConverter {
 					throw new IOException(ex.getMessage());
 				}
 			}
-			else 
+			else
 				printXMLEQRInferPositions(xml, afpChain,bk,ca1,ca2);
 
 			printXMLMatrixShift(xml, afpChain, bk);
@@ -130,7 +130,7 @@ public class AFPChainXMLConverter {
 			String pdbres2 = spl2[1];
 
 			xml.openTag("eqr");
-			xml.attribute("eqrNr",eqrNr+"");
+			xml.attribute("eqrNr", String.valueOf(eqrNr));
 			xml.attribute("pdbres1",pdbres1);
 			xml.attribute("chain1", chain1);
 			xml.attribute("pdbres2",pdbres2);
@@ -140,7 +140,7 @@ public class AFPChainXMLConverter {
 	}
 
 
-	public static void printXMLEQRInferPositions(PrettyXMLWriter xml,			
+	public static void printXMLEQRInferPositions(PrettyXMLWriter xml,
 			AFPChain afpChain, int bk, Atom[] ca1, Atom[] ca2)  throws IOException{
 
 		int[] optLen       = afpChain.getOptLen();
@@ -155,19 +155,19 @@ public class AFPChainXMLConverter {
 			int pos1 = optAln[bk][0][pos];
 			int pos2 = optAln[bk][1][pos];
 			xml.openTag("eqr");
-			xml.attribute("eqrNr",pos+"");
+			xml.attribute("eqrNr", String.valueOf(pos));
 			xml.attribute("pdbres1",ca1[pos1].getGroup().getResidueNumber().toString());
-			xml.attribute("chain1", ca1[pos1].getGroup().getChain().getChainID());
+			xml.attribute("chain1", ca1[pos1].getGroup().getChain().getName());
 			xml.attribute("pdbres2",ca2[pos2].getGroup().getResidueNumber().toString());
-			xml.attribute("chain2", ca2[pos2].getGroup().getChain().getChainID());
+			xml.attribute("chain2", ca2[pos2].getGroup().getChain().getName());
 
 			xml.closeTag("eqr");
-			//System.out.println("aligned position: " + pos1  + ":" + pos2 + 
+			//System.out.println("aligned position: " + pos1  + ":" + pos2 +
 			//" pdbresnum " + ca1[pos1].getGroup().getResidueNumber().toString() + " " +
-			//ca1[pos1].getParent().getPDBName()+":" + 
+			//ca1[pos1].getParent().getPDBName()+":" +
 			//ca2[pos2].getGroup().getResidueNumber().toString() + " " + ca2[pos2].getParent().getPDBName());
 
-		}	 
+		}
 
 	}
 
@@ -185,11 +185,11 @@ public class AFPChainXMLConverter {
 		double[]blockScore = afpChain.getBlockScore();
 		double[] blockRmsd = afpChain.getBlockRmsd();
 
-		xml.attribute("blockNr",bk+"");
-		xml.attribute("blockSize", blockSize[bk]+"");
+		xml.attribute("blockNr", String.valueOf(bk));
+		xml.attribute("blockSize", String.valueOf(blockSize[bk]));
 		xml.attribute("blockScore", String.format("%5.2f",blockScore[bk]).trim());
 		xml.attribute("blockRmsd", String.format("%5.2f",blockRmsd[bk]).trim());
-		xml.attribute("blockGap", blockGap[bk]+"");
+		xml.attribute("blockGap", String.valueOf(blockGap[bk]));
 
 	}
 
@@ -201,7 +201,7 @@ public class AFPChainXMLConverter {
 		if ( ms == null || ms.length == 0)
 			return;
 
-		Matrix matrix = ms[blockNr];	
+		Matrix matrix = ms[blockNr];
 		if ( matrix == null)
 			return;
 		xml.openTag("matrix");

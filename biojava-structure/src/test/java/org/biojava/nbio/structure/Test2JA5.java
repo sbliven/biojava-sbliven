@@ -20,51 +20,71 @@
  */
 package org.biojava.nbio.structure;
 
-import org.biojava.nbio.structure.align.util.AtomCache;
-import org.biojava.nbio.structure.io.FileParsingParameters;
-
-import org.junit.Test;
-
 import static org.junit.Assert.*;
 
 import java.io.IOException;
+
+import org.biojava.nbio.structure.align.util.AtomCache;
+import org.biojava.nbio.structure.io.FileParsingParameters;
+import org.junit.Test;
 
 /**
  * Created by andreas on 9/16/15.
  */
 public class Test2JA5 {
 
-    @Test
-    public void test2JA5() throws IOException, StructureException {
+	@Test
+	public void test2JA5() throws IOException, StructureException {
 
-        FileParsingParameters fileParsingParameters = new FileParsingParameters();
-        fileParsingParameters.setStoreEmptySeqRes(true);
-        fileParsingParameters.setLoadChemCompInfo(true);
-        fileParsingParameters.setHeaderOnly(true);
+		FileParsingParameters fileParsingParameters = new FileParsingParameters();
+		fileParsingParameters.setAlignSeqRes(true); // Need to align seqres to match chains.
+		fileParsingParameters.setHeaderOnly(false); // Need header only off to have chains to match.
 
-        AtomCache cache = new AtomCache();
-        cache.setUseMmCif(false);
-        cache.setFileParsingParams(fileParsingParameters);
+		AtomCache cache = new AtomCache();
+		cache.setUseMmCif(false);
+		cache.setFileParsingParams(fileParsingParameters);
 
-        StructureIO.setAtomCache(cache);
+		StructureIO.setAtomCache(cache);
+
+		Structure s1 = StructureIO.getStructure("2ja5");
+
+		// This is not applicable anymore, we need to parse atoms to have chains to match.
+		// assertTrue(StructureTools.getNrAtoms(s1) == 0);
+
+		// SeqRes contains 15 chains, but since we cannot align Chain N to AtomGroups => 14.
+		assertEquals(14, s1.getPolyChains().size());
+
+		Chain nChain = s1.getPolyChain("N");
+		
+		assertNotNull(nChain);
+
+		Chain chain = s1.getPolyChainByPDB("N");
+		assertNull(chain);
+	}
+
+	@Test
+	public void test2JA5noHeader() throws IOException, StructureException {
+
+		FileParsingParameters fileParsingParameters = new FileParsingParameters();
+		fileParsingParameters.setHeaderOnly(true);
+
+		AtomCache cache = new AtomCache();
+		cache.setUseMmCif(false);
+		cache.setFileParsingParams(fileParsingParameters);
+
+		StructureIO.setAtomCache(cache);
 
 
-        Structure s1 = StructureIO.getStructure("2ja5");
+		Structure s1 = StructureIO.getStructure("2ja5");
 
-        assertTrue(StructureTools.getNrAtoms(s1) == 0);
+		// This is not applicable anymore, we need to parse atoms to have chains to match.
+		assertEquals(0, StructureTools.getNrAtoms(s1));
 
-        assertTrue(s1.getChains().size() == 14);
+		// All 15 seqres chains will be store.
+		assertEquals(15, s1.getPolyChains().size());
 
-        Chain nChain = null;
-        try {
-        	nChain = s1.getChainByPDB("N");
-        } catch (StructureException e){
-        	// this is expected here, since there is no chain N
-        }
-        assertNull(nChain);
-
-
-
-        
-    }
+		Chain nChain = s1.getPolyChainByPDB("N");
+		
+		assertNotNull(nChain);
+	}
 }

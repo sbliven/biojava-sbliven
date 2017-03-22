@@ -36,13 +36,13 @@ import java.util.concurrent.Executors;
 /**
  * Class to calculate Accessible Surface Areas based on
  * the rolling ball algorithm by Shrake and Rupley.
- * 
+ *
  * The code is adapted from a python implementation at http://boscoh.com/protein/asapy
  * (now source is available at https://github.com/boscoh/asa).
  * Thanks to Bosco K. Ho for a great piece of code and for his fantastic blog.
- * 
- * See 
- * Shrake, A., and J. A. Rupley. "Environment and Exposure to Solvent of Protein Atoms. 
+ *
+ * See
+ * Shrake, A., and J. A. Rupley. "Environment and Exposure to Solvent of Protein Atoms.
  * Lysozyme and Insulin." JMB (1973) 79:351-371.
  * Lee, B., and Richards, F.M. "The interpretation of Protein Structures: Estimation of
  * Static Accessibility" JMB (1971) 55:379-400
@@ -52,7 +52,7 @@ import java.util.concurrent.Executors;
 public class AsaCalculator {
 
 	private static final Logger logger = LoggerFactory.getLogger(AsaCalculator.class);
-	
+
 	// Bosco uses as default 960, Shrake and Rupley seem to use in their paper 92 (not sure if this is actually the same parameter)
 	public static final int DEFAULT_N_SPHERE_POINTS = 960;
 	public static final double DEFAULT_PROBE_SIZE = 1.4;
@@ -94,6 +94,7 @@ public class AsaCalculator {
 	}
 
 
+	private Point3d[] atomCoords;
 	private Atom[] atoms;
 	private double[] radii;
 	private double probe;
@@ -103,24 +104,25 @@ public class AsaCalculator {
 
 	/**
 	 * Constructs a new AsaCalculator. Subsequently call {@link #calculateAsas()}
-	 * or {@link #getGroupAsas()} to calculate the ASAs 
-	 * Only non-Hydrogen atoms are considered in the calculation.  
+	 * or {@link #getGroupAsas()} to calculate the ASAs
+	 * Only non-Hydrogen atoms are considered in the calculation.
 	 * @param structure
 	 * @param probe
 	 * @param nSpherePoints
 	 * @param nThreads
-	 * @param hetAtoms if true HET residues are considered, if false they aren't, equivalent to 
-	 * NACCESS' -h option 
+	 * @param hetAtoms if true HET residues are considered, if false they aren't, equivalent to
+	 * NACCESS' -h option
 	 * @see StructureTools.getAllNonHAtomArray
 	 */
 	public AsaCalculator(Structure structure, double probe, int nSpherePoints, int nThreads, boolean hetAtoms) {
 		this.atoms = StructureTools.getAllNonHAtomArray(structure, hetAtoms);
+		this.atomCoords = Calc.atomsToPoints(atoms);
 		this.probe = probe;
 		this.nThreads = nThreads;
 
 		// initialising the radii by looking them up through AtomRadii
-		radii = new double[atoms.length];
-		for (int i=0;i<atoms.length;i++) {
+		radii = new double[atomCoords.length];
+		for (int i=0;i<atomCoords.length;i++) {
 			radii[i] = getRadius(atoms[i]);
 		}
 
@@ -135,18 +137,19 @@ public class AsaCalculator {
 	 * or {@link #getGroupAsas()} to calculate the ASAs.
 	 * @param atoms an array of atoms not containing Hydrogen atoms
 	 * @param probe the probe size
-	 * @param nSpherePoints the number of points to be used in generating the spherical 
+	 * @param nSpherePoints the number of points to be used in generating the spherical
 	 * dot-density, the more points the more accurate (and slower) calculation
 	 * @param nThreads the number of parallel threads to use for the calculation
 	 * @throws IllegalArgumentException if any atom in the array is a Hydrogen atom
 	 */
 	public AsaCalculator(Atom[] atoms, double probe, int nSpherePoints, int nThreads) {
 		this.atoms = atoms;
+		this.atomCoords = Calc.atomsToPoints(atoms);
 		this.probe = probe;
 		this.nThreads = nThreads;
 
 		for (Atom atom:atoms) {
-			if (atom.getElement()==Element.H) 
+			if (atom.getElement()==Element.H)
 				throw new IllegalArgumentException("Can't calculate ASA for an array that contains Hydrogen atoms ");
 		}
 
@@ -163,9 +166,44 @@ public class AsaCalculator {
 	}
 
 	/**
-	 * Calculates ASA for all atoms and return them as a GroupAsa 
+	 * Constructs a new AsaCalculator. Subsequently call {@link #calcSingleAsa(int)} 
+	 * to calculate the atom ASAs. The given radius parameter will be taken as the radius for
+	 * all points given. No ASA calculation per group will be possible with this constructor, so
+	 * usage of {@link #getGroupAsas()} will result in a NullPointerException.
+	 * @param atomCoords
+	 * 				the coordinates representing the center of atoms
+	 * @param probe 
+	 * 				the probe size
+	 * @param nSpherePoints 
+	 * 				the number of points to be used in generating the spherical
+	 * 				dot-density, the more points the more accurate (and slower) calculation
+	 * @param nThreads 
+	 * 				the number of parallel threads to use for the calculation
+	 * @param radius 
+	 * 				the radius that will be assign to all given coordinates
+	 */
+	public AsaCalculator(Point3d[] atomCoords, double probe, int nSpherePoints, int nThreads, double radius) {
+		this.atoms = null;
+		this.atomCoords = atomCoords;
+		this.probe = probe;
+		this.nThreads = nThreads;
+
+		// initialising the radii to the given radius for all atoms
+		radii = new double[atomCoords.length];
+		for (int i=0;i<atomCoords.length;i++) {
+			radii[i] = radius;
+		}
+
+		// initialising the sphere points to sample
+		spherePoints = generateSpherePoints(nSpherePoints);
+
+		cons = 4.0 * Math.PI / nSpherePoints;
+	}
+
+	/**
+	 * Calculates ASA for all atoms and return them as a GroupAsa
 	 * array (one element per residue in structure) containing ASAs per residue
-	 * and per atom. 
+	 * and per atom.
 	 * The sorting of Groups in returned array is as specified by {@link org.biojava.nbio.structure.ResidueNumber}
 	 * @return
 	 */
@@ -175,10 +213,10 @@ public class AsaCalculator {
 
 		double[] asasPerAtom = calculateAsas();
 
-		for (int i=0;i<atoms.length;i++) {
+		for (int i=0;i<atomCoords.length;i++) {
 			Group g = atoms[i].getGroup();
 			if (!asas.containsKey(g.getResidueNumber())) {
-				GroupAsa groupAsa = new GroupAsa(g);				
+				GroupAsa groupAsa = new GroupAsa(g);
 				groupAsa.addAtomAsaU(asasPerAtom[i]);
 				asas.put(g.getResidueNumber(), groupAsa);
 			} else {
@@ -187,31 +225,31 @@ public class AsaCalculator {
 			}
 		}
 
-		return asas.values().toArray(new GroupAsa[asas.size()]);			
+		return asas.values().toArray(new GroupAsa[asas.size()]);
 	}
 
 	/**
 	 * Calculates the Accessible Surface Areas for the atoms given in constructor and with parameters given.
 	 * Beware that the parallel implementation is quite memory hungry. It scales well as long as there is
-	 * enough memory available. 
+	 * enough memory available.
 	 * @return an array with asa values corresponding to each atom of the input array
 	 */
 	public double[] calculateAsas() {
 
-		double[] asas = new double[atoms.length];
+		double[] asas = new double[atomCoords.length];
 
 		if (nThreads<=1) { // (i.e. it will also be 1 thread if 0 or negative number specified)
-			for (int i=0;i<atoms.length;i++) {	    	
-				asas[i] = calcSingleAsa(i); 
+			for (int i=0;i<atomCoords.length;i++) {
+				asas[i] = calcSingleAsa(i);
 			}
 
 		} else {
-			// NOTE the multithreaded calculation does not scale up well in some systems, 
-			// why? I guess some memory/garbage collect problem? I tried increasing Xmx in pc8201 but didn't help 
+			// NOTE the multithreaded calculation does not scale up well in some systems,
+			// why? I guess some memory/garbage collect problem? I tried increasing Xmx in pc8201 but didn't help
 
 			// Following scaling tests are for 3hbx, calculating ASA of full asym unit (6 chains):
 
-			// SCALING test done in merlinl01 (12 cores, Xeon X5670  @ 2.93GHz, 24GB RAM)   	 
+			// SCALING test done in merlinl01 (12 cores, Xeon X5670  @ 2.93GHz, 24GB RAM)
 			//1 threads, time:  8.8s -- x1.0
 			//2 threads, time:  4.4s -- x2.0
 			//3 threads, time:  2.9s -- x3.0
@@ -246,8 +284,8 @@ public class AsaCalculator {
 			ExecutorService threadPool = Executors.newFixedThreadPool(nThreads);
 
 
-			for (int i=0;i<atoms.length;i++) {
-				threadPool.submit(new AsaCalcWorker(i,asas));    			
+			for (int i=0;i<atomCoords.length;i++) {
+				threadPool.submit(new AsaCalcWorker(i,asas));
 			}
 
 			threadPool.shutdown();
@@ -268,7 +306,7 @@ public class AsaCalculator {
 	private Point3d[] generateSpherePoints(int nSpherePoints) {
 		Point3d[] points = new Point3d[nSpherePoints];
 		double inc = Math.PI * (3.0 - Math.sqrt(5.0));
-		double offset = 2.0 / nSpherePoints; 
+		double offset = 2.0 / nSpherePoints;
 		for (int k=0;k<nSpherePoints;k++) {
 			double y = k * offset - 1.0 + (offset / 2.0);
 			double r = Math.sqrt(1.0 - y*y);
@@ -289,12 +327,12 @@ public class AsaCalculator {
 
 		double radius = radii[k] + probe + probe;
 
-		for (int i=0;i<atoms.length;i++) {
+		for (int i=0;i<atomCoords.length;i++) {
 			if (i==k) continue;
 
 			double dist = 0;
 
-			dist = Calc.getDistance(atoms[i], atoms[k]);
+			dist = atomCoords[i].distance(atomCoords[k]);
 
 			if (dist < radius + radii[i]) {
 				neighbor_indices.add(i);
@@ -306,7 +344,7 @@ public class AsaCalculator {
 	}
 
 	private double calcSingleAsa(int i) {
-		Atom atom_i = atoms[i];
+		Point3d atom_i = atomCoords[i];
 		ArrayList<Integer> neighbor_indices = findNeighborIndices(i);
 		int n_neighbor = neighbor_indices.size();
 		int j_closest_neighbor = 0;
@@ -316,9 +354,9 @@ public class AsaCalculator {
 
 		for (Point3d point: spherePoints){
 			boolean is_accessible = true;
-			Point3d test_point = new Point3d(point.x*radius + atom_i.getX(),
-					point.y*radius + atom_i.getY(),
-					point.z*radius + atom_i.getZ());
+			Point3d test_point = new Point3d(point.x*radius + atom_i.x,
+					point.y*radius + atom_i.y,
+					point.z*radius + atom_i.z);
 
 			int[] cycled_indices = new int[n_neighbor];
 			int arind = 0;
@@ -332,9 +370,9 @@ public class AsaCalculator {
 			}
 
 			for (int j: cycled_indices) {
-				Atom atom_j = atoms[neighbor_indices.get(j)];
+				Point3d atom_j = atomCoords[neighbor_indices.get(j)];
 				double r = radii[neighbor_indices.get(j)] + probe;
-				double diff_sq = test_point.distanceSquared(new Point3d(atom_j.getCoords()));
+				double diff_sq = test_point.distanceSquared(atom_j);
 				if (diff_sq < r*r) {
 					j_closest_neighbor = j;
 					is_accessible = false;
@@ -349,11 +387,11 @@ public class AsaCalculator {
 	}
 
 	/**
-	 * Gets the radius for given amino acid and atom 
+	 * Gets the radius for given amino acid and atom
 	 * @param aa
 	 * @param atom
 	 * @return
-	 */	
+	 */
 	private static double getRadiusForAmino(AminoAcid amino, Atom atom) {
 
 		if (atom.getElement().equals(Element.H)) return Element.H.getVDWRadius();
@@ -366,7 +404,7 @@ public class AsaCalculator {
 		// here we use the values that Chothia gives in his paper (as NACCESS does)
 		if (atom.getElement()==Element.O) {
 			return OXIGEN_VDW;
-		} 
+		}
 		else if (atom.getElement()==Element.S) {
 			return SULFUR_VDW;
 		}
@@ -375,21 +413,21 @@ public class AsaCalculator {
 			return TRIGONAL_NITROGEN_VDW;								// trigonal Nitrogen
 		}
 		else if (atom.getElement()==Element.C) { // it must be a carbon
-			if (atomCode.equals("C") || 
+			if (atomCode.equals("C") ||
 					atomCode.equals("CE1") || atomCode.equals("CE2") || atomCode.equals("CE3") ||
-					atomCode.equals("CH2") || 
+					atomCode.equals("CH2") ||
 					atomCode.equals("CZ") || atomCode.equals("CZ2") || atomCode.equals("CZ3")) {
 				return TRIGONAL_CARBON_VDW; 							// trigonal Carbon
 			}
-			else if (atomCode.equals("CA") || atomCode.equals("CB") || 
+			else if (atomCode.equals("CA") || atomCode.equals("CB") ||
 					atomCode.equals("CE") ||
 					atomCode.equals("CG1") || atomCode.equals("CG2")) {
 				return TETRAHEDRAL_CARBON_VDW;							// tetrahedral Carbon
 			}
 			// the rest of the cases (CD, CD1, CD2, CG) depend on amino acid
-			else {				
+			else {
 				switch (aa) {
-				case 'F':						
+				case 'F':
 				case 'W':
 				case 'Y':
 				case 'H':
@@ -411,26 +449,24 @@ public class AsaCalculator {
 					else if (atomCode.equals("CG")) return TETRAHEDRAL_CARBON_VDW;
 
 				default:
-					logger.warn("Unexpected carbon atom "+atomCode+" for aminoacid "+aa+", assigning its standard vdw radius");
+					logger.info("Unexpected carbon atom "+atomCode+" for aminoacid "+aa+", assigning its standard vdw radius");
 					return Element.C.getVDWRadius();
 				}
 			}
 
 			// not any of the expected atoms
 		} else {
-			// we log at info level for the MSE case (Selenomethionine), because it is too usual			
-			if (aa == 'M' && atomCode.equals("SE")) {  
-				logger.info("Unexpected atom "+atomCode+" for aminoacid "+aa+", assigning its standard vdw radius");
-			} else {
-				logger.warn("Unexpected atom "+atomCode+" for aminoacid "+aa+", assigning its standard vdw radius");				
-			}
+			// non standard aas, (e.g. MSE, LLP) will always have this problem,
+			logger.info("Unexpected atom "+atomCode+" for aminoacid "+aa+ " ("+amino.getPDBName()+"), assigning its standard vdw radius");
+			
+
 			return atom.getElement().getVDWRadius();
 		}
 	}
 
 
 	/**
-	 * Gets the radius for given nucleotide atom 
+	 * Gets the radius for given nucleotide atom
 	 * @param atom
 	 * @return
 	 */
@@ -447,22 +483,22 @@ public class AsaCalculator {
 
 		if (atom.getElement()==Element.O) return OXIGEN_VDW;
 
-		logger.warn("Unexpected atom "+atom.getName()+" for nucleotide "+nuc.getPDBName()+", assigning its standard vdw radius");
+		logger.info("Unexpected atom "+atom.getName()+" for nucleotide "+nuc.getPDBName()+", assigning its standard vdw radius");
 		return atom.getElement().getVDWRadius();
 	}
 
 
 	/**
-	 * Gets the van der Waals radius of the given atom following the values defined by 
+	 * Gets the van der Waals radius of the given atom following the values defined by
 	 * Chothia (1976) J.Mol.Biol.105,1-14
-	 * NOTE: the vdw values defined by the paper assume no Hydrogens and thus "inflates" 
+	 * NOTE: the vdw values defined by the paper assume no Hydrogens and thus "inflates"
 	 * slightly the heavy atoms to account for Hydrogens. Thus this method cannot be used
 	 * in a structure that contains Hydrogens!
-	 * 
+	 *
 	 * If atom is neither part of a nucleotide nor of a standard aminoacid,
 	 * the default vdw radius for the element is returned. If atom is of
 	 * unknown type (element) the vdw radius of {@link #Element().N} is returned
-	 * 
+	 *
 	 * @param atom
 	 * @return
 	 */

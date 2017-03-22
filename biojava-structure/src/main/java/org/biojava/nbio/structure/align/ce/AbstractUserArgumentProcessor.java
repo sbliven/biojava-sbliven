@@ -108,7 +108,7 @@ public abstract class AbstractUserArgumentProcessor implements UserArgumentProce
 	public void process(String[] argv){
 
 		printAboutMe();
-		
+
 //		if(argv.length == 0 ) {
 //			System.out.println(printHelp());
 //			return;
@@ -294,7 +294,7 @@ public abstract class AbstractUserArgumentProcessor implements UserArgumentProce
 	 * @param cache
 	 * @param searchFile
 	 * @param outputFile
-	 * @throws ConfigurationException 
+	 * @throws ConfigurationException
 	 */
 	private void runDbSearch(AtomCache cache, String searchFile,
 			String outputFile,int useNrCPUs, StartupParameters params) throws ConfigurationException {
@@ -411,7 +411,7 @@ public abstract class AbstractUserArgumentProcessor implements UserArgumentProce
 
 		if ( file1 == null) {
 			if ( name1.length() < 4) {
-				throw new ConfigurationException("-pdb1 does not look like a PDB ID. Please specify PDB code or PDB.chainId.");
+				throw new ConfigurationException("-pdb1 does not look like a PDB ID. Please specify PDB code or PDB.chainName.");
 			}
 		}
 
@@ -425,7 +425,7 @@ public abstract class AbstractUserArgumentProcessor implements UserArgumentProce
 
 		if ( file2 == null ){
 			if ( name2.length() < 4) {
-				throw new ConfigurationException("-pdb2 does not look like a PDB ID. Please specify PDB code or PDB.chainId.");
+				throw new ConfigurationException("-pdb2 does not look like a PDB ID. Please specify PDB code or PDB.chainName.");
 			}
 		}
 
@@ -651,7 +651,7 @@ public abstract class AbstractUserArgumentProcessor implements UserArgumentProce
 			p.println (output);
 
 			p.close();
-		
+
 
 
 	}
@@ -735,13 +735,13 @@ public abstract class AbstractUserArgumentProcessor implements UserArgumentProce
 	public String printHelp() {
 		StringBuffer buf = new StringBuffer();
 		StructureAlignment alg = getAlgorithm();
-		
+
 		buf.append("-------------------").append(newline);
 		buf.append(alg.getAlgorithmName() + " v." + alg.getVersion() + " help: " + newline);
 		buf.append("-------------------").append(newline);
 		buf.append(newline);
 
-		buf.append(alg.getAlgorithmName() + " accepts the following parameters:" + newline);
+		buf.append(alg.getAlgorithmName()).append(" accepts the following parameters:").append(newline);
 		buf.append(newline);
 
 		buf.append("--- pairwise alignments ---").append(newline);

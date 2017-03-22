@@ -28,6 +28,8 @@ import org.biojava.nbio.structure.align.StrucAligParameters;
 import org.biojava.nbio.structure.align.helper.AligMatEl;
 import org.biojava.nbio.structure.align.helper.IndexPair;
 import org.biojava.nbio.structure.align.helper.JointFragments;
+import org.biojava.nbio.structure.geometry.Matrices;
+import org.biojava.nbio.structure.geometry.SuperPositions;
 import org.biojava.nbio.structure.jama.Matrix;
 
 import java.io.Serializable;
@@ -35,15 +37,17 @@ import java.text.DecimalFormat;
 import java.util.List;
 import java.util.logging.Logger;
 
+import javax.vecmath.Matrix4d;
+
 /**
  * Implements a class which handles one possible (alternative) solution.
-
-     Alternative alignments arise from different seed
-     alignments or seed FPairs. The AltAlg class contains methods
-     for refinement (Dynamic Programming based) and filtering
-     (i.e. removing probably wrongly matched APairs). In the refinement
-     phase, different seed alignments can converge to the same solution.
-
+ *
+ * Alternative alignments arise from different seed
+ * alignments or seed FPairs. The AltAlg class contains methods
+ * for refinement (Dynamic Programming based) and filtering
+ * (i.e. removing probably wrongly matched APairs). In the refinement
+ * phase, different seed alignments can converge to the same solution.
+ *
  * @author Andreas Prlic,
  * @author Peter Lackner (original Python and C code)
  * @since 3:04:26 PM
@@ -776,13 +780,14 @@ public class AlternativeAlignment implements Serializable{
 			ca2subset[i] = (Atom) ca2[pos2].clone();
 		}
 
-		SVDSuperimposer svd = new SVDSuperimposer(ca1subset,ca2subset);
-		this.currentRotMatrix  = svd.getRotation();
-		this.currentTranMatrix = svd.getTranslation();
+		Matrix4d trans = SuperPositions.superpose(Calc.atomsToPoints(ca1subset), 
+				Calc.atomsToPoints(ca2subset));
+		this.currentRotMatrix  = Matrices.getRotationJAMA(trans);
+		this.currentTranMatrix = Calc.getTranslationVector(trans);
 		//currentRotMatrix.print(3,3);
 		if ( getRMS) {
 			rotateShiftAtoms(ca2subset);
-			this.rms = SVDSuperimposer.getRMS(ca1subset,ca2subset);
+			this.rms = Calc.rmsd(ca1subset,ca2subset);
 		}
 
 
