@@ -157,6 +157,7 @@ public class TestAtomCache {
 
 		// OBSOLETE PDB; should throw an exception
 		cache.setUseMmCif(false);
+		cache.setUseMmtf(false);
 		cache.getStructure("1HHB");
 	}
 
@@ -169,12 +170,20 @@ public class TestAtomCache {
 
 		// OBSOLETE PDB; should throw an exception
 		cache.setUseMmCif(false);
+		cache.setUseMmtf(false);
 		try {
 			cache.getStructure("1CMW");
 			fail("Obsolete structure should throw exception");
 		} catch(IOException e) {}
 
 		cache.setUseMmCif(true);
+		try {
+			cache.getStructure("1CMW");
+			fail("Obsolete structure should throw exception");
+		} catch(IOException e) {}
+		
+		cache.setUseMmCif(false);
+		cache.setUseMmtf(true);
 		try {
 			cache.getStructure("1CMW");
 			fail("Obsolete structure should throw exception");
@@ -189,10 +198,16 @@ public class TestAtomCache {
 		cache.setObsoleteBehavior(ObsoleteBehavior.FETCH_CURRENT);
 
 		cache.setUseMmCif(false);
+		cache.setUseMmtf(false);
 		Structure s = cache.getStructure("1HHB");
 		assertEquals("Failed to get the current ID for 1HHB.","4HHB",s.getPDBCode());
 
 		cache.setUseMmCif(true);
+		s = cache.getStructure("1HHB");
+		assertEquals("Failed to get the current ID for 1HHB.","4HHB",s.getPDBCode());
+
+		cache.setUseMmCif(false);
+		cache.setUseMmtf(true);
 		s = cache.getStructure("1HHB");
 		assertEquals("Failed to get the current ID for 1HHB.","4HHB",s.getPDBCode());
 	}
@@ -203,6 +218,7 @@ public class TestAtomCache {
 		cache.setFetchBehavior(FetchBehavior.FETCH_FILES);
 		cache.setObsoleteBehavior(ObsoleteBehavior.FETCH_OBSOLETE);
 		
+		// PDB
 		Structure s;
 		cache.setUseMmtf(false);
 		cache.setUseMmCif(false);
@@ -212,6 +228,7 @@ public class TestAtomCache {
 		s = cache.getStructure("1HHB");
 		assertEquals("Failed to get OBSOLETE file 1HHB.","1HHB", s.getPDBCode());
 
+		// MMCIF
 		cache.setUseMmCif(true);
 		s = cache.getStructure("1CMW");
 		assertEquals("Failed to get OBSOLETE file 1CMW.","1CMW", s.getPDBCode());
@@ -219,8 +236,20 @@ public class TestAtomCache {
 		s = cache.getStructure("1HHB");
 		assertEquals("Failed to get OBSOLETE file 1HHB.","1HHB", s.getPDBCode());
 
-	}
+		// MMTF
+		cache.setUseMmCif(false);
+		cache.setUseMmtf(true);
+		s = cache.getStructure("1CMW");
+		assertEquals("Failed to get OBSOLETE file 1CMW.","1CMW", s.getPDBCode());
 
+		s = cache.getStructure("1HHB");
+		assertEquals("Failed to get OBSOLETE file 1HHB.","1HHB", s.getPDBCode());
+		
+		s = cache.getStructure("3MIM");
+		assertEquals("Failed to get OBSOLETE file 1HHB.","1HHB", s.getPDBCode());
+
+	}
+	
 
 	@Test
 	public void testSettingFileParsingType(){
@@ -282,5 +311,4 @@ public class TestAtomCache {
 
 
 	}
-
 }
