@@ -153,7 +153,7 @@ public class ResidueNumber implements Serializable, Comparable<ResidueNumber>
 	}
 
 	/**
-	 * @return The residue number and insertion code as a string, eg "74A"
+	 * @return The residue number and insertion code as a string, eg "74A" (without chain)
 	 * @see java.lang.Object#toString()
 	 */
 	@Override
@@ -184,10 +184,11 @@ public class ResidueNumber implements Serializable, Comparable<ResidueNumber>
 
 
 	/** Convert a string representation of a residue number to a residue number object.
-	 * The string representation can be a integer followed by a character.
+	 * The string representation can be a integer followed by a character (e.g. without chain).
 	 *
 	 * @param pdb_code
 	 * @return a ResidueNumber object, or null if the input was null
+	 * @throws NumberFormatException if the input is malformatted
 	 */
 	public static ResidueNumber fromString(String pdb_code) {
 		if(pdb_code == null)
@@ -205,10 +206,12 @@ public class ResidueNumber implements Serializable, Comparable<ResidueNumber>
 			// Split at any position that's either:
 			// preceded by a digit and followed by a non-digit, or
 			// preceded by a non-digit and followed by a digit.
-			String[] spl = pdb_code.split("(?<=\\d)(?=\\D)|(?<=\\D)(?=\\d)");
+			String[] spl = pdb_code.split("(?<=[-+0-9])(?=[^-+0-9])|(?<=[^-+0-9])(?=[-+0-9])");
 			if ( spl.length == 2){
 				resNum = Integer.parseInt(spl[0]);
 				icode = spl[1];
+			} else {
+				throw new NumberFormatException("Invalid ResidueNumber format: "+pdb_code);
 			}
 
 		}

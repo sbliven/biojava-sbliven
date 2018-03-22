@@ -23,6 +23,9 @@ package org.biojava.nbio.structure;
 
 import org.junit.*;
 
+import static org.junit.Assert.*;
+import static org.junit.Assert.fail;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -32,25 +35,6 @@ import java.util.Set;
  * @author Jules Jacobsen <jacobsen@ebi.ac.uk>
  */
 public class ResidueNumberTest {
-
-	public ResidueNumberTest() {
-	}
-
-	@BeforeClass
-	public static void setUpClass() throws Exception {
-	}
-
-	@AfterClass
-	public static void tearDownClass() throws Exception {
-	}
-
-	@Before
-	public void setUp() {
-	}
-
-	@After
-	public void tearDown() {
-	}
 
 	/**
 	 * Test of getChainName method, of class ResidueNumber.
@@ -150,7 +134,52 @@ public class ResidueNumberTest {
 		String result2 = instance2.toPDB();
 		Assert.assertEquals(expResult, result2);
 	}
+	
+	/**
+	 * Test parsing from strings
+	 */
+	@Test
+	public void testFromString() {
+		String range;
+		ResidueNumber rs;
+		
+		range = "1";
+		rs = ResidueNumber.fromString(range);
+		assertEquals("Error parsing "+range, (Integer)1, rs.getSeqNum());
+		assertNull("Error parsing "+range, rs.getChainName());
+		assertNull("Error parsing "+range, rs.getInsCode());
+		
+		range = "1P";
+		rs = ResidueNumber.fromString(range);
+		assertEquals("Error parsing "+range, (Integer)1, rs.getSeqNum());
+		assertNull("Error parsing "+range, rs.getChainName());
+		assertEquals("Error parsing "+range, (Character)'P', rs.getInsCode());
+		
+		range = "-1";
+		rs = ResidueNumber.fromString(range);
+		assertEquals("Error parsing "+range, (Integer)(-1), rs.getSeqNum());
+		assertNull("Error parsing "+range, rs.getChainName());
+		assertNull("Error parsing "+range, rs.getInsCode());
+		
+		range = "-1P";
+		rs = ResidueNumber.fromString(range);
+		assertEquals("Error parsing "+range, (Integer)(-1), rs.getSeqNum());
+		assertNull("Error parsing "+range, rs.getChainName());
+		assertEquals("Error parsing "+range, (Character)'P', rs.getInsCode());
+	}
 
-
+	/**
+	 * Test that some illegally formatted strings throw errors
+	 */
+	@Test
+	public void testMisformatted(){
+		String[] illegal = {  "P5", "--4", "1P2", "A  2B", };
+		for(String rangeStr : illegal) {
+			try {
+				ResidueNumber.fromString(rangeStr);
+				fail("Malformatted range passed: "+rangeStr);
+			} catch(NumberFormatException e) {}
+		}
+	}
 
 }

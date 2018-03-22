@@ -183,6 +183,38 @@ public class ResidueRangeTest {
 			i++;
 		}
 	}
+	
+	@Test 
+	public void testNegativeRanges() {
+		String rangeStr;
+		ResidueRange rrs;
+		
+		rangeStr = "A:1P--1L";
+		rrs = ResidueRange.parse(rangeStr);
+		assertEquals("Wrong start in "+rangeStr, new ResidueNumber("A", 1, 'P'), rrs.getStart());
+		assertEquals("Wrong end in "+rangeStr,   new ResidueNumber("A", -1, 'L'), rrs.getEnd());
+		
+		rangeStr = "A:1H-182H";
+		rrs = ResidueRange.parse(rangeStr);
+		assertEquals("Wrong start in "+rangeStr, new ResidueNumber("A", 1, 'H'), rrs.getStart());
+		assertEquals("Wrong end in "+rangeStr,   new ResidueNumber("A", 182, 'H'), rrs.getEnd());
+		
+		rangeStr = "A:+1-+6";
+		rrs = ResidueRange.parse(rangeStr);
+		assertEquals("Wrong start in "+rangeStr, new ResidueNumber("A", 1, null), rrs.getStart());
+		assertEquals("Wrong end in "+rangeStr,   new ResidueNumber("A", 6, null), rrs.getEnd());
+		
+		rangeStr = "A:-2--1";
+		rrs = ResidueRange.parse(rangeStr);
+		assertEquals("Wrong start in "+rangeStr, new ResidueNumber("A", -2, null), rrs.getStart());
+		assertEquals("Wrong end in "+rangeStr,   new ResidueNumber("A", -1, null), rrs.getEnd());
+		
+		rangeStr = "A:-3-+2";
+		rrs = ResidueRange.parse(rangeStr);
+		assertEquals("Wrong start in "+rangeStr, new ResidueNumber("A", -3, null), rrs.getStart());
+		assertEquals("Wrong end in "+rangeStr,   new ResidueNumber("A", 2, null), rrs.getEnd());
+
+	}
 
 	/**
 	 * Tests {@link ResidueRange#parseMultiple(String)}.
@@ -281,6 +313,19 @@ public class ResidueRangeTest {
 		range = ResidueRange.parse(rangeStr);
 		assertNull(rangeStr,range.getStart());
 		assertEquals(rangeStr,55,(int)range.getEnd().getSeqNum());
+		
+		rangeStr = "C_1023A-";
+		range = ResidueRange.parse(rangeStr);
+		assertEquals(rangeStr,1023,(int)range.getStart().getSeqNum());
+		assertEquals(rangeStr,'A',(int)range.getStart().getInsCode());
+		assertNull(rangeStr,range.getEnd());
+		
+		rangeStr = "A_-+55P";
+		range = ResidueRange.parse(rangeStr);
+		assertNull(rangeStr,range.getStart());
+		assertEquals(rangeStr,55,(int)range.getEnd().getSeqNum());
+		assertEquals(rangeStr,'P',(int)range.getEnd().getInsCode());
+
 
 	}
 	@Test
