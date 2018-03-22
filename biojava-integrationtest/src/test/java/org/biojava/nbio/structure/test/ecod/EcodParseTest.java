@@ -20,6 +20,7 @@
  */
 package org.biojava.nbio.structure.test.ecod;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 
@@ -74,6 +75,8 @@ public class EcodParseTest {
 		EcodDatabase ecod = EcodFactory.getEcodDatabase(ecodVersion);
 		AtomCache cache = new AtomCache();
 		cache.setObsoleteBehavior(ObsoleteBehavior.FETCH_OBSOLETE);
+		cache.setUseMmtf(true);
+
 		List<EcodDomain> domains = ecod.getAllDomains();
 //		domains = Arrays.asList(ecod.getDomainsById("e1yfbB2"));
 //		domains = Arrays.asList(ecod.getDomainsById("e1w50A2"));
@@ -86,9 +89,19 @@ public class EcodParseTest {
 				struct = cache.getStructure(d.getPdbId());
 				ca1 = StructureTools.getRepresentativeAtomArray(struct);
 			} catch (IOException e) {
-				logger.error("Error getting structure for "+d.getDomainId(),e);
-				errors++;
-				continue;
+				try {
+					// Work around bug #754 where mmtf downloads don't obey FETCH_OBSOLETE
+					cache.setUseMmtf(false);
+					struct = cache.getStructure(d.getPdbId());
+					ca1 = StructureTools.getRepresentativeAtomArray(struct);
+				} catch(Exception e2) {
+					// If still fails log original error
+					logger.error("Error getting structure for "+d.getDomainId(),e);
+					errors++;
+					continue;
+				} finally {
+					cache.setUseMmtf(true);
+				}
 			} catch (StructureException e) {
 				logger.error("Error getting structure for "+d.getDomainId(),e);
 				errors++;
@@ -184,6 +197,19 @@ public class EcodParseTest {
 			String pdbRangeStr = String.format("%s.%s",d.getPdbId(),d.getRange());
 			try {
 				cache.getStructure(pdbRangeStr);
+			} catch(FileNotFoundException e) {
+				try {
+					// Work around bug #754 where mmtf downloads don't obey FETCH_OBSOLETE
+					cache.setUseMmtf(false);
+					cache.getStructure(pdbRangeStr);
+				} catch(Exception e2) {
+					// If still fails log original error
+					logger.error("Can't get range "+pdbRangeStr,e);
+					errors++;
+					continue;
+				} finally {
+					cache.setUseMmtf(true);
+				}
 			} catch(Exception e) {
 				logger.error("Can't get range "+pdbRangeStr,e);
 				errors++;
