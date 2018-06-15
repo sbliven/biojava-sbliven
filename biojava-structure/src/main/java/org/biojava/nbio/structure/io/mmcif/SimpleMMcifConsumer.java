@@ -333,7 +333,12 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 			residueNrInt = Integer.parseInt(residueNumberS);
 		} else {
 			String label_seq_id = atom.getLabel_seq_id();
-			residueNrInt = Integer.parseInt(label_seq_id);
+			if (label_seq_id.equals(".")) {
+				logger.warn("No auth_seq_id for atom id {} (name {}) and label_seq_id is '.'. Will assign null as its residue number.", atom.getId(), atom.getLabel_atom_id());
+				residueNrInt = null;
+			} else {
+				residueNrInt = Integer.parseInt(label_seq_id);
+			}
 		}
 
 		// the 3-letter name of the group:
@@ -434,7 +439,7 @@ public class SimpleMMcifConsumer implements MMcifConsumer {
 		}
 
 
-		ResidueNumber residueNumber = new ResidueNumber(chain_id,residueNrInt, insCode);
+		ResidueNumber residueNumber = new ResidueNumber(chain_id, residueNrInt, insCode);
 
 		if (current_group == null) {
 

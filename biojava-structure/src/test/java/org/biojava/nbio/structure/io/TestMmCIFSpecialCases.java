@@ -43,6 +43,8 @@ public class TestMmCIFSpecialCases {
 	 * This tests for cases where dots appear in integer fields.
 	 * Unusual but it happens in some PDB entries like 1s32
 	 * See issue https://github.com/biojava/biojava/issues/368
+	 * See also http://mmcif.wwpdb.org/docs/tutorials/mechanics/pdbx-mmcif-syntax.html :
+	 * "A period (.) may be used to identify that there is no appropriate value for the item or that a value has been intentionally omitted."
 	 * @throws IOException
 	 */
 	@Test
@@ -138,7 +140,13 @@ public class TestMmCIFSpecialCases {
 				"ATOM   19   C CB  . ASN A 1 3   ? 44.295 6.652   9.469   1.00 19.42  ?  ASN A CB  1 \n" + 
 				"ATOM   20   C CG  . ASN A 1 3   ? 44.172 5.932   10.790  1.00 18.34  ?  ASN A CG  1 \n" + 
 				"ATOM   21   O OD1 . ASN A 1 3   ? 44.475 6.496   11.813  1.00 15.88  ?  ASN A OD1 1 \n" + 
-				"ATOM   22   N ND2 . ASN A 1 3   ? 43.685 4.690   10.761  1.00 19.73  ?  ASN A ND2 1 \n";
+				"ATOM   22   N ND2 . ASN A 1 3   ? 43.685 4.690   10.761  1.00 19.73  ?  ASN A ND2 1 \n" +
+				"HETATM 2295 S S   . SO4 F 4 .   ? 15.627 -18.482 14.195  0.80  8.29  ?  SO4 A S   1 \n" +
+				"HETATM 2296 O O1  . SO4 F 4 .   ? 16.930 -18.774 13.558  0.80  9.33  ?  SO4 A O1  1 \n" +
+				"HETATM 2297 O O2  . SO4 F 4 .   ? 14.875 -17.562 13.352  0.80  8.37  ?  SO4 A O2  1 \n" +
+				"HETATM 2298 O O3  . SO4 F 4 .   ? 14.807 -19.703 14.370  0.80 10.08  ?  SO4 A O3  1 \n" +
+				"HETATM 2299 O O4  . SO4 F 4 .   ? 15.877 -17.909 15.543  0.80  7.41  ?  SO4 A O4  1 \n" +
+				"HETATM 2300 ZN ZN . ZN  G 2 .   ? 24.029 19.001   9.192  1.00  8.15  ?   ZN A ZN  1";;
 		SimpleMMcifParser parser = new SimpleMMcifParser();
 		SimpleMMcifConsumer consumer = new SimpleMMcifConsumer();
 		parser.addMMcifConsumer(consumer);
@@ -156,10 +164,11 @@ public class TestMmCIFSpecialCases {
 			assertEquals(1, s.size());
 			int pos = 0;
 			for( Group g : chain.getAtomGroups()) {
-				// label_seq_id is stored in the id (biojava 4)
-				assertEquals(pos+1, ((AminoAcidImpl)g).getId());
-				
-				assertEquals(new ResidueNumber("A", pos+1, null), g.getResidueNumber());
+				if (g instanceof AminoAcidImpl) {
+					// label_seq_id is stored in the id (biojava 4)
+					assertEquals(pos + 1, ((AminoAcidImpl) g).getId());
+					assertEquals(new ResidueNumber("A", pos + 1, null), g.getResidueNumber());
+				}
 				
 				pos++;
 			}
@@ -171,51 +180,57 @@ public class TestMmCIFSpecialCases {
 		// taken from 1s32
 		String mmcifStr =
 				"data_\n" +
-				"loop_\n" + 
-				"_atom_site.group_PDB \n" + 
-				"_atom_site.id \n" + 
-				"_atom_site.type_symbol \n" + 
-				"_atom_site.label_atom_id \n" + 
-				"_atom_site.label_alt_id \n" + 
-				"_atom_site.label_comp_id \n" + 
-				"_atom_site.label_asym_id \n" + 
-				"_atom_site.label_entity_id \n" + 
+				"loop_\n" +
+				"_atom_site.group_PDB \n" +
+				"_atom_site.id \n" +
+				"_atom_site.type_symbol \n" +
+				"_atom_site.label_atom_id \n" +
+				"_atom_site.label_alt_id \n" +
+				"_atom_site.label_comp_id \n" +
+				"_atom_site.label_asym_id \n" +
+				"_atom_site.label_entity_id \n" +
 				"_atom_site.label_seq_id \n" + // 9
-				"_atom_site.pdbx_PDB_ins_code \n" + 
-				"_atom_site.Cartn_x \n" + 
-				"_atom_site.Cartn_y \n" + 
-				"_atom_site.Cartn_z \n" + 
-				"_atom_site.occupancy \n" + 
-				"_atom_site.B_iso_or_equiv \n" + 
-				"_atom_site.pdbx_formal_charge \n" + 
+				"_atom_site.pdbx_PDB_ins_code \n" +
+				"_atom_site.Cartn_x \n" +
+				"_atom_site.Cartn_y \n" +
+				"_atom_site.Cartn_z \n" +
+				"_atom_site.occupancy \n" +
+				"_atom_site.B_iso_or_equiv \n" +
+				"_atom_site.pdbx_formal_charge \n" +
 				"_atom_site.auth_seq_id \n" + // 17
-				"_atom_site.auth_comp_id \n" + 
-				"_atom_site.auth_asym_id \n" + 
-				"_atom_site.auth_atom_id \n" + 
-				"_atom_site.pdbx_PDB_model_num \n" + 
+				"_atom_site.auth_comp_id \n" +
+				"_atom_site.auth_asym_id \n" +
+				"_atom_site.auth_atom_id \n" +
+				"_atom_site.pdbx_PDB_model_num \n" +
 				// 1    2   3 4   5 6   7  8  9   10 11     12      13      14     15   16  18
-				"ATOM   1    N N   . SER A 1 1   ? 36.651 10.046  12.372  1.00 59.41  ? 42  SER A N   1 \n" + 
-				"ATOM   2    C CA  . SER A 1 1   ? 37.678 9.064   12.762  1.00 38.34  ? 42  SER A CA  1 \n" + 
-				"ATOM   3    C C   . SER A 1 1   ? 38.289 8.315   11.570  1.00 35.51  ? 42  SER A C   1 \n" + 
-				"ATOM   4    O O   . SER A 1 1   ? 38.067 7.099   11.349  1.00 28.94  ? 42  SER A O   1 \n" + 
-				"ATOM   5    C CB  . SER A 1 1   ? 37.086 8.105   13.777  1.00 37.47  ? 42  SER A CB  1 \n" + 
-				"ATOM   6    O OG  . SER A 1 1   ? 37.600 8.409   15.070  1.00 56.00  ? ?   SER A OG  1 \n" + 
-				"ATOM   7    N N   . MET A 1 2   ? 39.103 9.053   10.823  1.00 28.40  ? ?   MET A N   1 \n" + 
-				"ATOM   8    C CA  . MET A 1 2   ? 39.864 8.468   9.750   1.00 26.64  ? ?   MET A CA  1 \n" + 
-				"ATOM   9    C C   . MET A 1 2   ? 41.336 8.683   10.025  1.00 20.56  ? ?   MET A C   1 \n" + 
-				"ATOM   10   O O   . MET A 1 2   ? 41.754 9.676   10.626  1.00 17.95  ? ?   MET A O   1 \n" + 
-				"ATOM   11   C CB  . MET A 1 2   ? 39.487 9.121   8.424   1.00 26.07  ? ?   MET A CB  1 \n" + 
-				"ATOM   12   C CG  . MET A 1 2   ? 37.997 9.097   8.126   1.00 34.89  ? ?   MET A CG  1 \n" + 
-				"ATOM   13   S SD  . MET A 1 2   ? 37.509 10.484  7.069   1.00 40.57  ? ?   MET A SD  1 \n" + 
-				"ATOM   14   C CE  . MET A 1 2   ? 38.604 10.218  5.678   1.00 41.60  ? ?   MET A CE  1 \n" + 
-				"ATOM   15   N N   . ASN A 1 3   ? 42.136 7.731   9.595   1.00 16.88  ? 44  ASN A N   1 \n" + 
-				"ATOM   16   C CA  . ASN A 1 3   ? 43.573 7.996   9.483   1.00 16.32  ? 44  ASN A CA  1 \n" + 
-				"ATOM   17   C C   . ASN A 1 3   ? 43.851 8.741   8.194   1.00 13.33  ? 44  ASN A C   1 \n" + 
-				"ATOM   18   O O   . ASN A 1 3   ? 43.138 8.574   7.194   1.00 15.89  ? 44  ASN A O   1 \n" + 
-				"ATOM   19   C CB  . ASN A 1 3   ? 44.295 6.652   9.469   1.00 19.42  ? 44  ASN A CB  1 \n" + 
-				"ATOM   20   C CG  . ASN A 1 3   ? 44.172 5.932   10.790  1.00 18.34  ? 44  ASN A CG  1 \n" + 
-				"ATOM   21   O OD1 . ASN A 1 3   ? 44.475 6.496   11.813  1.00 15.88  ? 44  ASN A OD1 1 \n" + 
-				"ATOM   22   N ND2 . ASN A 1 3   ? 43.685 4.690   10.761  1.00 19.73  ? 44  ASN A ND2 1 \n";
+				"ATOM   1    N N   . SER A 1 1   ? 36.651 10.046  12.372  1.00 59.41  ? 42  SER A N   1 \n" +
+				"ATOM   2    C CA  . SER A 1 1   ? 37.678 9.064   12.762  1.00 38.34  ? 42  SER A CA  1 \n" +
+				"ATOM   3    C C   . SER A 1 1   ? 38.289 8.315   11.570  1.00 35.51  ? 42  SER A C   1 \n" +
+				"ATOM   4    O O   . SER A 1 1   ? 38.067 7.099   11.349  1.00 28.94  ? 42  SER A O   1 \n" +
+				"ATOM   5    C CB  . SER A 1 1   ? 37.086 8.105   13.777  1.00 37.47  ? 42  SER A CB  1 \n" +
+				"ATOM   6    O OG  . SER A 1 1   ? 37.600 8.409   15.070  1.00 56.00  ? ?   SER A OG  1 \n" +
+				"ATOM   7    N N   . MET A 1 2   ? 39.103 9.053   10.823  1.00 28.40  ? ?   MET A N   1 \n" +
+				"ATOM   8    C CA  . MET A 1 2   ? 39.864 8.468   9.750   1.00 26.64  ? ?   MET A CA  1 \n" +
+				"ATOM   9    C C   . MET A 1 2   ? 41.336 8.683   10.025  1.00 20.56  ? ?   MET A C   1 \n" +
+				"ATOM   10   O O   . MET A 1 2   ? 41.754 9.676   10.626  1.00 17.95  ? ?   MET A O   1 \n" +
+				"ATOM   11   C CB  . MET A 1 2   ? 39.487 9.121   8.424   1.00 26.07  ? ?   MET A CB  1 \n" +
+				"ATOM   12   C CG  . MET A 1 2   ? 37.997 9.097   8.126   1.00 34.89  ? ?   MET A CG  1 \n" +
+				"ATOM   13   S SD  . MET A 1 2   ? 37.509 10.484  7.069   1.00 40.57  ? ?   MET A SD  1 \n" +
+				"ATOM   14   C CE  . MET A 1 2   ? 38.604 10.218  5.678   1.00 41.60  ? ?   MET A CE  1 \n" +
+				"ATOM   15   N N   . ASN A 1 3   ? 42.136 7.731   9.595   1.00 16.88  ? 44  ASN A N   1 \n" +
+				"ATOM   16   C CA  . ASN A 1 3   ? 43.573 7.996   9.483   1.00 16.32  ? 44  ASN A CA  1 \n" +
+				"ATOM   17   C C   . ASN A 1 3   ? 43.851 8.741   8.194   1.00 13.33  ? 44  ASN A C   1 \n" +
+				"ATOM   18   O O   . ASN A 1 3   ? 43.138 8.574   7.194   1.00 15.89  ? 44  ASN A O   1 \n" +
+				"ATOM   19   C CB  . ASN A 1 3   ? 44.295 6.652   9.469   1.00 19.42  ? 44  ASN A CB  1 \n" +
+				"ATOM   20   C CG  . ASN A 1 3   ? 44.172 5.932   10.790  1.00 18.34  ? 44  ASN A CG  1 \n" +
+				"ATOM   21   O OD1 . ASN A 1 3   ? 44.475 6.496   11.813  1.00 15.88  ? 44  ASN A OD1 1 \n" +
+				"ATOM   22   N ND2 . ASN A 1 3   ? 43.685 4.690   10.761  1.00 19.73  ? 44  ASN A ND2 1 \n" +
+				"HETATM 2295 S S   . SO4 F 4 .   ? 15.627 -18.482 14.195  0.80  8.29  ? ?   SO4 A S   1 \n" +
+				"HETATM 2296 O O1  . SO4 F 4 .   ? 16.930 -18.774 13.558  0.80  9.33  ? 504 SO4 A O1  1 \n" +
+				"HETATM 2297 O O2  . SO4 F 4 .   ? 14.875 -17.562 13.352  0.80  8.37  ? 504 SO4 A O2  1 \n" +
+				"HETATM 2298 O O3  . SO4 F 4 .   ? 14.807 -19.703 14.370  0.80 10.08  ? 504 SO4 A O3  1 \n" +
+				"HETATM 2299 O O4  . SO4 F 4 .   ? 15.877 -17.909 15.543  0.80  7.41  ? 504 SO4 A O4  1 \n" +
+				"HETATM 2300 ZN ZN . ZN  G 2 .   ? 24.029 19.001   9.192  1.00  8.15  ? 505  ZN A ZN  1";
 		SimpleMMcifParser parser = new SimpleMMcifParser();
 		SimpleMMcifConsumer consumer = new SimpleMMcifConsumer();
 		parser.addMMcifConsumer(consumer);
