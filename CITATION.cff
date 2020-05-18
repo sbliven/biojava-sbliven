@@ -5,7 +5,7 @@ version: 5.2.1
 date-released: 2019-02-05
 doi: 10.5281/zenodo.2557853
 commit: 783065396f92f14c3fb6e2b9a684a17aa46bb974
-url: http://www.biojava.org
+url: https://www.biojava.org
 repository-code: https://github.com/biojava/biojava/
 license: LGPL-2.1-only
 abstract: >-
@@ -74,10 +74,10 @@ references:
     authors:
       - family-names: Lafita
         given-names: Aleix
-        orcid: http://orcid.org/0000-0003-1549-3162
+        orcid: https://orcid.org/0000-0003-1549-3162
       - family-names: Bliven
         given-names: Spencer E
-        orcid: http://orcid.org/0000-0002-1200-1698
+        orcid: https://orcid.org/0000-0002-1200-1698
       - family-names: Prlić
         given-names: Andreas
         orcid: https://orcid.org/0000-0001-6346-6391
@@ -86,37 +86,37 @@ references:
         orcid: https://orcid.org/0000-0002-8688-7460
       - family-names: Rose
         given-names: Peter W
-        orcid: http://orcid.org/0000-0001-9981-9750
+        orcid: https://orcid.org/0000-0001-9981-9750
       - family-names: Bradley
         given-names: Anthony
-        orcid: http://orcid.org/0000-0002-0881-3490
+        orcid: https://orcid.org/0000-0002-0881-3490
       - family-names: Pavan
         given-names: Paolo
       - family-names: Myers-Turnbull
         given-names: Douglas
-        orcid: http://orcid.org/0000-0003-3610-4808
+        orcid: https://orcid.org/0000-0003-3610-4808
       - family-names: Valasatava
         given-names: Yana
-        orcid: http://orcid.org/0000-0003-1018-5718
+        orcid: https://orcid.org/0000-0003-1018-5718
       - family-names: Heuer
         given-names: Michael
-        orcid: http://orcid.org/0000-0002-9052-6000
+        orcid: https://orcid.org/0000-0002-9052-6000
       - family-names: Larson
         given-names: Matt
-        orcid: http://orcid.org/0000-0003-2116-5747
+        orcid: https://orcid.org/0000-0003-2116-5747
       - family-names: Burley
         given-names: Stephen K
       - family-names: Duarte
         given-names: Jose M
-        orcid: http://orcid.org/0000-0002-9544-5621
+        orcid: https://orcid.org/0000-0002-9544-5621
     title: "BioJava 5: A community driven open-source bioinformatics library"
     year: 2019
     journal: PLOS Computational Biology
     volume: 15
     number: "2"
-    section: e1006791
+    start: e1006791
     doi: 10.1371/journal.pcbi.1006791
-    url: http://dx.plos.org/10.1371/journal.pcbi.1006791
+    url: https://dx.plos.org/10.1371/journal.pcbi.1006791
 
   - type: article
     authors:
@@ -157,7 +157,8 @@ references:
     year: 2012
     volume: 28
     number: "20"
-    section: 2693-2695
+    start: 2693
+    end: 2695
     doi: 10.1093/bioinformatics/bts494
 
   - type: article
@@ -189,7 +190,8 @@ references:
     year: 2008
     volume: 24
     number: "18"
-    section: 2096-2097
+    start: 2096
+    end: 2097
     doi: 10.1093/bioinformatics/btn397
 
 
