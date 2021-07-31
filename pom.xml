@@ -244,7 +244,7 @@
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-surefire-plugin</artifactId>
             <version>3.0.0-M5</version>
-            
+
              </plugin>
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
@@ -320,7 +320,7 @@
 					<artifactId>maven-install-plugin</artifactId>
 					<version>3.0.0-M1</version>
 				</plugin>
-			
+
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-site-plugin</artifactId>
@@ -413,7 +413,7 @@
                 <version>${junit-jupiter.version}</version>
                 <scope>test</scope>
             </dependency>
-		  
+
             <dependency>
                 <groupId>org.junit.jupiter</groupId>
                 <artifactId>junit-jupiter-engine</artifactId>
@@ -425,7 +425,7 @@
                 <artifactId>junit-jupiter-params</artifactId>
                 <version>${junit-jupiter.version}</version>
                 <scope>test</scope>
-            </dependency>	
+            </dependency>
 			<dependency>
 				<groupId>org.slf4j</groupId>
 				<artifactId>slf4j-api</artifactId>
@@ -699,6 +699,6 @@
 	</issueManagement>
 	<ciManagement>
 			<system>Travis</system>
-			<url>https://travis-ci.org/biojava/biojava</url>
+			<url>https://travis-ci.com/biojava/biojava</url>
 	</ciManagement>
 </project>
