@@ -1,7 +1,4 @@
 # The BioJava structure module
-
-[![Build Status](https://travis-ci.org/biojava/biojava.svg?branch=master)](https://travis-ci.org/biojava/biojava) [![License](http://img.shields.io/badge/license-LGPLv2-blue.svg?style=flat)](https://github.com/biojava/biojava/blob/master/LICENSE)
-
 ## About
 <table>
     <tr>
@@ -9,7 +6,7 @@
             <img src="https://raw.github.com/biojava/biojava3-tutorial/master/structure/img/4hhb_jmol.png"/>
         </td>
         <td>
-            The <i>protein structure modules</i> of BioJava provide an API that allows to 
+            The <i>protein structure modules</i> of BioJava provide an API that allows to
             <ul>
                 <li>Maintain local installations of PDB</li>
                 <li>Load structures and manipulate them</li>
@@ -18,7 +15,7 @@
             </ul>
         </td>
     </tr>
-</table>  
+</table>
 
 ## Tutorial
 

@@ -1,6 +1,10 @@
 # Welcome to <img src="logo-full.png" height="35"/>
 
-[![Build Status](https://travis-ci.org/biojava/biojava.svg?branch=master)](https://travis-ci.org/biojava/biojava) [![Version](http://img.shields.io/badge/version-5.4.0-blue.svg?style=flat)](https://github.com/biojava/biojava/releases/tag/biojava-5.4.0) [![License](http://img.shields.io/badge/license-LGPL_2.1-blue.svg?style=flat)](https://github.com/biojava/biojava/blob/master/LICENSE) [![Join the chat at https://gitter.im/biojava/biojava](https://badges.gitter.im/biojava/biojava.svg)](https://gitter.im/biojava/biojava?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Build Status Travis-CI](https://travis-ci.com/biojava/biojava.svg?branch=master)](https://travis-ci.com/biojava/biojava)
+[![Build Status Github](https://github.com/biojava/biojava/actions/workflows/ci.yaml/badge.svg)](https://github.com/biojava/biojava/actions)
+[![Version](http://img.shields.io/badge/version-5.4.0-blue.svg?style=flat)](https://github.com/biojava/biojava/releases/tag/biojava-5.4.0)
+[![License](http://img.shields.io/badge/license-LGPL_2.1-blue.svg?style=flat)](https://github.com/biojava/biojava/blob/master/LICENSE)
+[![Join the chat at https://gitter.im/biojava/biojava](https://badges.gitter.im/biojava/biojava.svg)](https://gitter.im/biojava/biojava?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 
 BioJava is an open-source project dedicated to providing a Java framework for **processing biological data**. It provides analytical and statistical routines, parsers for common file formats, reference implementations of popular algorithms, and allows the manipulation of sequences and 3D structures. The goal of the biojava project is to facilitate rapid application development for bioinformatics.
@@ -9,7 +13,7 @@ Please visit our [homepage](http://biojava.org/).
 
 ### Documentation
 
-The [BioJava tutorial](https://github.com/biojava/biojava-tutorial) is a great place to get started. It is most complete for the biojava-structure module. 
+The [BioJava tutorial](https://github.com/biojava/biojava-tutorial) is a great place to get started. It is most complete for the biojava-structure module.
 
 The [BioJava Cookbook](http://biojava.org/wiki/BioJava:CookBook4.0/) contains an older and slightly outdated collection of simple examples that teach the basics for how to work with BioJava.
 
@@ -64,7 +68,7 @@ BioJava has one main mailing list. In order to avoid SPAM the list only accepts 
 This list is intended for general discussion, advice, questions, offers of help, announcements, expressions of appreciation, bugs found in release code and requests for features.
 
 #### biojava-dev developers list
- 
+
 A [dev mailing list](http://lists.open-bio.org/mailman/listinfo/biojava-dev) used to exist, but it has now been shut down. For dev discussions we now use github issues. Please search existing issues and if you don't find the answer to your question submit a new issue.
 
 ### Please cite
