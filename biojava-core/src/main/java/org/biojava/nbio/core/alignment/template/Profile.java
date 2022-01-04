@@ -45,12 +45,77 @@ public interface Profile<S extends Sequence<C>, C extends Compound> extends Iter
 	 * List of output formats.
 	 */
 	enum StringFormat {
+		/**
+		 * Default format (same as CLUSTALW)
+		 */
 		ALN,
+		/**
+		 * Clustal W format
+		 *
+		 * <h4>Example</h4>
+		 * <pre><code>CLUSTAL W MSA from BioJava
+		 *
+		 *query     ERNDKK 7
+		 *          || | |
+		 *target    ER-DNK 5
+		 *</code></pre>
+		 */
 		CLUSTALW,
+		/**
+		 * Fasta format with gaps
+		 *
+		 * <h4>Example</h4>
+		 * <pre><code>&gt;query
+		 *ERNDKK
+		 *&gt;target
+		 *ER-DNK
+		 *</code></pre>
+		 */
 		FASTA,
+		/**
+		 * Alias for MSF
+		 */
 		GCG,
+		/**
+		 * A verbose text-based format
+		 *
+		 * <h4>Example</h4>
+		 * <pre><code>MSA from BioJava
+		 *
+		 * MSF: 6  Type: P  Check: 3044 ..
+		 *
+		 * Name: query   Len: 6  Check: 1564  Weight: 1.0
+		 * Name: target  Len: 6  Check: 1480  Weight: 1.0
+		 *
+		 *&#47;/
+		 *
+		 *query  ERNDKK
+		 *target ER-DNK
+		 *</code></pre>
+		 */
 		MSF,
-		PDBWEB
+		/**
+		 * HTML div suitable for embedding in a website.
+		 *
+		 * Expects css classes for "m" (match), "sm" (similar), "qg" (mismatch) and
+		 * "dm" (indel).
+		 *
+		 * <h4>Example</h4>
+		 * <pre><code>&lt;div&gt;&lt;pre&gt;     query 2 &lt;span class=&quot;m&quot;&gt;E&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;R&lt;/span&gt;&lt;span class=&quot;dm&quot;&gt;N&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;D&lt;/span&gt;&lt;span class=&quot;qg&quot;&gt;K&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;K&lt;/span&gt; 7
+		 *             &lt;span class=&quot;m&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;dm&quot;&gt; &lt;/span&gt;&lt;span class=&quot;m&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;qg&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;|&lt;/span&gt;
+		 *    target 1 &lt;span class=&quot;m&quot;&gt;E&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;R&lt;/span&gt;&lt;span class=&quot;dm&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;D&lt;/span&gt;&lt;span class=&quot;qg&quot;&gt;N&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;K&lt;/span&gt; 5
+		 *&lt;/pre&gt;&lt;/div&gt;          &lt;div class=&quot;subText&quot;&gt;          &lt;b&gt;Legend:&lt;/b&gt;          &lt;span class=&quot;m&quot;&gt;Green&lt;/span&gt; - identical residues |          &lt;span class=&quot;sm&quot;&gt;Pink&lt;/span&gt; - similar residues |           &lt;span class=&quot;qg&quot;&gt;Blue&lt;/span&gt; - sequence mismatch |          &lt;span class=&quot;dm&quot;&gt;Brown&lt;/span&gt; - insertion/deletion |      &lt;/div&gt;
+		 *</code></pre>
+		 *
+		 * Which renders as
+		 *
+		 * <div><pre>     query 2 <span style="color:green">E</span><span style="color:green">R</span><span style="color:brown">N</span><span style="color:green">D</span><span style="color:blue">K</span><span style="color:green">K</span> 7
+		 *             <span style="color:green">|</span><span style="color:green">|</span><span style="color:brown"> </span><span style="color:green">|</span><span style="color:blue">&nbsp;</span><span style="color:green">|</span>
+		 *    target 1 <span style="color:green">E</span><span style="color:green">R</span><span style="color:brown">-</span><span style="color:green">D</span><span style="color:blue">N</span><span style="color:green">K</span> 5
+		 *</pre></div>
+		 *<div class="subText">          <b>Legend:</b>          <span style="color:green">Green</span> - identical residues |          <span style="color:pink">Pink</span> - similar residues |           <span style="color:blue">Blue</span> - sequence mismatch |          <span style="color:brown">Brown</span> - insertion/deletion |      </div>
+		 */
+		PDBWEB,
 	}
 
 	/**
@@ -101,8 +166,9 @@ public interface Profile<S extends Sequence<C>, C extends Compound> extends Iter
 	 * @param listIndex index of sequence in profile
 	 * @param alignmentIndex column index within an alignment
 	 * @return the sequence element
-	 * @throws IndexOutOfBoundsException if listIndex < 1, listIndex > number of sequences, alignmentIndex < 1, or
-	 *     alignmentIndex > {@link #getLength()}
+	 * @throws IndexOutOfBoundsException if listIndex &lt; 1,
+	 *     listIndex &gt; number of sequences, alignmentIndex &lt; 1, or
+	 *     alignmentIndex &gt; {@link #getLength()}
 	 */
 	C getCompoundAt(int listIndex, int alignmentIndex);
 
