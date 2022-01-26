@@ -1,0 +1,4 @@
+<div><pre>     Query 1 <span class="dm">A</span><span class="m">R</span><span class="dm">N</span><span class="m">D</span><span class="dm">-</span> 4
+             <span class="dm"> </span><span class="m">|</span><span class="dm"> </span><span class="m">|</span><span class="dm"> </span>
+    Target 1 <span class="dm">-</span><span class="m">R</span><span class="dm">-</span><span class="m">D</span><span class="dm">G</span> 3
+</pre></div>          <div class="subText">          <b>Legend:</b>          <span class="m">Green</span> - identical residues |          <span class="sm">Pink</span> - similar residues |           <span class="qg">Blue</span> - sequence mismatch |          <span class="dm">Brown</span> - insertion/deletion |      </div>

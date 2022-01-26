@@ -23,24 +23,32 @@
 
 package org.biojava.nbio.core.sequence;
 
-import org.biojava.nbio.core.exceptions.CompoundNotFoundException;
-import org.biojava.nbio.core.sequence.compound.AminoAcidCompound;
-import org.biojava.nbio.core.sequence.compound.AminoAcidCompoundSet;
-import org.biojava.nbio.core.sequence.compound.DNACompoundSet;
-import org.biojava.nbio.core.sequence.compound.NucleotideCompound;
-import org.biojava.nbio.core.sequence.template.LightweightProfile;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.biojava.nbio.core.exceptions.CompoundNotFoundException;
+import org.biojava.nbio.core.sequence.compound.AminoAcidCompound;
+import org.biojava.nbio.core.sequence.compound.AminoAcidCompoundSet;
+import org.biojava.nbio.core.sequence.compound.DNACompoundSet;
+import org.biojava.nbio.core.sequence.compound.NucleotideCompound;
+import org.biojava.nbio.core.sequence.template.LightweightProfile;
+import org.biojava.nbio.core.sequence.template.LightweightProfile.StringFormat;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 
 class MultipleSequenceAlignmentTest {
@@ -50,7 +58,7 @@ class MultipleSequenceAlignmentTest {
 
 	private static final String aaSeq = "ARNDCEQGHILKMFPSTWYVBZJX";
 	@BeforeEach
-	 void setup() throws CompoundNotFoundException {
+	void setup() throws CompoundNotFoundException {
 		msaProteins = new MultipleSequenceAlignment<>();
 		for (int i = 0; i < 8; i++) {
 			ProteinSequence ps = new ProteinSequence(aaSeq);
@@ -81,9 +89,21 @@ class MultipleSequenceAlignmentTest {
 
 	@ParameterizedTest
 	@EnumSource(LightweightProfile.StringFormat.class)
-	void formattedAlignmentToString(LightweightProfile.StringFormat format){
+	void formattedLightweightAlignmentToString(LightweightProfile.StringFormat format) throws IOException{
 		String formatted = msaProteins.toString(format);
 		assertTrue(formatted.length() > 0);
+		String expected = getExpectedMSA(format);
+		assertNotNull(expected);
+		assertEquals(expected, formatted);
+	}
+
+	private String getExpectedMSA(StringFormat format) throws IOException {
+		String resource = String.format("MultipleSequenceAlignmentTest.%s", format);
+		InputStream contents = MultipleSequenceAlignmentTest.class.getResourceAsStream(resource);
+		if(contents == null) {
+			return null;
+		}
+		return new String(contents.readAllBytes(), StandardCharsets.UTF_8);
 	}
 
 	@Test

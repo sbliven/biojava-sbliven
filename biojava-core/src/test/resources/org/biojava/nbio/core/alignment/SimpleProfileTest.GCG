@@ -1,0 +1,11 @@
+MSA from BioJava
+
+ MSF: 5  Type: P  Check: 1931 ..
+
+ Name: Query   Len: 5  Check:  960  Weight: 1.0
+ Name: Target  Len: 5  Check:  971  Weight: 1.0
+
+//
+
+Query  ARND-
+Target -R-DG
