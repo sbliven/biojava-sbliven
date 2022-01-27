@@ -44,7 +44,8 @@ public interface LightweightProfile<S extends Sequence<C>, C extends Compound> {
 		FASTA,
 		GCG,
 		MSF,
-		PDBWEB
+		PDBWEB,
+		CONCENSUS,
 	}
 
 	/**
@@ -121,4 +122,12 @@ public interface LightweightProfile<S extends Sequence<C>, C extends Compound> {
 	 */
 	String toString(StringFormat format);
 
+	/**
+	 * Returns a formatted view of the alignment profile.  Details depend on the format given.
+	 *
+	 * @param format output format
+	 * @param width limit on the line length
+	 * @return a formatted view of the alignment profile
+	 */
+	String toString(StringFormat format, int width);
 }

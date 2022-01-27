@@ -28,6 +28,8 @@ import org.biojava.nbio.core.sequence.template.Compound;
 import org.biojava.nbio.core.sequence.template.CompoundSet;
 import org.biojava.nbio.core.sequence.template.LightweightProfile;
 import org.biojava.nbio.core.sequence.template.Sequence;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -41,6 +43,7 @@ import java.util.List;
  * @author Mark Chapman
  */
 public class MultipleSequenceAlignment<S extends Sequence<C>, C extends Compound> implements LightweightProfile<S, C> {
+	private static Logger logger = LoggerFactory.getLogger(MultipleSequenceAlignment.class);
 
 	private List<S> sequences = new ArrayList<S>();
 	private Integer length = null;
@@ -149,22 +152,37 @@ public class MultipleSequenceAlignment<S extends Sequence<C>, C extends Compound
 	 * @return String in one of the supported file formats.
 	 */
 	@Override
-	public String toString(StringFormat format) {
+	public String toString(StringFormat format, int width) {
 		switch (format) {
+		default:
+			logger.warn("Unrecognized StringFormat {}", format);
+			// fall through
 		case ALN:
 		case CLUSTALW:
-		default:
-			return toString(60, String.format("CLUSTAL W MSA from BioJava%n%n"), IOUtils.getIDFormat(sequences) +
+			return toString(width, String.format("CLUSTAL W MSA from BioJava%n%n"), IOUtils.getIDFormat(sequences) +
 					"   ", true, false, true, false);
 		case FASTA:
-			return toString(60, null, ">%s%n", false, false, false, false);
+			return toString(width, null, ">%s%n", false, false, false, false);
 		case GCG:
 		case MSF:
-			return toString(50, IOUtils.getGCGHeader(sequences), IOUtils.getIDFormat(sequences), true, false, false,
+			return toString(width, IOUtils.getGCGHeader(sequences), IOUtils.getIDFormat(sequences), true, false, false,
 					false);
 		case PDBWEB:
-			return toString(60, null, "%s", true, false, true, true);
+			return toString(width, null, "%s", true, false, true, true);
+		case CONCENSUS:
+			return toString(width, null, null, true, false, true, false);
 		}
+	}
+
+	@Override
+	public String toString(StringFormat format) {
+		int width;
+		if(format == StringFormat.GCG || format == StringFormat.MSF) {
+			width = 50;
+		} else {
+			width = 60;
+		}
+		return toString(format, width);
 	}
 
 	/**

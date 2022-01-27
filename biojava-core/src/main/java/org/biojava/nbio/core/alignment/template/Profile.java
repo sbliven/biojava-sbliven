@@ -116,6 +116,7 @@ public interface Profile<S extends Sequence<C>, C extends Compound> extends Iter
 		 *<div class="subText">          <b>Legend:</b>          <span style="color:green">Green</span> - identical residues |          <span style="color:pink">Pink</span> - similar residues |           <span style="color:blue">Blue</span> - sequence mismatch |          <span style="color:brown">Brown</span> - insertion/deletion |      </div>
 		 */
 		PDBWEB,
+		CONCENSUS,
 	}
 
 	/**
@@ -340,5 +341,14 @@ public interface Profile<S extends Sequence<C>, C extends Compound> extends Iter
 	 * @return a formatted view of the alignment profile
 	 */
 	String toString(StringFormat format);
+
+	/**
+	 * Returns a formatted view of the alignment profile.  Details depend on the format given.
+	 *
+	 * @param format output format
+	 * @param width limit on the line length
+	 * @return a formatted view of the alignment profile
+	 */
+	String toString(StringFormat format, int width);
 
 }

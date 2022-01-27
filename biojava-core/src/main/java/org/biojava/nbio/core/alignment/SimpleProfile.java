@@ -37,6 +37,8 @@ import org.biojava.nbio.core.sequence.location.template.Location;
 import org.biojava.nbio.core.sequence.template.Compound;
 import org.biojava.nbio.core.sequence.template.CompoundSet;
 import org.biojava.nbio.core.sequence.template.Sequence;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.*;
@@ -51,7 +53,7 @@ import java.util.*;
  * @param <C> each element of an {@link AlignedSequence} is a {@link Compound} of type C
  */
 public class SimpleProfile<S extends Sequence<C>, C extends Compound> implements Serializable, Profile<S, C> {
-
+	private static Logger logger = LoggerFactory.getLogger(SimpleProfile.class);
 
 	private static final long serialVersionUID = 1L;
 
@@ -376,25 +378,38 @@ public class SimpleProfile<S extends Sequence<C>, C extends Compound> implements
 	}
 
 	@Override
-	public String toString(StringFormat format) {
+	public String toString(StringFormat format, int width) {
 		switch (format) {
+		default:
+			logger.warn("Unrecognized StringFormat {}", format);
+			// fall through
 		case ALN:
 		case CLUSTALW:
-		default:
-			return toString(60, String.format("CLUSTAL W MSA from BioJava%n%n"), IOUtils.getIDFormat(list) + "   ",
+			return toString(width, String.format("CLUSTAL W MSA from BioJava%n%n"), IOUtils.getIDFormat(list) + "   ",
 					false, true, true, false, true, false);
 		case FASTA:
-			return toString(60, null, ">%s%n", false, false, false, false, false, false);
+			return toString(width, null, ">%s%n", false, false, false, false, false, false);
 		case GCG:
 		case MSF:
-			return toString(50, IOUtils.getGCGHeader(list), IOUtils.getIDFormat(list), false, false, true, false,
+			return toString(width, IOUtils.getGCGHeader(list), IOUtils.getIDFormat(list), false, false, true, false,
 					false, false);
 		case PDBWEB:
-			return toString(60, null, "%10s", true, true, true, false, true, true);
+			return toString(width, null, "%10s", true, true, true, false, true, true);
+		case CONCENSUS:
+			return toString(width, null, null, false, true, true, false, true, false);
 		}
 	}
 
-	// method from Object
+	@Override
+	public String toString(StringFormat format) {
+		int width;
+		if(format == StringFormat.GCG || format == StringFormat.MSF) {
+			width = 50;
+		} else {
+			width = 60;
+		}
+		return toString(format, width);
+	}
 
 	@Override
 	public String toString() {
